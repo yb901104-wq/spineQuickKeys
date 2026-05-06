@@ -1,0 +1,37 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "D:\\AI AGENT\\spineKuaijieanjian\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{20C7341D-4105-49B3-ADC4-2063869CFD3E}|KeyMacro\\KeyMacro.csproj|d:\\ai agent\\spinekuaijieanjian\\keymacro\\forms\\mainform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{20C7341D-4105-49B3-ADC4-2063869CFD3E}|KeyMacro\\KeyMacro.csproj|solutionrelative:keymacro\\forms\\mainform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "MainForm.cs",
+              "DocumentMoniker": "D:\\AI AGENT\\spineKuaijieanjian\\KeyMacro\\Forms\\MainForm.cs",
+              "RelativeDocumentMoniker": "KeyMacro\\Forms\\MainForm.cs",
+              "ToolTip": "D:\\AI AGENT\\spineKuaijieanjian\\KeyMacro\\Forms\\MainForm.cs",
+              "RelativeToolTip": "KeyMacro\\Forms\\MainForm.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAuwBoAAAAsAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-05-06T14:04:15.893Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
