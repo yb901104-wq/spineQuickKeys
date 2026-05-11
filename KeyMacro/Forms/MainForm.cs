@@ -16,11 +16,13 @@ public partial class MainForm : Form
     private DataGridView _dgv = null!;
     private Button _btnAdd = null!, _btnEdit = null!, _btnDelete = null!;
     private Button _btnTest = null!, _btnPause = null!;
+    private Button _btnLoadSpine = null!, _btnViewSpine = null!;
     private ToolStripMenuItem? _pauseTrayItem;
+    private List<Services.SpineHotkeyCategory>? _spineHotkeys;
 
     public MainForm()
     {
-        Text = "快捷键助手 V1.0";
+        Text = "快捷键助手 V1.1";
         Size = new Size(900, 600);
         MinimumSize = new Size(600, 400);
         StartPosition = FormStartPosition.CenterScreen;
@@ -48,14 +50,20 @@ public partial class MainForm : Form
         _btnDelete = CreateButton("删除", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
         _btnTest = CreateButton("测试", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
         _btnPause = CreateButton("暂停全部", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
+        _btnLoadSpine = CreateButton("载入Spine热键", Color.FromArgb(0x6B, 0x46, 0xC3), Color.White);
+        _btnViewSpine = CreateButton("查看Spine热键", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
 
         _btnAdd.Click += (_, _) => AddSequence();
         _btnEdit.Click += (_, _) => EditSequence();
         _btnDelete.Click += (_, _) => DeleteSequence();
         _btnTest.Click += (_, _) => TestSequence();
         _btnPause.Click += (_, _) => TogglePause();
+        _btnLoadSpine.Click += (_, _) => LoadSpineHotkeys();
+        _btnViewSpine.Click += (_, _) => ViewSpineHotkeys();
 
-        toolStrip.Controls.AddRange([_btnAdd, _btnEdit, _btnDelete, _btnTest, _btnPause]);
+        _btnViewSpine.Visible = false;
+
+        toolStrip.Controls.AddRange([_btnAdd, _btnEdit, _btnDelete, _btnTest, _btnPause, _btnLoadSpine, _btnViewSpine]);
         Controls.Add(toolStrip);
 
         _dgv = new DataGridView
@@ -158,20 +166,32 @@ public partial class MainForm : Form
 
     private void Dgv_CellClick(object? sender, DataGridViewCellEventArgs e)
     {
-        if (e.ColumnIndex != 6 || e.RowIndex < 0 || e.RowIndex >= _sequences.Count) return;
+        if (e.RowIndex < 0 || e.RowIndex >= _sequences.Count) return;
         var seq = _sequences[e.RowIndex];
-        using var dialog = new OpenFileDialog
+
+        if (e.ColumnIndex == 6)
         {
-            Title = "选择目标程序",
-            Filter = "可执行文件 (*.exe)|*.exe",
-            CheckFileExists = true
-        };
-        if (!string.IsNullOrEmpty(seq.TargetAppPath))
-            dialog.InitialDirectory = Path.GetDirectoryName(seq.TargetAppPath);
-        if (dialog.ShowDialog() == DialogResult.OK)
+            using var dialog = new OpenFileDialog
+            {
+                Title = "选择目标程序",
+                Filter = "可执行文件 (*.exe)|*.exe",
+                CheckFileExists = true
+            };
+            if (!string.IsNullOrEmpty(seq.TargetAppPath))
+                dialog.InitialDirectory = Path.GetDirectoryName(seq.TargetAppPath);
+            if (dialog.ShowDialog() == DialogResult.OK)
+            {
+                seq.TargetAppPath = dialog.FileName;
+                SaveAndRefresh();
+            }
+        }
+        else if (e.ColumnIndex == 7)
         {
-            seq.TargetAppPath = dialog.FileName;
-            SaveAndRefresh();
+            if (!string.IsNullOrEmpty(seq.TargetAppPath))
+            {
+                seq.TargetAppPath = "";
+                SaveAndRefresh();
+            }
         }
     }
 
@@ -259,6 +279,61 @@ public partial class MainForm : Form
             _pauseTrayItem.Text = paused ? "恢复全部" : "暂停全部";
     }
 
+    private void LoadSpineHotkeys()
+    {
+        var spineDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Spine", "settings");
+        using var dialog = new OpenFileDialog
+        {
+            Title = "选择 Spine 热键文件",
+            Filter = "文本文件 (*.txt)|*.txt",
+            InitialDirectory = Directory.Exists(spineDir) ? spineDir : Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            CheckFileExists = true
+        };
+        if (dialog.ShowDialog() != DialogResult.OK) return;
+
+        try
+        {
+            _spineHotkeys = Services.SpineHotkeyParser.Parse(dialog.FileName);
+            var totalEntries = _spineHotkeys.Sum(c => c.Entries.Count);
+            MessageBox.Show(
+                $"成功载入 {_spineHotkeys.Count} 个分类, {totalEntries} 个热键。",
+                "载入成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+            _btnViewSpine.Visible = true;
+            ViewSpineHotkeys();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"载入失败: {ex.Message}", "错误",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void ViewSpineHotkeys()
+    {
+        if (_spineHotkeys == null)
+        {
+            MessageBox.Show("请先载入 Spine 热键文件。", "提示",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        using var viewer = new SpineHotkeyViewer(_spineHotkeys);
+        if (viewer.ShowDialog() == DialogResult.OK && viewer.ImportedEntries.Count > 0)
+        {
+            foreach (var entry in viewer.ImportedEntries)
+            {
+                _sequences.Add(new Models.MacroSequence
+                {
+                    Name = entry.Name,
+                    TriggerHotkey = entry.NormalizedShortcut,
+                    Steps = []
+                });
+            }
+            SaveAndRefresh();
+        }
+    }
+
     private void ExitApp()
     {
         _hotkeyService.Dispose();
@@ -308,6 +383,14 @@ public partial class MainForm : Form
         {
             HeaderText = "选择",
             Text = "...",
+            UseColumnTextForButtonValue = true,
+            Width = 50,
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.None
+        });
+        _dgv.Columns.Add(new DataGridViewButtonColumn
+        {
+            HeaderText = "清除",
+            Text = "✕",
             UseColumnTextForButtonValue = true,
             Width = 50,
             AutoSizeMode = DataGridViewAutoSizeColumnMode.None

@@ -1,9 +1,16 @@
+using System.Runtime.InteropServices;
 using KeyMacro.Models;
 
 namespace KeyMacro.Services;
 
 public class MacroPlayer
 {
+    private const uint KEYEVENTF_KEYDOWN = 0x0000;
+    private const uint KEYEVENTF_KEYUP = 0x0002;
+
+    [DllImport("user32.dll")]
+    private static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+
     private volatile bool _isPlaying;
     private CancellationTokenSource? _cts;
 
@@ -27,17 +34,24 @@ public class MacroPlayer
                 {
                     ct.ThrowIfCancellationRequested();
 
-                    switch (step.Type)
+                    if (step.PressMode == PressMode.Hold && step.Type != StepType.Text)
                     {
-                        case StepType.Key:
-                            SendKey(step.Keys);
-                            break;
-                        case StepType.Combo:
-                            SendCombo(step.Keys);
-                            break;
-                        case StepType.Text:
-                            SendText(step.Keys);
-                            break;
+                        await PlayHold(step, ct);
+                    }
+                    else
+                    {
+                        switch (step.Type)
+                        {
+                            case StepType.Key:
+                                SendKey(step.Keys);
+                                break;
+                            case StepType.Combo:
+                                SendCombo(step.Keys);
+                                break;
+                            case StepType.Text:
+                                SendText(step.Keys);
+                                break;
+                        }
                     }
 
                     if (step.DelayMs > 0)
@@ -57,6 +71,74 @@ public class MacroPlayer
     }
 
     public void Stop() => _cts?.Cancel();
+
+    private static async Task PlayHold(MacroStep step, CancellationToken ct)
+    {
+        var duration = step.HoldDurationMs > 0 ? step.HoldDurationMs : 500;
+
+        if (step.Type == StepType.Combo)
+        {
+            var (modifiers, keyVk) = ParseCombo(step.Keys);
+            if (keyVk == 0) return;
+
+            foreach (var mod in modifiers)
+                keybd_event(mod, 0, KEYEVENTF_KEYDOWN, UIntPtr.Zero);
+
+            keybd_event(keyVk, 0, KEYEVENTF_KEYDOWN, UIntPtr.Zero);
+            await Task.Delay(duration, ct);
+            keybd_event(keyVk, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+
+            for (int i = modifiers.Length - 1; i >= 0; i--)
+                keybd_event(modifiers[i], 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+        }
+        else
+        {
+            if (!TryGetVk(step.Keys, out var vk)) return;
+            keybd_event(vk, 0, KEYEVENTF_KEYDOWN, UIntPtr.Zero);
+            await Task.Delay(duration, ct);
+            keybd_event(vk, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+        }
+    }
+
+    private static (byte[] modifiers, byte keyVk) ParseCombo(string combo)
+    {
+        var parts = combo.Split('+', StringSplitOptions.TrimEntries);
+        if (parts.Length < 2)
+        {
+            TryGetVk(combo, out var vk);
+            return ([], vk);
+        }
+
+        var modifiers = new List<byte>();
+        foreach (var mod in parts.Take(parts.Length - 1))
+        {
+            var vk = mod.ToLower() switch
+            {
+                "ctrl" => (byte)Keys.ControlKey,
+                "alt" => (byte)Keys.Menu,
+                "shift" => (byte)Keys.ShiftKey,
+                "win" => (byte)Keys.LWin,
+                _ => (byte)0
+            };
+            if (vk != 0) modifiers.Add(vk);
+        }
+
+        TryGetVk(parts[^1], out var keyVk);
+        return (modifiers.ToArray(), keyVk);
+    }
+
+    private static bool TryGetVk(string key, out byte vk)
+    {
+        vk = 0;
+        if (string.IsNullOrEmpty(key)) return false;
+
+        if (Enum.TryParse<Keys>(key, true, out var keys))
+        {
+            vk = (byte)keys;
+            return true;
+        }
+        return false;
+    }
 
     private static void SendKey(string key)
     {

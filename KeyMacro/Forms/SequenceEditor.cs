@@ -152,6 +152,7 @@ public partial class SequenceEditor : Form
             MultiSelect = false
         };
         _dgvSteps.CellValueChanged += DgvSteps_CellValueChanged;
+        _dgvSteps.CellBeginEdit += DgvSteps_CellBeginEdit;
 
         // ── Bottom Buttons ──
         var bottomPanel = new FlowLayoutPanel
@@ -236,6 +237,16 @@ public partial class SequenceEditor : Form
         _dgvSteps.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "按键/文本" });
         _dgvSteps.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "延迟(ms)", Width = 80 });
 
+        var pressCol = new DataGridViewComboBoxColumn
+        {
+            HeaderText = "触发方式",
+            Width = 90,
+            DisplayStyle = DataGridViewComboBoxDisplayStyle.ComboBox
+        };
+        pressCol.Items.AddRange("点按", "长按");
+        _dgvSteps.Columns.Add(pressCol);
+        _dgvSteps.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "按压时长(ms)", Width = 100 });
+
         _dgvSteps.Rows.Clear();
         foreach (var step in _sequence.Steps)
         {
@@ -248,7 +259,9 @@ public partial class SequenceEditor : Form
                     _ => "单键"
                 },
                 step.Keys,
-                step.DelayMs
+                step.DelayMs,
+                step.PressMode == PressMode.Hold ? "长按" : "点按",
+                step.HoldDurationMs
             );
         }
         _suppressEvents = false;
@@ -266,6 +279,10 @@ public partial class SequenceEditor : Form
             var delayStr = row.Cells[2].Value?.ToString() ?? "200";
             int.TryParse(delayStr, out var delay);
             if (delay < 0) delay = 0;
+            var pressStr = row.Cells[3].Value?.ToString() ?? "点按";
+            var holdStr = row.Cells[4].Value?.ToString() ?? "0";
+            int.TryParse(holdStr, out var holdMs);
+            if (holdMs < 0) holdMs = 0;
             _sequence.Steps.Add(new MacroStep
             {
                 Type = typeStr switch
@@ -275,7 +292,9 @@ public partial class SequenceEditor : Form
                     _ => StepType.Key
                 },
                 Keys = keys,
-                DelayMs = delay
+                DelayMs = delay,
+                PressMode = pressStr == "长按" ? PressMode.Hold : PressMode.Tap,
+                HoldDurationMs = holdMs
             });
         }
     }
@@ -291,6 +310,14 @@ public partial class SequenceEditor : Form
         if (_suppressEvents) return;
         CommitGridEdit();
         SaveStepsFromGrid();
+    }
+
+    private void DgvSteps_CellBeginEdit(object? sender, DataGridViewCellCancelEventArgs e)
+    {
+        if (e.ColumnIndex != 4) return;
+        var pressStr = _dgvSteps.Rows[e.RowIndex].Cells[3].Value?.ToString() ?? "点按";
+        if (pressStr != "长按")
+            e.Cancel = true;
     }
 
     private void BtnAddStep_Click(object? sender, EventArgs e)
