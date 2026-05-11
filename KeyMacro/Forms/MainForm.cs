@@ -22,7 +22,7 @@ public partial class MainForm : Form
 
     public MainForm()
     {
-        Text = "快捷键助手 V1.1";
+        Text = "快捷键助手 V1.2";
         Size = new Size(900, 600);
         MinimumSize = new Size(600, 400);
         StartPosition = FormStartPosition.CenterScreen;
@@ -319,9 +319,9 @@ public partial class MainForm : Form
         }
 
         using var viewer = new SpineHotkeyViewer(_spineHotkeys);
-        if (viewer.ShowDialog() == DialogResult.OK && viewer.ImportedEntries.Count > 0)
+        if (viewer.ShowDialog() == DialogResult.OK && viewer.HasImportedEntries)
         {
-            foreach (var entry in viewer.ImportedEntries)
+            foreach (var entry in viewer.GetImportedEntries())
             {
                 _sequences.Add(new Models.MacroSequence
                 {

@@ -37,9 +37,9 @@ public partial class SequenceEditor : Form
         Size = new Size(1100, 850);
         MinimumSize = new Size(600, 400);
         StartPosition = FormStartPosition.CenterParent;
-        FormBorderStyle = FormBorderStyle.FixedDialog;
-        MaximizeBox = false;
-        MinimizeBox = false;
+        FormBorderStyle = FormBorderStyle.Sizable;
+        MaximizeBox = true;
+        MinimizeBox = true;
 
         // ── Top: Name + Hotkey ──
         var topPanel = new TableLayoutPanel
@@ -470,6 +470,11 @@ public class HotkeyRecorderForm : Form
             _lblStatus.Text = "请包含至少一个修饰键 (Ctrl/Alt/Shift/Win)";
             return;
         }
+
+        // Preserve lowercase intent: Keys enum is always uppercase, but when
+        // no Shift is held and the result is a bare letter, the user pressed lowercase.
+        if (!_shift && !_ctrl && !_alt && !_win && formatted.Length == 1 && char.IsLetter(formatted[0]))
+            formatted = formatted.ToLowerInvariant();
 
         RecordedHotkey = formatted;
         _lblStatus.Text = $"已录制: {formatted}\n\n松开按键确认，按 Esc 取消";

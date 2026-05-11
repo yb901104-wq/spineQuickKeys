@@ -159,7 +159,8 @@ public class MacroPlayer
             "NUMLOCK", "SCROLLLOCK", "PRINTSCREEN", "BREAK", "PAUSE"
         };
 
-        SendKeys.SendWait(special.Contains(upper) ? "{" + upper + "}" : key);
+        SendKeys.SendWait(special.Contains(upper) ? "{" + upper + "}" :
+            key.Length == 1 && char.IsLetter(key[0]) ? key.ToLowerInvariant() : key);
     }
 
     private static void SendCombo(string combo)
