@@ -4,7 +4,11 @@
       "Bash(pip --version)",
       "Bash(where python *)",
       "Bash(where python3 *)",
-      "Bash(where py *)"
+      "Bash(where py *)",
+      "Bash(git reset *)",
+      "Bash(git checkout *)",
+      "Bash(git clean *)",
+      "Bash(git branch *)"
     ]
   }
 }
