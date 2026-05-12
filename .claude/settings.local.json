@@ -35,7 +35,10 @@
       "WebFetch(domain:www.zerofc.cn)",
       "WebFetch(domain:www.taikr.com)",
       "Bash(taskkill /f /im KeyMacro.exe)",
-      "Bash(taskkill -f -im KeyMacro.exe)"
+      "Bash(taskkill -f -im KeyMacro.exe)",
+      "Bash(dotnet run *)",
+      "Bash(wait)",
+      "Bash(git check-ignore *)"
     ]
   }
 }
