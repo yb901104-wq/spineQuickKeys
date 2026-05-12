@@ -6,8 +6,10 @@ public class SpineHotkeyEditor : Form
 {
     private SpineHotkeyService _service;
     private List<SpineHotkeyEntry> _entries = [];
+    private string _searchFilter = "";
 
     private readonly Label _lblFilePath;
+    private readonly TextBox _txtSearch;
     private readonly DataGridView _dgv;
     private readonly Button _btnLoad;
     private readonly Button _btnSave;
@@ -51,7 +53,7 @@ public class SpineHotkeyEditor : Form
         topPanel.Controls.Add(_lblFilePath);
         topPanel.Controls.Add(_btnLoad, 1, 0);
 
-        // ── Toolbar: record button ──
+        // ── Toolbar: record button + search ──
         var toolbar = new FlowLayoutPanel
         {
             Dock = DockStyle.Top,
@@ -61,6 +63,25 @@ public class SpineHotkeyEditor : Form
         _btnRecord = new Button { Text = "录制按键", AutoSize = true, MinimumSize = new Size(80, 28), FlatStyle = FlatStyle.Flat };
         _btnRecord.Click += BtnRecord_Click;
         toolbar.Controls.Add(_btnRecord);
+
+        toolbar.Controls.Add(new Label
+        {
+            Text = " 搜索:",
+            AutoSize = true,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Margin = new Padding(20, 0, 0, 0)
+        });
+        _txtSearch = new TextBox
+        {
+            Width = 200,
+            Margin = new Padding(4, 2, 0, 0)
+        };
+        _txtSearch.TextChanged += (_, _) =>
+        {
+            _searchFilter = _txtSearch.Text.Trim();
+            RefreshGrid();
+        };
+        toolbar.Controls.Add(_txtSearch);
 
         // ── DataGridView ──
         _dgv = new DataGridView
@@ -154,8 +175,19 @@ public class SpineHotkeyEditor : Form
             AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill
         });
 
+        var filter = _searchFilter;
+        var hasFilter = filter.Length > 0;
+
         foreach (var entry in _entries)
         {
+            // Section headers always show; other entries filter by name
+            if (hasFilter && !entry.Name.StartsWith("---"))
+            {
+                if (!entry.Name.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
+                    !entry.Keys.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                    continue;
+            }
+
             var rowIdx = _dgv.Rows.Add(entry.Name, entry.Keys, entry.ChineseNote ?? "");
             if (entry.Name.StartsWith("---"))
             {
@@ -165,6 +197,12 @@ public class SpineHotkeyEditor : Form
             }
         }
 
+        if (hasFilter && _dgv.Rows.Count == 0)
+        {
+            var idx = _dgv.Rows.Add("", $"无匹配结果: {_searchFilter}", "");
+            _dgv.Rows[idx].ReadOnly = true;
+            _dgv.Rows[idx].DefaultCellStyle.ForeColor = Color.Gray;
+        }
     }
 
     private void BtnSave_Click(object? sender, EventArgs e)

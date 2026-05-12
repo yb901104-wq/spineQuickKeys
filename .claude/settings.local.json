@@ -28,7 +28,12 @@
       "Bash(dotnet publish *)",
       "Bash(git reset *)",
       "Bash(rm \"d:\\\\AI_cc\\\\spineQuickKeys\\\\KeyMacro\\\\Services\\\\SpineHotkeyParser.cs\")",
-      "Bash(rm \"d:\\\\AI_cc\\\\spineQuickKeys\\\\KeyMacro\\\\Forms\\\\SpineHotkeyViewer.cs\")"
+      "Bash(rm \"d:\\\\AI_cc\\\\spineQuickKeys\\\\KeyMacro\\\\Forms\\\\SpineHotkeyViewer.cs\")",
+      "Bash(git rm *)",
+      "WebSearch",
+      "WebFetch(domain:zh.esotericsoftware.com)",
+      "WebFetch(domain:www.zerofc.cn)",
+      "WebFetch(domain:www.taikr.com)"
     ]
   }
 }

@@ -12,3 +12,4 @@ obj/
 # Publish outputs
 **/publish*/
 **/publish*/**
+**/*publish*/**

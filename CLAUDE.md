@@ -54,6 +54,7 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
    - 大版本更新 → +1（如 1.2 → 2.0）
 3. 修改完成后编译单独的 .exe 供测试
 4. 总结修改内容，询问是否提交 git（以当前版本号作为提交名称）
+5. 总结并修改CLAUDE.MD
 # Git 提交规则（强制）
 
 当你需要为我自动提交代码时，必须严格遵守以下流程，**绝不省略**：

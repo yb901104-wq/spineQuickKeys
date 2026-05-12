@@ -21,7 +21,7 @@ public partial class MainForm : Form
 
     public MainForm()
     {
-        Text = "快捷键助手 V1.21";
+        Text = "快捷键助手 V1.31";
         Size = new Size(900, 600);
         MinimumSize = new Size(600, 400);
         StartPosition = FormStartPosition.CenterScreen;
@@ -41,6 +41,7 @@ public partial class MainForm : Form
         {
             Dock = DockStyle.Top,
             AutoSize = true,
+            WrapContents = false,
             Padding = new Padding(8, 8, 8, 0)
         };
 
