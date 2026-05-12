@@ -26,7 +26,7 @@ public partial class MainForm : Form
 
     public MainForm()
     {
-        Text = "快捷键助手 V1.9beta";
+        Text = "快捷键助手 V1.91";
         Size = new Size(900, 600);
         MinimumSize = new Size(600, 400);
         StartPosition = FormStartPosition.CenterScreen;
@@ -354,7 +354,7 @@ public partial class MainForm : Form
         var loopExecutor = new VirtualLoopExecutor(_player);
 
         _vkWindow = new VirtualKeyWindow(_vkBtnManager, bindingManager, loopExecutor,
-            _vkSerializer, _sequences);
+            _vkSerializer, _sequences, SaveAndRefresh);
         _vkWindow.Show();
     }
 

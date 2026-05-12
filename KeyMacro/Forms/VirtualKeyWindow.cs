@@ -10,61 +10,66 @@ public class VirtualKeyWindow : Form
     private readonly VirtualLoopExecutor _loopExecutor;
     private readonly VirtualLayoutSerializer _serializer;
     private readonly List<MacroSequence> _sequences;
+    private readonly Action? _sequencesChangedCallback;
     private readonly FlowLayoutPanel _panel;
     private readonly Dictionary<string, VirtualButtonWidget> _widgets = [];
     private bool _isDraggingWindow;
     private Point _dragStart;
     private bool _topMostState = true;
+    private double _opacityValue = 1.0;
+
+    private const int BasePanelWidth = 400;
 
     public VirtualKeyWindow(
         VirtualButtonManager btnManager,
         VirtualKeyBindingManager bindingManager,
         VirtualLoopExecutor loopExecutor,
         VirtualLayoutSerializer serializer,
-        List<MacroSequence> sequences)
+        List<MacroSequence> sequences,
+        Action? sequencesChangedCallback = null)
     {
         _btnManager = btnManager;
         _bindingManager = bindingManager;
         _loopExecutor = loopExecutor;
         _serializer = serializer;
         _sequences = sequences;
+        _sequencesChangedCallback = sequencesChangedCallback;
 
         Text = "虚拟按键";
-        BackColor = Color.FromArgb(0x1C, 0x1C, 0x1C);
+        BackColor = Color.FromArgb(0x0D, 0x0D, 0x0D);
         StartPosition = FormStartPosition.Manual;
         TopMost = true;
         ShowInTaskbar = false;
         FormBorderStyle = FormBorderStyle.Sizable;
+        Opacity = _opacityValue;
         Size = new Size(400, 300);
-        MinimumSize = new Size(200, 150);
+        MinimumSize = new Size(160, 100);
+
+        // Dual border
+        Padding = new Padding(1);
+        Paint += (_, e) =>
+        {
+            using var outerPen = new Pen(Color.FromArgb(0x00, 0x00, 0x00));
+            e.Graphics.DrawRectangle(outerPen, 0, 0, Width - 1, Height - 1);
+            using var rimPen = new Pen(Color.FromArgb(0x3C, 0x3C, 0x3C));
+            e.Graphics.DrawLine(rimPen, 1, 1, Width - 2, 1);
+        };
 
         _panel = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
             AutoScroll = true,
-            Padding = new Padding(12),
-            BackColor = Color.FromArgb(0x1C, 0x1C, 0x1C)
+            Padding = new Padding(8),
+            BackColor = Color.FromArgb(0x0D, 0x0D, 0x0D)
         };
         Controls.Add(_panel);
+        Resize += (_, _) => UpdateScale();
 
         // Blank area context menu
-        var blankMenu = new ContextMenuStrip();
-        blankMenu.Items.Add("增加按钮", null, (_, _) => AddButton(VirtualButtonStyle.SmallIcon));
-        blankMenu.Items.Add("增加大图标", null, (_, _) => AddButton(VirtualButtonStyle.LargeIcon));
-        blankMenu.Items.Add("增加循环按钮", null, (_, _) => AddButton(VirtualButtonStyle.LoopIcon));
-        blankMenu.Items.Add("-");
-        blankMenu.Items.Add("删除最后按钮", null, (_, _) => { _btnManager.RemoveLast(); RebuildWidgets(); });
-        blankMenu.Items.Add("-");
-        var toggleTop = new ToolStripMenuItem(_topMostState ? "取消置顶" : "锁定置顶");
-        toggleTop.Click += (_, _) => ToggleTopMost();
-        blankMenu.Items.Add(toggleTop);
-        blankMenu.Items.Add("保存布局", null, (_, _) => SaveLayout());
-        blankMenu.Items.Add("重置布局", null, (_, _) => ResetLayout());
+        var blankMenu = BuildBlankMenu();
         _panel.ContextMenuStrip = blankMenu;
 
-        // Restore saved layout
         LoadLayout();
-
         _btnManager.ButtonsChanged += RebuildWidgets;
         FormClosing += (_, e) =>
         {
@@ -78,18 +83,55 @@ public class VirtualKeyWindow : Form
         };
     }
 
+    // ── Blank area context menu ──
+
+    private ContextMenuStrip BuildBlankMenu()
+    {
+        var m = new ContextMenuStrip();
+        m.Items.Add("增加按钮", null, (_, _) => AddButton(VirtualButtonStyle.SmallIcon));
+        m.Items.Add("增加大图标", null, (_, _) => AddButton(VirtualButtonStyle.LargeIcon));
+        m.Items.Add("增加循环按钮", null, (_, _) => AddButton(VirtualButtonStyle.LoopIcon));
+        m.Items.Add("-");
+        m.Items.Add("删除最后按钮", null, (_, _) => { _btnManager.RemoveLast(); RebuildWidgets(); });
+        m.Items.Add("-");
+
+        // Topmost toggle
+        var topItem = new ToolStripMenuItem(_topMostState ? "取消置顶" : "置顶");
+        topItem.Click += (_, _) => ToggleTopMost();
+        m.Items.Add(topItem);
+
+        // Opacity submenu
+        var opacityMenu = new ToolStripMenuItem("透明度");
+        opacityMenu.DropDownItems.Add("100%", null, (_, _) => SetOpacity(1.0));
+        opacityMenu.DropDownItems.Add("80%", null, (_, _) => SetOpacity(0.8));
+        opacityMenu.DropDownItems.Add("60%", null, (_, _) => SetOpacity(0.6));
+        opacityMenu.DropDownItems.Add("40%", null, (_, _) => SetOpacity(0.4));
+        m.Items.Add(opacityMenu);
+
+        m.Items.Add("-");
+        m.Items.Add("保存布局", null, (_, _) => SaveLayout());
+        m.Items.Add("重置布局", null, (_, _) => ResetLayout());
+        return m;
+    }
+
     private void ToggleTopMost()
     {
         _topMostState = !_topMostState;
         TopMost = _topMostState;
+        // Rebuild menu to reflect new state next time
     }
+
+    private void SetOpacity(double val)
+    {
+        _opacityValue = val;
+        Opacity = val;
+    }
+
+    // ── Button management ──
 
     private void AddButton(VirtualButtonStyle style)
     {
-        var vbtn = _btnManager.AddButton(style);
-        // Position the new button to the right of existing ones
-        vbtn.PositionX = 12 + (_widgets.Count % 5) * 70;
-        vbtn.PositionY = 12 + (_widgets.Count / 5) * 70;
+        _btnManager.AddButton(style);
         RebuildWidgets();
     }
 
@@ -99,17 +141,34 @@ public class VirtualKeyWindow : Form
         _panel.Controls.Clear();
         _widgets.Clear();
 
-        foreach (var vbtn in _btnManager.Buttons)
+        var buttons = _btnManager.Buttons;
+        for (int i = 0; i < buttons.Count; i++)
         {
-            var widget = new VirtualButtonWidget(vbtn);
+            var widget = new VirtualButtonWidget(buttons[i]);
+            widget.IsFirstInRow = i == 0;
+            widget.IsLastInRow = i == buttons.Count - 1;
             widget.Clicked += OnButtonClicked;
             widget.Dragged += OnButtonDragged;
             widget.ContextMenuRequested += OnWidgetContextMenu;
+            widget.SettingsClicked += OnWidgetSettingsClicked;
             _panel.Controls.Add(widget);
-            _widgets[vbtn.Id] = widget;
+            _widgets[buttons[i].Id] = widget;
         }
+        UpdateScale();
         _panel.ResumeLayout();
     }
+
+    private void UpdateScale()
+    {
+        float scale = (float)Math.Max(0.5, Math.Min(2.0, (double)ClientSize.Width / BasePanelWidth));
+        foreach (var w in _widgets.Values)
+        {
+            w.ScaleFactor = scale;
+            w.UpdateSize();
+        }
+    }
+
+    // ── Button events ──
 
     private void OnButtonClicked(VirtualButtonWidget widget)
     {
@@ -137,12 +196,27 @@ public class VirtualKeyWindow : Form
     private void OnButtonDragged(VirtualButtonWidget widget, int dx, int dy)
     {
         var vbtn = widget.VirtualButton;
-        // Move within the panel (flow layout will rearrange)
-        // For now, just log position updates in the model
         _btnManager.UpdatePosition(vbtn.Id,
             widget.Location.X + dx,
             widget.Location.Y + dy);
     }
+
+    private void OnWidgetSettingsClicked(VirtualButtonWidget widget)
+    {
+        var vbtn = widget.VirtualButton;
+        var input = Microsoft.VisualBasic.Interaction.InputBox(
+            "循环次数 (1-9999):", "设置循环次数", vbtn.LoopCount.ToString());
+        if (int.TryParse(input, out var count) && count > 0 && count <= 9999)
+        {
+            vbtn.LoopCount = count;
+            // Sync to bound MacroSequence
+            SyncSequence(vbtn);
+            widget.UpdateButton(vbtn);
+            SaveLayout();
+        }
+    }
+
+    // ── Context menu on button ──
 
     private void OnWidgetContextMenu(VirtualButtonWidget widget, Point location)
     {
@@ -151,43 +225,19 @@ public class VirtualKeyWindow : Form
 
         // Style submenu
         var styleMenu = new ToolStripMenuItem("修改按钮样式");
-        styleMenu.DropDownItems.Add("小图标", null, (_, _) =>
-        {
-            vbtn.StyleType = VirtualButtonStyle.SmallIcon;
-            widget.UpdateButton(vbtn);
-            SaveLayout();
-        });
-        styleMenu.DropDownItems.Add("大图标", null, (_, _) =>
-        {
-            vbtn.StyleType = VirtualButtonStyle.LargeIcon;
-            widget.UpdateButton(vbtn);
-            SaveLayout();
-        });
-        styleMenu.DropDownItems.Add("循环按钮", null, (_, _) =>
-        {
-            vbtn.StyleType = VirtualButtonStyle.LoopIcon;
-            widget.UpdateButton(vbtn);
-            SaveLayout();
-        });
+        styleMenu.DropDownItems.Add("小图标", null, (_, _) => SetStyle(vbtn, widget, VirtualButtonStyle.SmallIcon));
+        styleMenu.DropDownItems.Add("大图标", null, (_, _) => SetStyle(vbtn, widget, VirtualButtonStyle.LargeIcon));
+        styleMenu.DropDownItems.Add("循环按钮", null, (_, _) => SetStyle(vbtn, widget, VirtualButtonStyle.LoopIcon));
         menu.Items.Add(styleMenu);
 
         // Binding info
         var bindInfo = string.IsNullOrEmpty(vbtn.BindActionId)
-            ? "无快捷绑定"
-            : $"当前绑定: {ResolveSequenceName(vbtn.BindActionId)}";
+            ? "无快捷绑定" : $"当前绑定: {ResolveSequenceName(vbtn.BindActionId)}";
         menu.Items.Add(bindInfo);
-
-        // Set binding
         menu.Items.Add("设置快捷绑定", null, (_, _) => ShowBindingDialog(widget));
+        menu.Items.Add("清除快捷绑定", null, (_, _) => { _bindingManager.Unbind(vbtn); widget.UpdateButton(vbtn); SaveLayout(); });
 
-        // Clear binding
-        menu.Items.Add("清除快捷绑定", null, (_, _) =>
-        {
-            _bindingManager.Unbind(vbtn);
-            SaveLayout();
-        });
-
-        // Loop settings for loop buttons
+        // Loop-only items
         if (vbtn.StyleType == VirtualButtonStyle.LoopIcon)
         {
             menu.Items.Add("-");
@@ -199,9 +249,9 @@ public class VirtualKeyWindow : Form
             });
 
             var intervalMenu = new ToolStripMenuItem("循环间隔");
-            intervalMenu.DropDownItems.Add("100ms", null, (_, _) => { vbtn.LoopInterval = 100; widget.UpdateButton(vbtn); SaveLayout(); });
-            intervalMenu.DropDownItems.Add("300ms", null, (_, _) => { vbtn.LoopInterval = 300; widget.UpdateButton(vbtn); SaveLayout(); });
-            intervalMenu.DropDownItems.Add("500ms", null, (_, _) => { vbtn.LoopInterval = 500; widget.UpdateButton(vbtn); SaveLayout(); });
+            intervalMenu.DropDownItems.Add("100ms", null, (_, _) => UpdateLoopInterval(vbtn, widget, 100));
+            intervalMenu.DropDownItems.Add("300ms", null, (_, _) => UpdateLoopInterval(vbtn, widget, 300));
+            intervalMenu.DropDownItems.Add("500ms", null, (_, _) => UpdateLoopInterval(vbtn, widget, 500));
             menu.Items.Add(intervalMenu);
 
             menu.Items.Add("设置循环次数...", null, (_, _) =>
@@ -210,6 +260,7 @@ public class VirtualKeyWindow : Form
                 if (int.TryParse(input, out var count) && count > 0 && count <= 9999)
                 {
                     vbtn.LoopCount = count;
+                    SyncSequence(vbtn);
                     widget.UpdateButton(vbtn);
                     SaveLayout();
                 }
@@ -226,6 +277,36 @@ public class VirtualKeyWindow : Form
 
         menu.Show(widget, location);
     }
+
+    private void SetStyle(VirtualButton vbtn, VirtualButtonWidget widget, VirtualButtonStyle style)
+    {
+        vbtn.StyleType = style;
+        widget.UpdateButton(vbtn);
+        widget.UpdateSize();
+        SaveLayout();
+    }
+
+    private void UpdateLoopInterval(VirtualButton vbtn, VirtualButtonWidget widget, int ms)
+    {
+        vbtn.LoopInterval = ms;
+        SyncSequence(vbtn);
+        widget.UpdateButton(vbtn);
+        SaveLayout();
+    }
+
+    /// <summary>Sync loop params to bound MacroSequence, then notify MainForm.</summary>
+    private void SyncSequence(VirtualButton vbtn)
+    {
+        var seq = _sequences.Find(s => s.Id == vbtn.BindActionId);
+        if (seq != null)
+        {
+            seq.LoopIntervalMs = vbtn.LoopInterval;
+            seq.LoopCount = vbtn.LoopCount;
+            _sequencesChangedCallback?.Invoke();
+        }
+    }
+
+    // ── Binding ──
 
     private void ShowBindingDialog(VirtualButtonWidget widget)
     {
@@ -263,14 +344,14 @@ public class VirtualKeyWindow : Form
         return seq?.Name ?? "(已删除)";
     }
 
+    // ── Layout save/load ──
+
     private void SaveLayout()
     {
         var data = new VirtualLayoutSerializer.LayoutData
         {
-            WindowX = Left,
-            WindowY = Top,
-            WindowWidth = Width,
-            WindowHeight = Height,
+            WindowX = Left, WindowY = Top,
+            WindowWidth = Width, WindowHeight = Height,
             TopMost = _topMostState,
             Buttons = [.. _btnManager.Buttons]
         };
@@ -290,25 +371,23 @@ public class VirtualKeyWindow : Form
         }
         else
         {
-            // Default position: center of screen
             var screen = Screen.PrimaryScreen;
             if (screen != null)
                 Location = new Point(
                     (screen.WorkingArea.Width - Width) / 2,
                     (screen.WorkingArea.Height - Height) / 2);
         }
+        UpdateScale();
     }
 
-    private void ResetLayout()
-    {
-        _btnManager.Clear();
-        SaveLayout();
-    }
+    private void ResetLayout() { _btnManager.Clear(); SaveLayout(); }
+
+    // ── Window dragging ──
 
     protected override void OnMouseDown(MouseEventArgs e)
     {
         base.OnMouseDown(e);
-        if (e.Button == MouseButtons.Left && e.Y < 30) // title bar area
+        if (e.Button == MouseButtons.Left && e.Y < 24)
         {
             _isDraggingWindow = true;
             _dragStart = e.Location;
