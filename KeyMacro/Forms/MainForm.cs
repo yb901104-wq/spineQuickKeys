@@ -16,13 +16,12 @@ public partial class MainForm : Form
     private DataGridView _dgv = null!;
     private Button _btnAdd = null!, _btnEdit = null!, _btnDelete = null!;
     private Button _btnTest = null!, _btnPause = null!;
-    private Button _btnLoadSpine = null!, _btnViewSpine = null!;
+    private Button _btnSpine = null!, _btnDeleteAll = null!;
     private ToolStripMenuItem? _pauseTrayItem;
-    private List<Services.SpineHotkeyCategory>? _spineHotkeys;
 
     public MainForm()
     {
-        Text = "快捷键助手 V1.2";
+        Text = "快捷键助手 V1.21";
         Size = new Size(900, 600);
         MinimumSize = new Size(600, 400);
         StartPosition = FormStartPosition.CenterScreen;
@@ -50,20 +49,18 @@ public partial class MainForm : Form
         _btnDelete = CreateButton("删除", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
         _btnTest = CreateButton("测试", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
         _btnPause = CreateButton("暂停全部", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
-        _btnLoadSpine = CreateButton("载入Spine热键", Color.FromArgb(0x6B, 0x46, 0xC3), Color.White);
-        _btnViewSpine = CreateButton("查看Spine热键", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
+        _btnSpine = CreateButton("Spine热键编辑", Color.FromArgb(0x6B, 0x46, 0xC3), Color.White);
+        _btnDeleteAll = CreateButton("删除全部", Color.FromArgb(0xD9, 0x5C, 0x5C), Color.White);
 
         _btnAdd.Click += (_, _) => AddSequence();
         _btnEdit.Click += (_, _) => EditSequence();
         _btnDelete.Click += (_, _) => DeleteSequence();
         _btnTest.Click += (_, _) => TestSequence();
         _btnPause.Click += (_, _) => TogglePause();
-        _btnLoadSpine.Click += (_, _) => LoadSpineHotkeys();
-        _btnViewSpine.Click += (_, _) => ViewSpineHotkeys();
+        _btnSpine.Click += (_, _) => OpenSpineEditor();
+        _btnDeleteAll.Click += (_, _) => DeleteAllSequences();
 
-        _btnViewSpine.Visible = false;
-
-        toolStrip.Controls.AddRange([_btnAdd, _btnEdit, _btnDelete, _btnTest, _btnPause, _btnLoadSpine, _btnViewSpine]);
+        toolStrip.Controls.AddRange([_btnAdd, _btnEdit, _btnDelete, _btnTest, _btnPause, _btnSpine, _btnDeleteAll]);
         Controls.Add(toolStrip);
 
         _dgv = new DataGridView
@@ -279,59 +276,30 @@ public partial class MainForm : Form
             _pauseTrayItem.Text = paused ? "恢复全部" : "暂停全部";
     }
 
-    private void LoadSpineHotkeys()
+    private void OpenSpineEditor()
     {
         var spineDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Spine", "settings");
         using var dialog = new OpenFileDialog
         {
-            Title = "选择 Spine 热键文件",
+            Title = "选择 Spine 热键文件 (*.txt)",
             Filter = "文本文件 (*.txt)|*.txt",
             InitialDirectory = Directory.Exists(spineDir) ? spineDir : Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             CheckFileExists = true
         };
         if (dialog.ShowDialog() != DialogResult.OK) return;
 
-        try
-        {
-            _spineHotkeys = Services.SpineHotkeyParser.Parse(dialog.FileName);
-            var totalEntries = _spineHotkeys.Sum(c => c.Entries.Count);
-            MessageBox.Show(
-                $"成功载入 {_spineHotkeys.Count} 个分类, {totalEntries} 个热键。",
-                "载入成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-            _btnViewSpine.Visible = true;
-            ViewSpineHotkeys();
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"载入失败: {ex.Message}", "错误",
-                MessageBoxButtons.OK, MessageBoxIcon.Error);
-        }
+        using var editor = new SpineHotkeyEditor(dialog.FileName);
+        editor.ShowDialog();
     }
 
-    private void ViewSpineHotkeys()
+    private void DeleteAllSequences()
     {
-        if (_spineHotkeys == null)
-        {
-            MessageBox.Show("请先载入 Spine 热键文件。", "提示",
-                MessageBoxButtons.OK, MessageBoxIcon.Information);
+        if (_sequences.Count == 0) return;
+        if (MessageBox.Show($"确定要删除全部 {_sequences.Count} 个序列？此操作不可撤销。",
+            "确认删除全部", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
             return;
-        }
-
-        using var viewer = new SpineHotkeyViewer(_spineHotkeys);
-        if (viewer.ShowDialog() == DialogResult.OK && viewer.HasImportedEntries)
-        {
-            foreach (var entry in viewer.GetImportedEntries())
-            {
-                _sequences.Add(new Models.MacroSequence
-                {
-                    Name = entry.Name,
-                    TriggerHotkey = entry.NormalizedShortcut,
-                    Steps = []
-                });
-            }
-            SaveAndRefresh();
-        }
+        _sequences.Clear();
+        SaveAndRefresh();
     }
 
     private void ExitApp()

@@ -1,0 +1,14 @@
+# Build outputs
+bin/
+obj/
+
+# IDE files
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Publish outputs
+**/publish*/
+**/publish*/**

@@ -412,6 +412,7 @@ public class HotkeyRecorderForm : Form
     private readonly Label _lblStatus;
     private readonly bool _allowNoModifier;
 
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     public string RecordedHotkey { get; private set; } = "";
 
     public HotkeyRecorderForm(bool allowNoModifier = false)

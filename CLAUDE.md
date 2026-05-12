@@ -1,7 +1,7 @@
 # KeyMacro - Windows 快捷键宏工具
 
 ## 概述
-后台运行的快捷键宏工具。用户可自定义按键序列，设置间隔时间，绑定触发快捷键。
+后台运行的快捷键宏工具。用户可自定义按键序列，设置间隔时间，绑定触发快捷键。附带 Spine 热键文件编辑器，可直接修改 Spine 的 hotkey TXT 文件。
 
 ## 技术栈
 - .NET 9.0 + WinForms
@@ -17,21 +17,21 @@ KeyMacro/
 ├── Services/
 │   ├── ConfigService.cs     # JSON 配置读写 (%APPDATA%\KeyMacro\config.json)
 │   ├── HotkeyService.cs     # Win32 全局热键注册/监听
-│   └── MacroPlayer.cs       # SendKeys 按键序列播放引擎
+│   ├── MacroPlayer.cs       # SendKeys 按键序列播放引擎
+│   └── SpineHotkeyService.cs # Spine TXT 文件解析/保存 + 按键名格式转换 + 中文注解
 └── Forms/
-    ├── MainForm.cs          # 主窗口 + 系统托盘
-    └── SequenceEditor.cs    # 序列编辑器 + 热键录制对话框
+    ├── MainForm.cs          # 主窗口 + 系统托盘 (含 Spine热键编辑 + 删除全部 按钮)
+    ├── SequenceEditor.cs    # 序列编辑器 + 热键录制对话框
+    └── SpineHotkeyEditor.cs # Spine 热键 TXT 文件编辑窗口
 ```
-## 功能目标约束
-在“添加”功能中，我需要实现以下功能
-新建序列
-  └──序列名""+快捷键“”+是否启用开关+上移/下移开关+是否循环开关+如果循环间隔循环时间“”+编辑序列按键内容+保存
-     └──按键/组合键“”+间隔延迟时间“”+按键/组合键“”+间隔延迟时间“”+...+保存按键
+
 ## 关键约定
 - **序列（MacroSequence）**：由触发快捷键 + 多个步骤组成
 - **步骤（MacroStep）**：类型（单键/组合键/文本）+ 按键值 + 延迟(ms)
 - **_suppressEvents**：SequenceEditor 使用此标志防止 DataGridView 事件递归
 - **config.json**：存储在 `%APPDATA%\KeyMacro\`，由 ConfigService 管理
+- **Spine TXT 注解文件**：`{文件名}.txt.annotations.json`，存储中文备注，不污染源 TXT
+- **Spine 按键格式**：TXT 文件使用 Spine 命名（如 `PERIOD`、`COMMA`），录制时自动转换 WinForms → Spine 格式
 
 ## 构建与运行
 ```bash
@@ -44,8 +44,27 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 - `MacroPlayer.Play()` 是 async Task，包含 500ms 初始延迟（给用户松手时间）
 - 主窗口关闭时隐藏到系统托盘，不退出进程
 - 播放期间 `MacroPlayer.IsPlaying` 为 true 以阻止嵌套触发
+- `SpineHotkeyService.ToSpineFormat()` 将 WinForms 按键名转回 Spine 格式，避免写回 TXT 后 Spine 无法识别
 
+## 版本管理与发布流程
+1. 修改前确认本次更新级别：问题修复 / 小功能更新 / 大版本更新
+2. 修改后在 [MainForm.cs](KeyMacro/Forms/MainForm.cs#L24) 标题中迭代版本号：
+   - 问题修复 → +0.01（如 1.2 → 1.21）
+   - 小功能更新 → +0.1（如 1.2 → 1.3）
+   - 大版本更新 → +1（如 1.2 → 2.0）
+3. 修改完成后编译单独的 .exe 供测试
+4. 总结修改内容，询问是否提交 git（以当前版本号作为提交名称）
+# Git 提交规则（强制）
 
-## 内容修改完成后注意事项
-- 1.修改进行前要咨询本次修改属于什么级别的更新，选项分别为：1.问题修复。2.小功能更新。3.大版本更新
-- 1.修改完成后要对主界面的标题中的版本好进行迭代。如果此次内容属于问题修复，版本号增加0.01。如果此次内容属于问题修复，版本号增加0.1。如果此次内容属于问题修复，版本号增加1
+当你需要为我自动提交代码时，必须严格遵守以下流程，**绝不省略**：
+
+1. 执行 `git status` 以展示当前工作区状态。
+2. 使用 `git add -A` 暂存 **所有** 更改（包括新增、修改、删除）。
+3. 再次运行 `git status` 确认暂存区无误。
+4. 执行 `git commit -m "提交信息"`。
+
+## 禁止的行为
+- 禁止使用 `git commit -a` 或 `git commit -am "..."` —— 它们不会包括未跟踪的新文件。
+- 禁止只 `git add` 个别文件，除非我明确要求“只提交某个文件”。
+- 禁止在子目录执行 `git add .` 导致其他目录的更改被遗漏。
+- 提交前若存在合并冲突或钩子检查失败，必须报告我，不得强制跳过（如 `--no-verify`）。
