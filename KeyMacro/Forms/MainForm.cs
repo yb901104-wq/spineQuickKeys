@@ -26,7 +26,7 @@ public partial class MainForm : Form
 
     public MainForm()
     {
-        Text = "快捷键助手 V1.91";
+        Text = "快捷键助手 V1.92";
         Size = new Size(900, 600);
         MinimumSize = new Size(600, 400);
         StartPosition = FormStartPosition.CenterScreen;
@@ -207,6 +207,10 @@ public partial class MainForm : Form
                 SaveAndRefresh();
             }
         }
+        else if (e.ColumnIndex == 6 || e.ColumnIndex == 7)
+        {
+            _dgv.BeginEdit(true);
+        }
     }
 
     private void Dgv_CellValueChanged(object? sender, DataGridViewCellEventArgs e)
@@ -262,20 +266,48 @@ public partial class MainForm : Form
 
     private void AddSequence()
     {
-        using var editor = new SequenceEditor();
-        if (editor.ShowDialog() == DialogResult.OK)
+        var vk = _vkWindow;
+        if (vk is { IsDisposed: false, Visible: true })
         {
-            _sequences.Add(editor.Sequence);
-            SaveAndRefresh();
+            vk.Hide();
+            using var editor = new SequenceEditor();
+            if (editor.ShowDialog() == DialogResult.OK)
+            {
+                _sequences.Add(editor.Sequence);
+                SaveAndRefresh();
+            }
+            if (!vk.IsDisposed) vk.Show();
+        }
+        else
+        {
+            using var editor = new SequenceEditor();
+            if (editor.ShowDialog() == DialogResult.OK)
+            {
+                _sequences.Add(editor.Sequence);
+                SaveAndRefresh();
+            }
         }
     }
 
     private void EditSequence()
     {
         if (GetSelectedSequence() is not { } seq) return;
-        using var editor = new SequenceEditor(seq);
-        if (editor.ShowDialog() == DialogResult.OK)
-            SaveAndRefresh();
+
+        var vk = _vkWindow;
+        if (vk is { IsDisposed: false, Visible: true })
+        {
+            vk.Hide();
+            using var editor = new SequenceEditor(seq);
+            if (editor.ShowDialog() == DialogResult.OK)
+                SaveAndRefresh();
+            if (!vk.IsDisposed) vk.Show();
+        }
+        else
+        {
+            using var editor = new SequenceEditor(seq);
+            if (editor.ShowDialog() == DialogResult.OK)
+                SaveAndRefresh();
+        }
     }
 
     private void DeleteSequence()

@@ -10,6 +10,7 @@ public class VirtualButton
     public int LoopInterval { get; set; } = 100;
     public int LoopCount { get; set; } = 1;
     public string? IconPath { get; set; }
+    public string? TargetActivateAppPath { get; set; }
     public int PositionX { get; set; }
     public int PositionY { get; set; }
 }

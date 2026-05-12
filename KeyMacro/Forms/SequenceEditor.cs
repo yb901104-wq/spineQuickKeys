@@ -315,7 +315,7 @@ public partial class SequenceEditor : Form
             return;
         }
         using var recorder = new HotkeyRecorderForm(allowNoModifier: true);
-        if (recorder.ShowDialog() == DialogResult.OK)
+        if (recorder.ShowDialog(this) == DialogResult.OK)
         {
             CommitGridEdit();
             var row = _dgvSteps.SelectedRows[0];
@@ -354,7 +354,7 @@ public partial class SequenceEditor : Form
     private void BtnRecordHotkey_Click(object? sender, EventArgs e)
     {
         using var recorder = new HotkeyRecorderForm();
-        if (recorder.ShowDialog() == DialogResult.OK)
+        if (recorder.ShowDialog(this) == DialogResult.OK)
             _txtHotkey.Text = recorder.RecordedHotkey;
     }
 

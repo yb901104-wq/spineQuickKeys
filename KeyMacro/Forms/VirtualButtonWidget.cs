@@ -62,6 +62,9 @@ public class VirtualButtonWidget : UserControl
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     public float ScaleFactor { get; set; } = 1f;
 
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public bool AllowDragging { get; set; } = true;
+
     public VirtualButtonWidget(VirtualButton vbtn)
     {
         _vbtn = vbtn;
@@ -133,7 +136,7 @@ public class VirtualButtonWidget : UserControl
             Cursor = Cursors.Default;
         }
 
-        if (_isDragging && _isPressed)
+        if (_isDragging && _isPressed && AllowDragging)
         {
             var dx = e.X - _dragStart.X;
             var dy = e.Y - _dragStart.Y;

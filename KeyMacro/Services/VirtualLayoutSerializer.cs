@@ -16,6 +16,8 @@ public class VirtualLayoutSerializer
         public int WindowWidth { get; set; } = 400;
         public int WindowHeight { get; set; } = 300;
         public bool TopMost { get; set; } = true;
+        public bool PositionLocked { get; set; }
+        public bool WindowLocked { get; set; }
         public List<VirtualButton> Buttons { get; set; } = [];
     }
 
