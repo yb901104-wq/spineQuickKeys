@@ -64,6 +64,12 @@ public partial class MainForm : Form
         toolStrip.Controls.AddRange([_btnAdd, _btnEdit, _btnDelete, _btnTest, _btnPause, _btnSpine, _btnDeleteAll]);
         Controls.Add(toolStrip);
 
+        var dgvPanel = new Panel
+        {
+            Dock = DockStyle.Fill,
+            Padding = new Padding(0, 48, 0, 0)
+        };
+
         _dgv = new DataGridView
         {
             Dock = DockStyle.Fill,
@@ -80,7 +86,8 @@ public partial class MainForm : Form
         _dgv.CellValueChanged += Dgv_CellValueChanged;
         _dgv.CellFormatting += Dgv_CellFormatting;
         _dgv.CellClick += Dgv_CellClick;
-        Controls.Add(_dgv);
+        dgvPanel.Controls.Add(_dgv);
+        Controls.Add(dgvPanel);
     }
 
     private static Button CreateButton(string text, Color backColor, Color foreColor)

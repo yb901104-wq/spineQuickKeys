@@ -36,7 +36,8 @@ KeyMacro/
 ## 构建与运行
 ```bash
 dotnet run --project KeyMacro
-dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
+dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishDir="bin/Release/publish"
+# 若 exe 被占用: taskkill /f /im KeyMacro.exe 后再 publish
 ```
 
 ## 架构要点
@@ -47,11 +48,12 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 - `SpineHotkeyService.ToSpineFormat()` 将 WinForms 按键名转回 Spine 格式，避免写回 TXT 后 Spine 无法识别
 
 ## 版本管理与发布流程
-1. 修改前确认本次更新级别：问题修复 / 小功能更新 / 大版本更新
+1. 修改前确认本次更新级别：问题修复 / 小功能更新 / 大版本更新/ 未修复
 2. 修改后在 [MainForm.cs](KeyMacro/Forms/MainForm.cs#L24) 标题中迭代版本号：
-   - 问题修复 → +0.01（如 1.2 → 1.21）
-   - 小功能更新 → +0.1（如 1.2 → 1.3）
-   - 大版本更新 → +1（如 1.2 → 2.0）
+   - 问题修复 → +0.01（如 1.2 → 1.21）并且抹去更更低位的数字
+   - 小功能更新 → +0.1（如 1.2 → 1.3）并且抹去更更低位的数字
+   - 大版本更新 → +1（如 1.2 → 2.0）并且抹去更更低位的数字
+   - 未修复问题，暂不更改版本号
 3. 修改完成后编译单独的 .exe 供测试
 4. 总结修改内容，询问是否提交 git（以当前版本号作为提交名称）
 5. 总结并修改CLAUDE.MD
