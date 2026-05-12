@@ -29,8 +29,7 @@ KeyMacro/
     ├── SequenceEditor.cs    # 序列编辑器 + 热键录制对话框
     ├── SpineHotkeyEditor.cs # Spine 热键 TXT 文件编辑窗口
     ├── VirtualKeyWindow.cs  # 虚拟按键浮动窗口
-    ├── VirtualButtonWidget.cs # 虚拟按钮自绘控件
-    └── ActivationAppForm.cs # 窗口激活应用管理
+    └── VirtualButtonWidget.cs # 虚拟按钮自绘控件
 ```
 
 ## 关键约定
@@ -50,7 +49,7 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 
 ## 右键菜单体系
 - **按钮右键菜单**（`OnWidgetContextMenu`）：修改按钮名称 / 绑定快捷键 / 按钮循环延迟（仅循环按钮）/ 删除当前按钮
-- **空白区域右键菜单**（`BuildBlankMenu`）：增加按钮 / 删除所有按钮 / 置顶/取消置顶 / 透明度 / 按钮位置锁定/解锁 / 保存/重置布局 / 窗口位移 / 窗口锁定 / 窗口激活应用
+- **空白区域右键菜单**（`BuildBlankMenu`）：增加按钮 / 删除所有按钮 / 置顶/取消置顶 / 透明度 / 按钮位置锁定/解锁 / 保存/重置布局 / 窗口锁定/解锁
 - 按钮循环延迟支持自定义数值（通过 InputBox）
 
 ## 架构要点

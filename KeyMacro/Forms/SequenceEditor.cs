@@ -6,6 +6,7 @@ public partial class SequenceEditor : Form
 {
     private readonly MacroSequence _sequence;
     private bool _suppressEvents;
+    internal static bool IsVkPickMode { get; set; }
     private TextBox _txtName = null!;
     private TextBox _txtHotkey = null!;
     private DataGridView _dgvSteps = null!;
@@ -122,7 +123,8 @@ public partial class SequenceEditor : Form
         };
 
         _btnCancel = new Button { Text = "取消", AutoSize = true, MinimumSize = new Size(70, 30), FlatStyle = FlatStyle.Flat };
-        _btnCancel.Click += (_, _) => DialogResult = DialogResult.Cancel;
+        _btnCancel.Click += (_, _) => { DialogResult = DialogResult.Cancel; Close(); };
+        FormClosed += (_, _) => IsVkPickMode = false;
 
         _btnOk = new Button
         {
@@ -353,9 +355,32 @@ public partial class SequenceEditor : Form
 
     private void BtnRecordHotkey_Click(object? sender, EventArgs e)
     {
-        using var recorder = new HotkeyRecorderForm();
-        if (recorder.ShowDialog(this) == DialogResult.OK)
-            _txtHotkey.Text = recorder.RecordedHotkey;
+        // If VK window is open and has bound buttons, enter VK pick mode
+        var vkWindow = Application.OpenForms.OfType<VirtualKeyWindow>().FirstOrDefault();
+        bool vkHasBound = vkWindow != null && vkWindow.Visible && vkWindow.HasBoundButtons();
+
+        if (vkHasBound)
+        {
+            IsVkPickMode = true;
+            _txtHotkey.Text = "";
+            MessageBox.Show(this, "请在虚拟按键窗口中点击有绑定快捷键的按钮。\n点击后快捷键将自动填入。", "从虚拟按键读取");
+        }
+        else
+        {
+            using var recorder = new HotkeyRecorderForm();
+            if (recorder.ShowDialog(this) == DialogResult.OK)
+                _txtHotkey.Text = recorder.RecordedHotkey;
+        }
+    }
+
+    internal static void ReceiveVkHotkey(string hotkey)
+    {
+        var editor = Application.OpenForms.OfType<SequenceEditor>().FirstOrDefault();
+        if (editor != null && IsVkPickMode)
+        {
+            editor._txtHotkey.Text = hotkey;
+            IsVkPickMode = false;
+        }
     }
 
     }

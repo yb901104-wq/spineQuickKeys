@@ -23,10 +23,11 @@ public partial class MainForm : Form
     private readonly VirtualButtonManager _vkBtnManager = new();
     private readonly VirtualLayoutSerializer _vkSerializer = new();
     private VirtualKeyWindow? _vkWindow;
+    private SequenceEditor? _openEditor;
 
     public MainForm()
     {
-        Text = "快捷键助手 V1.92";
+        Text = "快捷键助手 V1.93";
         Size = new Size(900, 600);
         MinimumSize = new Size(600, 400);
         StartPosition = FormStartPosition.CenterScreen;
@@ -266,48 +267,55 @@ public partial class MainForm : Form
 
     private void AddSequence()
     {
-        var vk = _vkWindow;
-        if (vk is { IsDisposed: false, Visible: true })
+        if (_openEditor != null && !_openEditor.IsDisposed)
         {
-            vk.Hide();
-            using var editor = new SequenceEditor();
-            if (editor.ShowDialog() == DialogResult.OK)
+            _openEditor.BringToFront();
+            return;
+        }
+
+        var editor = new SequenceEditor();
+        _openEditor = editor;
+        _btnAdd.Enabled = false;
+        _btnEdit.Enabled = false;
+        editor.FormClosed += (_, _) =>
+        {
+            if (editor.DialogResult == DialogResult.OK)
             {
                 _sequences.Add(editor.Sequence);
                 SaveAndRefresh();
             }
-            if (!vk.IsDisposed) vk.Show();
-        }
-        else
-        {
-            using var editor = new SequenceEditor();
-            if (editor.ShowDialog() == DialogResult.OK)
-            {
-                _sequences.Add(editor.Sequence);
-                SaveAndRefresh();
-            }
-        }
+            _openEditor = null;
+            _btnAdd.Enabled = true;
+            _btnEdit.Enabled = _sequences.Count > 0;
+            editor.Dispose();
+        };
+        editor.Show(this);
     }
 
     private void EditSequence()
     {
         if (GetSelectedSequence() is not { } seq) return;
 
-        var vk = _vkWindow;
-        if (vk is { IsDisposed: false, Visible: true })
+        if (_openEditor != null && !_openEditor.IsDisposed)
         {
-            vk.Hide();
-            using var editor = new SequenceEditor(seq);
-            if (editor.ShowDialog() == DialogResult.OK)
-                SaveAndRefresh();
-            if (!vk.IsDisposed) vk.Show();
+            _openEditor.BringToFront();
+            return;
         }
-        else
+
+        var editor = new SequenceEditor(seq);
+        _openEditor = editor;
+        _btnAdd.Enabled = false;
+        _btnEdit.Enabled = false;
+        editor.FormClosed += (_, _) =>
         {
-            using var editor = new SequenceEditor(seq);
-            if (editor.ShowDialog() == DialogResult.OK)
+            if (editor.DialogResult == DialogResult.OK)
                 SaveAndRefresh();
-        }
+            _openEditor = null;
+            _btnAdd.Enabled = true;
+            _btnEdit.Enabled = _sequences.Count > 0;
+            editor.Dispose();
+        };
+        editor.Show(this);
     }
 
     private void DeleteSequence()

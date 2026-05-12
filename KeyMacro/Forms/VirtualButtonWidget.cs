@@ -10,10 +10,10 @@ public class VirtualButtonWidget : UserControl
     private bool _isPressed;
     private bool _isDragging;
     private Point _dragStart;
-    private bool _settingsHover;
     private bool _isActive;
     private bool _isFirstInRow;
     private bool _isLastInRow;
+    private TextBox? _txtLoopCount;
 
     // Bar constants
     private const int BaseHeight = 48;
@@ -27,7 +27,6 @@ public class VirtualButtonWidget : UserControl
     private static readonly Color ColorBarBottom = Color.FromArgb(0x38, 0x38, 0x38);
     private static readonly Color ColorGrooveDark = Color.FromArgb(0x1A, 0x1A, 0x1A);
     private static readonly Color ColorGrooveLight = Color.FromArgb(0x4A, 0x4A, 0x4A);
-    private static readonly Color ColorRecessed = Color.FromArgb(0x0D, 0x0D, 0x0D);
     private static readonly Color ColorActiveGlow = Color.FromArgb(0x00, 0xE5, 0xFF);
     private static readonly Color ColorText = Color.FromArgb(0xE0, 0xE0, 0xE0);
 
@@ -35,7 +34,7 @@ public class VirtualButtonWidget : UserControl
     public event Action<VirtualButtonWidget>? Clicked;
     public event Action<VirtualButtonWidget, int, int>? Dragged;
     public event Action<VirtualButtonWidget, Point>? ContextMenuRequested;
-    public event Action<VirtualButtonWidget>? SettingsClicked;
+    public event Action<VirtualButtonWidget, int>? LoopCountEdited;
 
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     public bool IsActive
@@ -72,16 +71,56 @@ public class VirtualButtonWidget : UserControl
                  ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
         UpdateSize();
 
+        // Create loop count TextBox for LoopIcon
+        _txtLoopCount = new TextBox
+        {
+            Text = vbtn.LoopCount.ToString(),
+            BackColor = Color.FromArgb(0x0D, 0x0D, 0x0D),
+            ForeColor = Color.FromArgb(0xE0, 0xE0, 0xE0),
+            BorderStyle = BorderStyle.None,
+            TextAlign = HorizontalAlignment.Center,
+            Font = new Font("Microsoft YaHei", 8, FontStyle.Bold),
+            Visible = vbtn.StyleType == VirtualButtonStyle.LoopIcon
+        };
+        _txtLoopCount.KeyDown += (_, e) =>
+        {
+            if (e.KeyCode == Keys.Enter)
+            {
+                CommitLoopCount();
+                e.SuppressKeyPress = true;
+            }
+        };
+        _txtLoopCount.LostFocus += (_, _) => CommitLoopCount();
+        Controls.Add(_txtLoopCount);
+
         MouseDown += OnMouseDown;
         MouseMove += OnMouseMove;
         MouseUp += OnMouseUp;
         MouseClick += OnMouseClick;
-        MouseLeave += (_, _) => _settingsHover = false;
+    }
+
+    private void CommitLoopCount()
+    {
+        if (_txtLoopCount == null || !_txtLoopCount.Visible) return;
+        if (int.TryParse(_txtLoopCount.Text, out var count) && count >= 0 && count <= 9999)
+        {
+            if (count != _vbtn.LoopCount)
+            {
+                _vbtn.LoopCount = count;
+                LoopCountEdited?.Invoke(this, count);
+            }
+        }
+        else
+        {
+            _txtLoopCount.Text = _vbtn.LoopCount.ToString();
+        }
     }
 
     public void UpdateButton(VirtualButton vbtn)
     {
         _vbtn = vbtn;
+        if (_txtLoopCount != null)
+            _txtLoopCount.Text = vbtn.LoopCount.ToString();
         Invalidate();
     }
 
@@ -97,16 +136,22 @@ public class VirtualButtonWidget : UserControl
             _ => Scaled(SmallWidth)
         };
         Size = new Size(w, Scaled(BaseHeight));
-    }
 
-    // ── Hit detection ──
-
-    private Rectangle GetSettingsRect()
-    {
-        if (_vbtn.StyleType != VirtualButtonStyle.LoopIcon)
-            return Rectangle.Empty;
-        var sw = Scaled(44);
-        return new Rectangle(Width - sw, 0, sw, Height);
+        // Position loop count TextBox on the right side
+        if (_txtLoopCount != null)
+        {
+            bool isLoop = _vbtn.StyleType == VirtualButtonStyle.LoopIcon;
+            _txtLoopCount.Visible = isLoop;
+            if (isLoop)
+            {
+                int sw = Scaled(44);
+                int margin = Scaled(2);
+                _txtLoopCount.Location = new Point(Width - sw + margin, Scaled(12));
+                _txtLoopCount.Size = new Size(sw - margin * 2, Scaled(24));
+                _txtLoopCount.Font = new Font("Microsoft YaHei", Scaled(8), FontStyle.Bold);
+                _txtLoopCount.Text = _vbtn.LoopCount.ToString();
+            }
+        }
     }
 
     // ── Mouse ──
@@ -124,18 +169,6 @@ public class VirtualButtonWidget : UserControl
 
     private void OnMouseMove(object? sender, MouseEventArgs e)
     {
-        var sr = GetSettingsRect();
-        if (!sr.IsEmpty && sr.Contains(e.Location))
-        {
-            _settingsHover = true;
-            Cursor = Cursors.Hand;
-        }
-        else if (_settingsHover)
-        {
-            _settingsHover = false;
-            Cursor = Cursors.Default;
-        }
-
         if (_isDragging && _isPressed && AllowDragging)
         {
             var dx = e.X - _dragStart.X;
@@ -163,14 +196,7 @@ public class VirtualButtonWidget : UserControl
             return;
         }
         if (e.Button == MouseButtons.Left && !_isDragging)
-        {
-            if (GetSettingsRect().Contains(e.Location))
-            {
-                SettingsClicked?.Invoke(this);
-                return;
-            }
             Clicked?.Invoke(this);
-        }
     }
 
     // ── Painting ──
@@ -292,35 +318,9 @@ public class VirtualButtonWidget : UserControl
                 using var nameFont = new Font("Microsoft YaHei", Scaled(7), FontStyle.Regular);
                 var nameR = new RectangleF(2, Scaled(28), leftW - 4, Scaled(16));
                 g.DrawString(_vbtn.Name, nameFont, dimBrush, nameR, sf);
-
-                // Right: recessed settings panel
-                var sr = GetSettingsRect();
-                DrawSettingsPanel(g, sr);
                 break;
             }
         }
-    }
-
-    private void DrawSettingsPanel(Graphics g, Rectangle rect)
-    {
-        // Recessed background
-        var inner = new Rectangle(rect.X + 2, rect.Y + 3, rect.Width - 4, rect.Height - 6);
-        using var path = MakeRoundedPath(inner, 2, true, true);
-        using var bgBrush = new SolidBrush(ColorRecessed);
-        g.FillPath(bgBrush, path);
-
-        // Inner shadow top
-        using var shadowBrush = new LinearGradientBrush(
-            new Rectangle(inner.X, inner.Y, inner.Width, 4),
-            Color.FromArgb(140, 0, 0, 0), Color.Transparent, LinearGradientMode.Vertical);
-        g.FillPath(shadowBrush, path);
-
-        // Count text
-        var text = $"{_vbtn.LoopCount}x";
-        using var font = new Font("Microsoft YaHei", Scaled(8), FontStyle.Bold);
-        using var brush = new SolidBrush(_settingsHover ? ColorActiveGlow : ColorText);
-        using var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
-        g.DrawString(text, font, brush, inner, sf);
     }
 
     // ── Geometry ──

@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using KeyMacro.Models;
 using KeyMacro.Services;
 
@@ -20,14 +19,6 @@ public class VirtualKeyWindow : Form
     private double _opacityValue = 1.0;
     private bool _positionLocked;
     private bool _windowLocked;
-
-    [DllImport("user32.dll")]
-    private static extern bool SetForegroundWindow(IntPtr hWnd);
-
-    [DllImport("user32.dll")]
-    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-
-    private const int SW_RESTORE = 9;
 
     private const int BasePanelWidth = 400;
 
@@ -134,19 +125,8 @@ public class VirtualKeyWindow : Form
         m.Items.Add("保存布局", null, (_, _) => SaveLayout());
         m.Items.Add("重置布局", null, (_, _) => ResetLayout());
 
-        // Window offset
-        m.Items.Add("窗口位移", null, (_, _) => WindowOffset());
-
         // Window lock toggle
-        m.Items.Add(_windowLocked ? "✓ 窗口已锁定" : "窗口锁定", null, (_, _) => ToggleWindowLock());
-
-        // Window activation app
-        m.Items.Add("窗口激活应用", null, (_, _) =>
-        {
-            using var form = new ActivationAppForm(_btnManager);
-            form.ShowDialog();
-            SaveLayout();
-        });
+        m.Items.Add(_windowLocked ? "✓ 窗口已锁定" : "窗口锁定/解锁", null, (_, _) => ToggleWindowLock());
 
         return m;
     }
@@ -171,42 +151,15 @@ public class VirtualKeyWindow : Form
             w.AllowDragging = !_positionLocked;
     }
 
-    private void WindowOffset()
-    {
-        var inputX = Microsoft.VisualBasic.Interaction.InputBox("水平偏移 (正数向右):", "窗口位移", "0");
-        if (!int.TryParse(inputX, out var dx)) return;
-        var inputY = Microsoft.VisualBasic.Interaction.InputBox("垂直偏移 (正数向下):", "窗口位移", "0");
-        if (!int.TryParse(inputY, out var dy)) return;
-        Left += dx;
-        Top += dy;
-        SaveLayout();
-    }
 
     private void ToggleWindowLock()
     {
         _windowLocked = !_windowLocked;
     }
 
-    private static void ActivateApp(string exePath)
+    public bool HasBoundButtons()
     {
-        if (string.IsNullOrEmpty(exePath)) return;
-        var exeName = Path.GetFileNameWithoutExtension(exePath);
-        var processes = System.Diagnostics.Process.GetProcessesByName(exeName);
-        if (processes.Length > 0)
-        {
-            var hwnd = processes[0].MainWindowHandle;
-            if (hwnd != IntPtr.Zero)
-            {
-                ShowWindow(hwnd, SW_RESTORE);
-                SetForegroundWindow(hwnd);
-            }
-            foreach (var p in processes) p.Dispose();
-        }
-        else
-        {
-            try { System.Diagnostics.Process.Start(exePath); }
-            catch { }
-        }
+        return _btnManager.Buttons.Any(b => !string.IsNullOrEmpty(b.BindActionId));
     }
 
     // ── Button management ──
@@ -232,7 +185,7 @@ public class VirtualKeyWindow : Form
             widget.Clicked += OnButtonClicked;
             widget.Dragged += OnButtonDragged;
             widget.ContextMenuRequested += OnWidgetContextMenu;
-            widget.SettingsClicked += OnWidgetSettingsClicked;
+            widget.LoopCountEdited += OnLoopCountEdited;
             _panel.Controls.Add(widget);
             _widgets[buttons[i].Id] = widget;
         }
@@ -256,6 +209,15 @@ public class VirtualKeyWindow : Form
     {
         var vbtn = widget.VirtualButton;
 
+        // VK pick mode — send bound hotkey to SequenceEditor
+        if (SequenceEditor.IsVkPickMode)
+        {
+            var seq = _bindingManager.ResolveBinding(vbtn, _sequences);
+            if (seq != null && !string.IsNullOrEmpty(seq.TriggerHotkey))
+                SequenceEditor.ReceiveVkHotkey(seq.TriggerHotkey);
+            return;
+        }
+
         if (vbtn.StyleType == VirtualButtonStyle.LoopIcon && vbtn.LoopEnabled)
         {
             var seq = _bindingManager.ResolveBinding(vbtn, _sequences);
@@ -266,10 +228,6 @@ public class VirtualKeyWindow : Form
             }
             return;
         }
-
-        // Activate target app before execution
-        if (!string.IsNullOrEmpty(vbtn.TargetActivateAppPath))
-            ActivateApp(vbtn.TargetActivateAppPath);
 
         var sequence = _bindingManager.ResolveBinding(vbtn, _sequences);
         if (sequence != null)
@@ -287,22 +245,10 @@ public class VirtualKeyWindow : Form
             widget.Location.Y + dy);
     }
 
-    private void OnWidgetSettingsClicked(VirtualButtonWidget widget)
+    private void OnLoopCountEdited(VirtualButtonWidget widget, int count)
     {
         var vbtn = widget.VirtualButton;
-        // Toggle loop on/off
-        vbtn.LoopEnabled = !vbtn.LoopEnabled;
-        if (vbtn.LoopEnabled && vbtn.LoopCount == 0)
-        {
-            var input = Microsoft.VisualBasic.Interaction.InputBox(
-                "循环次数 (1-9999):", "设置循环次数", "1");
-            if (int.TryParse(input, out var count) && count > 0 && count <= 9999)
-                vbtn.LoopCount = count;
-            else
-                vbtn.LoopEnabled = false;
-        }
         SyncSequence(vbtn);
-        widget.UpdateButton(vbtn);
         SaveLayout();
     }
 
