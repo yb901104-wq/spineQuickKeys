@@ -7,7 +7,7 @@ public class MacroSequence
     public string TriggerHotkey { get; set; } = "";
     public bool Enabled { get; set; } = true;
     public bool Loop { get; set; } = false;
-    public int LoopIntervalMs { get; set; } = 1000;
+    public int LoopIntervalMs { get; set; } = 200;
     public int LoopCount { get; set; } = 0;
     public string TargetAppPath { get; set; } = "";
     public List<MacroStep> Steps { get; set; } = [];
@@ -17,7 +17,7 @@ public class MacroStep
 {
     public StepType Type { get; set; } = StepType.Key;
     public string Keys { get; set; } = "";
-    public int DelayMs { get; set; } = 200;
+    public int DelayMs { get; set; } = 50;
     public PressMode PressMode { get; set; } = PressMode.Tap;
     public int HoldDurationMs { get; set; } = 0;
 }

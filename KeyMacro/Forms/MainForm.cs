@@ -17,11 +17,16 @@ public partial class MainForm : Form
     private Button _btnAdd = null!, _btnEdit = null!, _btnDelete = null!;
     private Button _btnTest = null!, _btnPause = null!;
     private Button _btnSpine = null!, _btnDeleteAll = null!;
+    private Button _btnVkOpen = null!, _btnVkClose = null!;
     private ToolStripMenuItem? _pauseTrayItem;
+
+    private readonly VirtualButtonManager _vkBtnManager = new();
+    private readonly VirtualLayoutSerializer _vkSerializer = new();
+    private VirtualKeyWindow? _vkWindow;
 
     public MainForm()
     {
-        Text = "快捷键助手 V1.33";
+        Text = "快捷键助手 V1.9beta";
         Size = new Size(900, 600);
         MinimumSize = new Size(600, 400);
         StartPosition = FormStartPosition.CenterScreen;
@@ -52,6 +57,8 @@ public partial class MainForm : Form
         _btnPause = CreateButton("暂停全部", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
         _btnSpine = CreateButton("Spine热键编辑", Color.FromArgb(0x6B, 0x46, 0xC3), Color.White);
         _btnDeleteAll = CreateButton("删除全部", Color.FromArgb(0xD9, 0x5C, 0x5C), Color.White);
+        _btnVkOpen = CreateButton("开启虚拟按键", Color.FromArgb(0x00, 0xC8, 0x53), Color.White);
+        _btnVkClose = CreateButton("关闭虚拟按键", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
 
         _btnAdd.Click += (_, _) => AddSequence();
         _btnEdit.Click += (_, _) => EditSequence();
@@ -60,8 +67,10 @@ public partial class MainForm : Form
         _btnPause.Click += (_, _) => TogglePause();
         _btnSpine.Click += (_, _) => OpenSpineEditor();
         _btnDeleteAll.Click += (_, _) => DeleteAllSequences();
+        _btnVkOpen.Click += (_, _) => OpenVirtualKeys();
+        _btnVkClose.Click += (_, _) => CloseVirtualKeys();
 
-        toolStrip.Controls.AddRange([_btnAdd, _btnEdit, _btnDelete, _btnTest, _btnPause, _btnSpine, _btnDeleteAll]);
+        toolStrip.Controls.AddRange([_btnAdd, _btnEdit, _btnDelete, _btnTest, _btnPause, _btnSpine, _btnDeleteAll, _btnVkOpen, _btnVkClose]);
         Controls.Add(toolStrip);
 
         var dgvPanel = new Panel
@@ -224,7 +233,7 @@ public partial class MainForm : Form
 
             case 6: // 间隔(ms)
                 int.TryParse(_dgv.Rows[e.RowIndex].Cells[6].Value?.ToString(), out var interval);
-                seq.LoopIntervalMs = interval > 0 ? interval : 1000;
+                seq.LoopIntervalMs = interval > 0 ? interval : 200;
                 _config.Save(_sequences);
                 break;
 
@@ -330,6 +339,33 @@ public partial class MainForm : Form
             return;
         _sequences.Clear();
         SaveAndRefresh();
+    }
+
+    private void OpenVirtualKeys()
+    {
+        if (_vkWindow != null && !_vkWindow.IsDisposed)
+        {
+            _vkWindow.Show();
+            _vkWindow.BringToFront();
+            return;
+        }
+
+        var bindingManager = new VirtualKeyBindingManager(_hotkeyService, _vkBtnManager);
+        var loopExecutor = new VirtualLoopExecutor(_player);
+
+        _vkWindow = new VirtualKeyWindow(_vkBtnManager, bindingManager, loopExecutor,
+            _vkSerializer, _sequences);
+        _vkWindow.Show();
+    }
+
+    private void CloseVirtualKeys()
+    {
+        if (_vkWindow != null && !_vkWindow.IsDisposed)
+        {
+            _vkWindow.Close();
+            _vkWindow.Dispose();
+            _vkWindow = null;
+        }
     }
 
     private void ExitApp()

@@ -184,7 +184,12 @@ public partial class SequenceEditor : Form
         };
         typeCol.Items.AddRange("单键", "组合键", "文本");
         _dgvSteps.Columns.Add(typeCol);
-        _dgvSteps.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "按键/文本" });
+        _dgvSteps.Columns.Add(new DataGridViewTextBoxColumn
+        {
+            HeaderText = "按键/文本",
+            DefaultCellStyle = new DataGridViewCellStyle { WrapMode = DataGridViewTriState.True }
+        });
+        _dgvSteps.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
         _dgvSteps.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "延迟(ms)", Width = 80 });
 
         var pressCol = new DataGridViewComboBoxColumn
@@ -226,7 +231,7 @@ public partial class SequenceEditor : Form
             if (row.IsNewRow) continue;
             var typeStr = row.Cells[0].Value?.ToString() ?? "单键";
             var keys = row.Cells[1].Value?.ToString() ?? "";
-            var delayStr = row.Cells[2].Value?.ToString() ?? "200";
+            var delayStr = row.Cells[2].Value?.ToString() ?? "50";
             int.TryParse(delayStr, out var delay);
             if (delay < 0) delay = 0;
             var pressStr = row.Cells[3].Value?.ToString() ?? "点按";
@@ -273,7 +278,7 @@ public partial class SequenceEditor : Form
     private void BtnAddStep_Click(object? sender, EventArgs e)
     {
         _dgvSteps.EndEdit();
-        int newIdx = _dgvSteps.Rows.Add("单键", "", 200);
+        int newIdx = _dgvSteps.Rows.Add("单键", "", 50);
         _dgvSteps.CurrentCell = _dgvSteps.Rows[newIdx].Cells[1];
         _dgvSteps.Rows[newIdx].Selected = true;
         SaveStepsFromGrid();
