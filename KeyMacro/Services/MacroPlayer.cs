@@ -28,8 +28,10 @@ public class MacroPlayer
         {
             await Task.Delay(500, ct);
 
+            var loopCounter = 0;
             do
             {
+                loopCounter++;
                 foreach (var step in sequence.Steps)
                 {
                     ct.ThrowIfCancellationRequested();
@@ -59,7 +61,11 @@ public class MacroPlayer
                 }
 
                 if (sequence.Loop && !ct.IsCancellationRequested)
+                {
+                    if (sequence.LoopCount > 0 && loopCounter >= sequence.LoopCount)
+                        break;
                     await Task.Delay(sequence.LoopIntervalMs, ct);
+                }
             }
             while (sequence.Loop && !ct.IsCancellationRequested);
         }

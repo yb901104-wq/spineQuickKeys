@@ -47,8 +47,11 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 - 播放期间 `MacroPlayer.IsPlaying` 为 true 以阻止嵌套触发
 - `SpineHotkeyService.ToSpineFormat()` 将 WinForms 按键名转回 Spine 格式，避免写回 TXT 后 Spine 无法识别
 
-## 版本管理与发布流程
-1. 修改前确认本次更新级别：问题修复 / 小功能更新 / 大版本更新/ 未修复
+## 版本管理与发布流程（必遵）
+
+**在开始任何代码修改之前，必须先询问用户本次更新级别，得到回复后方可开始编码。**
+
+1. 修改前确认本次更新级别：问题修复 / 小功能更新 / 大版本更新 / 未修复
 2. 修改后在 [MainForm.cs](KeyMacro/Forms/MainForm.cs#L24) 标题中迭代版本号：
    - 问题修复 → +0.01（如 1.2 → 1.21）并且抹去更更低位的数字
    - 小功能更新 → +0.1（如 1.2 → 1.3）并且抹去更更低位的数字
@@ -56,7 +59,7 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
    - 未修复问题，暂不更改版本号
 3. 修改完成后编译单独的 .exe 供测试
 4. 总结修改内容，询问是否提交 git（以当前版本号作为提交名称）
-5. 总结并修改CLAUDE.MD
+5. 总结并修改 CLAUDE.md
 # Git 提交规则（强制）
 
 当你需要为我自动提交代码时，必须严格遵守以下流程，**绝不省略**：

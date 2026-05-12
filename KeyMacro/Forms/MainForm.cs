@@ -21,7 +21,7 @@ public partial class MainForm : Form
 
     public MainForm()
     {
-        Text = "快捷键助手 V1.31";
+        Text = "快捷键助手 V1.33";
         Size = new Size(900, 600);
         MinimumSize = new Size(600, 400);
         StartPosition = FormStartPosition.CenterScreen;
@@ -80,7 +80,7 @@ public partial class MainForm : Form
             MultiSelect = false,
             SelectionMode = DataGridViewSelectionMode.FullRowSelect,
             AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-            ReadOnly = true
+            EditMode = DataGridViewEditMode.EditOnEnter
         };
         _dgv.CellDoubleClick += (_, _) => EditSequence();
         _dgv.CellValueChanged += Dgv_CellValueChanged;
@@ -174,7 +174,7 @@ public partial class MainForm : Form
         if (e.RowIndex < 0 || e.RowIndex >= _sequences.Count) return;
         var seq = _sequences[e.RowIndex];
 
-        if (e.ColumnIndex == 6)
+        if (e.ColumnIndex == 8)
         {
             using var dialog = new OpenFileDialog
             {
@@ -190,7 +190,7 @@ public partial class MainForm : Form
                 SaveAndRefresh();
             }
         }
-        else if (e.ColumnIndex == 7)
+        else if (e.ColumnIndex == 9)
         {
             if (!string.IsNullOrEmpty(seq.TargetAppPath))
             {
@@ -202,15 +202,37 @@ public partial class MainForm : Form
 
     private void Dgv_CellValueChanged(object? sender, DataGridViewCellEventArgs e)
     {
-        if (e.ColumnIndex != 0 || e.RowIndex < 0 || e.RowIndex >= _sequences.Count) return;
+        if (e.RowIndex < 0 || e.RowIndex >= _sequences.Count) return;
         var seq = _sequences[e.RowIndex];
-        var newVal = _dgv.Rows[e.RowIndex].Cells[0].Value;
-        var enabled = newVal is true;
-        if (seq.Enabled != enabled)
+
+        switch (e.ColumnIndex)
         {
-            seq.Enabled = enabled;
-            _config.Save(_sequences);
-            _hotkeyService.RegisterAll(_sequences);
+            case 0: // 启用
+                var enabled = _dgv.Rows[e.RowIndex].Cells[0].Value is true;
+                if (seq.Enabled != enabled)
+                {
+                    seq.Enabled = enabled;
+                    _config.Save(_sequences);
+                    _hotkeyService.RegisterAll(_sequences);
+                }
+                break;
+
+            case 5: // 循环执行
+                seq.Loop = _dgv.Rows[e.RowIndex].Cells[5].Value is true;
+                _config.Save(_sequences);
+                break;
+
+            case 6: // 间隔(ms)
+                int.TryParse(_dgv.Rows[e.RowIndex].Cells[6].Value?.ToString(), out var interval);
+                seq.LoopIntervalMs = interval > 0 ? interval : 1000;
+                _config.Save(_sequences);
+                break;
+
+            case 7: // 循环次数
+                int.TryParse(_dgv.Rows[e.RowIndex].Cells[7].Value?.ToString(), out var count);
+                seq.LoopCount = count >= 0 ? count : 0;
+                _config.Save(_sequences);
+                break;
         }
     }
 
@@ -341,18 +363,29 @@ public partial class MainForm : Form
         _dgv.Columns.Add(new DataGridViewCheckBoxColumn
         {
             HeaderText = "启用",
-            DataPropertyName = "Enabled",
             Width = 50,
             AutoSizeMode = DataGridViewAutoSizeColumnMode.None
         });
-        _dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "序列名称" });
-        _dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "触发快捷键" });
-        _dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "目标软件" });
-        _dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "步骤数" });
+        _dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "序列名称", ReadOnly = true });
+        _dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "触发快捷键", ReadOnly = true });
+        _dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "目标软件", ReadOnly = true });
+        _dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "步骤数", ReadOnly = true, Width = 55, AutoSizeMode = DataGridViewAutoSizeColumnMode.None });
+        _dgv.Columns.Add(new DataGridViewCheckBoxColumn
+        {
+            HeaderText = "循环执行",
+            Width = 60,
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.None
+        });
         _dgv.Columns.Add(new DataGridViewTextBoxColumn
         {
-            HeaderText = "循环",
-            Width = 50,
+            HeaderText = "间隔(ms)",
+            Width = 70,
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.None
+        });
+        _dgv.Columns.Add(new DataGridViewTextBoxColumn
+        {
+            HeaderText = "循环次数",
+            Width = 60,
             AutoSizeMode = DataGridViewAutoSizeColumnMode.None
         });
         _dgv.Columns.Add(new DataGridViewButtonColumn
@@ -361,7 +394,8 @@ public partial class MainForm : Form
             Text = "...",
             UseColumnTextForButtonValue = true,
             Width = 50,
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.None
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
+            ReadOnly = true
         });
         _dgv.Columns.Add(new DataGridViewButtonColumn
         {
@@ -369,7 +403,8 @@ public partial class MainForm : Form
             Text = "✕",
             UseColumnTextForButtonValue = true,
             Width = 50,
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.None
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
+            ReadOnly = true
         });
 
         _dgv.Rows.Clear();
@@ -378,7 +413,9 @@ public partial class MainForm : Form
             var appName = string.IsNullOrEmpty(seq.TargetAppPath)
                 ? "全局"
                 : Path.GetFileName(seq.TargetAppPath);
-            var idx = _dgv.Rows.Add(seq.Enabled, seq.Name, seq.TriggerHotkey, appName, seq.Steps.Count, seq.Loop ? "✓" : "");
+            var idx = _dgv.Rows.Add(
+                seq.Enabled, seq.Name, seq.TriggerHotkey, appName, seq.Steps.Count,
+                seq.Loop, seq.LoopIntervalMs.ToString(), seq.LoopCount.ToString());
             _dgv.Rows[idx].Tag = seq.Id;
         }
 

@@ -8,9 +8,6 @@ public partial class SequenceEditor : Form
     private bool _suppressEvents;
     private TextBox _txtName = null!;
     private TextBox _txtHotkey = null!;
-    private CheckBox _chkEnabled = null!;
-    private CheckBox _chkLoop = null!;
-    private TextBox _txtLoopInterval = null!;
     private DataGridView _dgvSteps = null!;
     private Button _btnRecordHotkey = null!;
     private Button _btnAddStep = null!, _btnDelStep = null!;
@@ -45,16 +42,15 @@ public partial class SequenceEditor : Form
         var topPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Top,
-            Height = 130,
-            ColumnCount = 3,
+            Height = 75,
+            ColumnCount = 2,
             RowCount = 2,
             Padding = new Padding(12, 12, 12, 0)
         };
         topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
         topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 320));
-        topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 55));
-        topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 55));
+        topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+        topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
 
         topPanel.Controls.Add(new Label { Text = "序列名称:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 0);
         topPanel.Controls.Add(new Label { Text = "触发快捷键:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 1);
@@ -78,44 +74,6 @@ public partial class SequenceEditor : Form
         hotkeyPanel.Controls.Add(_txtHotkey);
         hotkeyPanel.Controls.Add(_btnRecordHotkey);
         topPanel.Controls.Add(hotkeyPanel, 1, 1);
-
-        var rightPanel = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 2,
-            RowCount = 3,
-            Padding = new Padding(8, 2, 0, 0)
-        };
-        rightPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        rightPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        rightPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-        rightPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-        rightPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-
-        _chkEnabled = new CheckBox { Text = "启用序列", AutoSize = true, Checked = true, Margin = new Padding(0) };
-        _chkLoop = new CheckBox { Text = "循环执行", AutoSize = true, Margin = new Padding(0) };
-        _txtLoopInterval = new TextBox
-        {
-            Width = 100,
-            Text = "1000",
-            Enabled = false,
-            TextAlign = HorizontalAlignment.Right,
-            Margin = new Padding(0)
-        };
-        _chkLoop.CheckedChanged += (_, _) => _txtLoopInterval.Enabled = _chkLoop.Checked;
-
-        // Row 0: 启用序列
-        rightPanel.Controls.Add(_chkEnabled, 0, 0);
-        rightPanel.SetColumnSpan(_chkEnabled, 2);
-        // Row 1: 循环执行
-        rightPanel.Controls.Add(_chkLoop, 0, 1);
-        rightPanel.SetColumnSpan(_chkLoop, 2);
-        // Row 2: 间隔(ms): 标签 + 输入框
-        rightPanel.Controls.Add(new Label { Text = "间隔(ms):", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft, Margin = new Padding(0) }, 0, 2);
-        rightPanel.Controls.Add(_txtLoopInterval, 1, 2);
-
-        topPanel.Controls.Add(rightPanel, 2, 0);
-        topPanel.SetRowSpan(rightPanel, 2);
 
         // ── Steps Toolbar ──
         var stepsToolbar = new FlowLayoutPanel
@@ -203,10 +161,6 @@ public partial class SequenceEditor : Form
     {
         _txtName.Text = _sequence.Name;
         _txtHotkey.Text = _sequence.TriggerHotkey;
-        _chkEnabled.Checked = _sequence.Enabled;
-        _chkLoop.Checked = _sequence.Loop;
-        _txtLoopInterval.Text = _sequence.LoopIntervalMs.ToString();
-        _txtLoopInterval.Enabled = _sequence.Loop;
         RefreshSteps();
     }
 
@@ -214,10 +168,6 @@ public partial class SequenceEditor : Form
     {
         _sequence.Name = _txtName.Text.Trim();
         _sequence.TriggerHotkey = _txtHotkey.Text.Trim();
-        _sequence.Enabled = _chkEnabled.Checked;
-        _sequence.Loop = _chkLoop.Checked;
-        int.TryParse(_txtLoopInterval.Text, out var interval);
-        _sequence.LoopIntervalMs = interval > 0 ? interval : 1000;
         SaveStepsFromGrid();
     }
 

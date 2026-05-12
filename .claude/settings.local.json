@@ -33,7 +33,9 @@
       "WebSearch",
       "WebFetch(domain:zh.esotericsoftware.com)",
       "WebFetch(domain:www.zerofc.cn)",
-      "WebFetch(domain:www.taikr.com)"
+      "WebFetch(domain:www.taikr.com)",
+      "Bash(taskkill /f /im KeyMacro.exe)",
+      "Bash(taskkill -f -im KeyMacro.exe)"
     ]
   }
 }

@@ -8,6 +8,7 @@ public class MacroSequence
     public bool Enabled { get; set; } = true;
     public bool Loop { get; set; } = false;
     public int LoopIntervalMs { get; set; } = 1000;
+    public int LoopCount { get; set; } = 0;
     public string TargetAppPath { get; set; } = "";
     public List<MacroStep> Steps { get; set; } = [];
 }
