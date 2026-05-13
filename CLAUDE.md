@@ -89,7 +89,7 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
    - 未修复问题，暂不更改版本号
 3. 总结并修改 CLAUDE.md   
 4. 总结修改内容，询问是否提交 git（以当前版本号作为提交名称）
-5. 修改完成后导出一个单独的 .exe应用供测试
+5. 修改完成后导出一个单独的.exe应用供测试，如遇应用已开启导致无法修改就强行终止应用再尝试导出
 # Git 提交规则（强制）
 
 当你需要为我自动提交代码时，必须严格遵守以下流程，**绝不省略**：

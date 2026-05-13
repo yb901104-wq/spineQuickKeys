@@ -1,6 +1,7 @@
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
 using KeyMacro.Models;
+using KeyMacro.Services;
 
 namespace KeyMacro.Forms;
 
@@ -161,6 +162,7 @@ public class VirtualButtonWidget : UserControl
 
     private void OnMouseDown(object? sender, MouseEventArgs e)
     {
+        OperationLogger.Info($"VBWidget.OnMouseDown: name=\"{_vbtn.Name}\", btn={e.Button}");
         if (e.Button == MouseButtons.Left)
         {
             _isPressed = true;
@@ -183,6 +185,7 @@ public class VirtualButtonWidget : UserControl
 
     private void OnMouseUp(object? sender, MouseEventArgs e)
     {
+        OperationLogger.Info($"VBWidget.OnMouseUp: name=\"{_vbtn.Name}\", btn={e.Button}");
         _isDragging = false;
         if (_isPressed)
         {
@@ -193,12 +196,13 @@ public class VirtualButtonWidget : UserControl
 
     private void OnMouseClick(object? sender, MouseEventArgs e)
     {
+        OperationLogger.Info($"VBWidget.OnMouseClick: name=\"{_vbtn.Name}\", btn={e.Button}, drag={_isDragging}");
         if (e.Button == MouseButtons.Right)
         {
             ContextMenuRequested?.Invoke(this, e.Location);
             return;
         }
-        if (e.Button == MouseButtons.Left && !_isDragging)
+        if (e.Button == MouseButtons.Left)
             Clicked?.Invoke(this);
     }
 

@@ -86,6 +86,7 @@ public class VirtualKeyWindow : Form
             Padding = new Padding(8),
             BackColor = Color.FromArgb(0x0D, 0x0D, 0x0D)
         };
+        _panel.MouseClick += (_, e) => OperationLogger.Info($"VKWindow._panel.MouseClick: btn={e.Button}, loc=({e.X},{e.Y}), widgets={_widgets.Count}");
         Controls.Add(_panel);
         Resize += (_, _) => UpdateScale();
 
@@ -346,6 +347,7 @@ public class VirtualKeyWindow : Form
         }
         UpdateScale();
         _panel.ResumeLayout();
+        OperationLogger.Info($"VKWindow.RebuildWidgets: created {_widgets.Count} widgets from {buttons.Count} buttons");
     }
 
     private void UpdateScale()
