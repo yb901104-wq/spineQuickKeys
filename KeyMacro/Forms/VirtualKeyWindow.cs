@@ -93,8 +93,8 @@ public class VirtualKeyWindow : Form
         var blankMenu = BuildBlankMenu();
         _panel.ContextMenuStrip = blankMenu;
 
-        LoadLayout();
         _btnManager.ButtonsChanged += RebuildWidgets;
+        LoadLayout();
         FormClosing += (_, e) =>
         {
             if (e.CloseReason == CloseReason.UserClosing)
