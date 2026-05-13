@@ -46,6 +46,7 @@ public class VirtualButtonManager
     }
 
     public VirtualButton? Find(string id) => _buttons.Find(b => b.Id == id);
+    public VirtualButton? FindByName(string name) => _buttons.Find(b => b.Name == name);
 
     public void UpdatePosition(string id, int x, int y)
     {

@@ -1,10 +1,29 @@
 using KeyMacro.Models;
 using KeyMacro.Services;
+using System.Runtime.InteropServices;
 
 namespace KeyMacro.Forms;
 
 public class VirtualKeyWindow : Form
 {
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+    [DllImport("user32.dll")]
+    private static extern int GetWindowTextLength(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder text, int maxLength);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsWindow(IntPtr hWnd);
+
     private readonly VirtualButtonManager _btnManager;
     private readonly VirtualKeyBindingManager _bindingManager;
     private readonly VirtualLoopExecutor _loopExecutor;
@@ -19,6 +38,9 @@ public class VirtualKeyWindow : Form
     private double _opacityValue = 1.0;
     private bool _positionLocked;
     private bool _windowLocked;
+    private string? _targetProcessName;
+    private string? _targetWindowTitle;
+    private bool _schemeAFailed;
 
     private const int BasePanelWidth = 400;
 
@@ -122,6 +144,24 @@ public class VirtualKeyWindow : Form
 
         m.Items.Add("-");
 
+        // Target window capture
+        m.Items.Add("捕获目标窗口", null, (_, _) => CaptureTargetWindow());
+        var clearTargetItem = new ToolStripMenuItem("清除目标窗口");
+        clearTargetItem.Click += (_, _) => ClearTargetWindow();
+        clearTargetItem.Visible = false;
+        m.Items.Add(clearTargetItem);
+
+        m.Opened += (_, _) =>
+        {
+            var display = _targetWindowTitle ?? _targetProcessName;
+            clearTargetItem.Text = string.IsNullOrEmpty(display)
+                ? "清除目标窗口"
+                : $"清除目标窗口 ({display})";
+            clearTargetItem.Visible = !string.IsNullOrEmpty(_targetProcessName);
+        };
+
+        m.Items.Add("-");
+
         m.Items.Add("保存布局", null, (_, _) => SaveLayout());
         m.Items.Add("重置布局", null, (_, _) => ResetLayout());
 
@@ -155,6 +195,121 @@ public class VirtualKeyWindow : Form
     private void ToggleWindowLock()
     {
         _windowLocked = !_windowLocked;
+    }
+
+    // ── Target window capture ──
+
+    private void CaptureTargetWindow()
+    {
+        Hide();
+        using var overlay = new Form
+        {
+            Text = "",
+            StartPosition = FormStartPosition.CenterScreen,
+            Size = new Size(400, 120),
+            FormBorderStyle = FormBorderStyle.None,
+            BackColor = Color.Black,
+            Opacity = 0.85,
+            TopMost = true,
+            ShowInTaskbar = false
+        };
+        var label = new Label
+        {
+            Text = "请在 3 秒内切换到目标窗口...",
+            Dock = DockStyle.Fill,
+            ForeColor = Color.White,
+            Font = new Font("Microsoft YaHei", 14, FontStyle.Bold),
+            TextAlign = ContentAlignment.MiddleCenter
+        };
+        overlay.Controls.Add(label);
+        overlay.Show();
+
+        var timer = new System.Windows.Forms.Timer { Interval = 3000 };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            var hwnd = GetForegroundWindow();
+            overlay.Close();
+            overlay.Dispose();
+
+            if (hwnd != IntPtr.Zero)
+            {
+                GetWindowThreadProcessId(hwnd, out var pid);
+                try
+                {
+                    using var proc = System.Diagnostics.Process.GetProcessById((int)pid);
+                    _targetProcessName = proc.ProcessName;
+
+                    var len = GetWindowTextLength(hwnd);
+                    if (len > 0)
+                    {
+                        var sb = new System.Text.StringBuilder(len + 1);
+                        GetWindowText(hwnd, sb, sb.Capacity);
+                        _targetWindowTitle = sb.ToString();
+                    }
+                    else
+                    {
+                        _targetWindowTitle = null;
+                    }
+
+                    var displayName = _targetWindowTitle ?? _targetProcessName;
+                    MessageBox.Show(this, $"目标窗口已捕获: {displayName}", "捕获成功",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                catch
+                {
+                    _targetProcessName = null;
+                    _targetWindowTitle = null;
+                    MessageBox.Show(this, "无法获取目标进程信息。", "捕获失败",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            }
+            Show();
+        };
+        timer.Start();
+    }
+
+    private void ClearTargetWindow()
+    {
+        _targetProcessName = null;
+        _targetWindowTitle = null;
+        _schemeAFailed = false;
+        SaveLayout();
+    }
+
+    /// <summary>Resolve target window handle by process name (and optional title).</summary>
+    private IntPtr ResolveTargetWindow()
+    {
+        if (string.IsNullOrEmpty(_targetProcessName))
+            return IntPtr.Zero;
+
+        var procs = System.Diagnostics.Process.GetProcessesByName(_targetProcessName);
+        if (procs.Length == 0)
+            return IntPtr.Zero;
+
+        foreach (var proc in procs)
+        {
+            var hwnd = proc.MainWindowHandle;
+            if (hwnd == IntPtr.Zero || !IsWindow(hwnd))
+                continue;
+
+            if (!string.IsNullOrEmpty(_targetWindowTitle))
+            {
+                var len = GetWindowTextLength(hwnd);
+                if (len > 0)
+                {
+                    var sb = new System.Text.StringBuilder(len + 1);
+                    GetWindowText(hwnd, sb, sb.Capacity);
+                    if (sb.ToString() == _targetWindowTitle)
+                        return hwnd;
+                }
+                continue;
+            }
+
+            return hwnd;
+        }
+
+        return IntPtr.Zero;
     }
 
     public bool HasBoundButtons()
@@ -205,16 +360,16 @@ public class VirtualKeyWindow : Form
 
     // ── Button events ──
 
-    private void OnButtonClicked(VirtualButtonWidget widget)
+    private async void OnButtonClicked(VirtualButtonWidget widget)
     {
         var vbtn = widget.VirtualButton;
 
-        // VK pick mode — send bound hotkey to SequenceEditor
+        // VK pick mode — send button name + optional hotkey to SequenceEditor
         if (SequenceEditor.IsVkPickMode)
         {
             var seq = _bindingManager.ResolveBinding(vbtn, _sequences);
-            if (seq != null && !string.IsNullOrEmpty(seq.TriggerHotkey))
-                SequenceEditor.ReceiveVkHotkey(seq.TriggerHotkey);
+            var hotkey = seq != null ? seq.TriggerHotkey : null;
+            SequenceEditor.ReceiveVkPick(vbtn.Name, hotkey);
             return;
         }
 
@@ -230,11 +385,48 @@ public class VirtualKeyWindow : Form
         }
 
         var sequence = _bindingManager.ResolveBinding(vbtn, _sequences);
-        if (sequence != null)
+        if (sequence == null) return;
+
+        var targetHwnd = ResolveTargetWindow();
+        if (targetHwnd != IntPtr.Zero)
+        {
+            if (GetForegroundWindow() == targetHwnd)
+            {
+                // Target already foreground — normal Play
+                var player = new MacroPlayer();
+                _ = player.Play(sequence);
+            }
+            else if (!_schemeAFailed)
+            {
+                // Scheme A: PostMessage directly to target, no activation
+                var player = new MacroPlayer();
+                await player.PlayToWindow(sequence, targetHwnd);
+                // Quick heuristic: if target still not foreground after playback,
+                // PostMessage may be ineffective — flag for fallback next time.
+                await Task.Delay(100);
+                if (GetForegroundWindow() != targetHwnd)
+                    _schemeAFailed = true;
+            }
+            else
+            {
+                // Scheme B: activate target then normal Play
+                SetForegroundWindow(targetHwnd);
+                await Task.Delay(200);
+                var player = new MacroPlayer();
+                _ = player.Play(sequence);
+            }
+        }
+        else
         {
             var player = new MacroPlayer();
             _ = player.Play(sequence);
         }
+    }
+
+    private static void RestoreForeground(IntPtr hWnd)
+    {
+        if (hWnd != IntPtr.Zero)
+            SetForegroundWindow(hWnd);
     }
 
     private void OnButtonDragged(VirtualButtonWidget widget, int dx, int dy)
@@ -399,6 +591,8 @@ public class VirtualKeyWindow : Form
             TopMost = _topMostState,
             PositionLocked = _positionLocked,
             WindowLocked = _windowLocked,
+            TargetProcessName = _targetProcessName,
+            TargetWindowTitle = _targetWindowTitle,
             Buttons = [.. _btnManager.Buttons]
         };
         _serializer.Save(data);
@@ -407,6 +601,9 @@ public class VirtualKeyWindow : Form
     private void LoadLayout()
     {
         var data = _serializer.Load();
+        _targetProcessName = data.TargetProcessName;
+        _targetWindowTitle = data.TargetWindowTitle;
+
         if (data.Buttons.Count > 0)
         {
             _btnManager.LoadFrom(data.Buttons);

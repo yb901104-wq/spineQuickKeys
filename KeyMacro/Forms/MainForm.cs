@@ -27,7 +27,7 @@ public partial class MainForm : Form
 
     public MainForm()
     {
-        Text = "快捷键助手 V1.93";
+        Text = "快捷键助手 V1.94";
         Size = new Size(900, 600);
         MinimumSize = new Size(600, 400);
         StartPosition = FormStartPosition.CenterScreen;
@@ -429,7 +429,23 @@ public partial class MainForm : Form
     {
         _config.Save(_sequences);
         _failedHotkeys = [.. _hotkeyService.RegisterAll(_sequences)];
+        SyncVkButtonBindings();
         RefreshGrid();
+    }
+
+    private void SyncVkButtonBindings()
+    {
+        // Match buttons to sequences by TriggerVkButtonName. Only update when a match is found.
+        foreach (var vbtn in _vkBtnManager.Buttons)
+        {
+            var seq = _sequences.FirstOrDefault(s => s.TriggerVkButtonName?.Trim() == vbtn.Name);
+            if (seq != null)
+                vbtn.BindActionId = seq.Id;
+        }
+
+        var layout = _vkSerializer.Load();
+        layout.Buttons = [.. _vkBtnManager.Buttons];
+        _vkSerializer.Save(layout);
     }
 
     private void RefreshGrid()

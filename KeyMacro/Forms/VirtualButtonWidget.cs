@@ -93,6 +93,9 @@ public class VirtualButtonWidget : UserControl
         _txtLoopCount.LostFocus += (_, _) => CommitLoopCount();
         Controls.Add(_txtLoopCount);
 
+        // Block parent panel's ContextMenuStrip from appearing on right-click
+        ContextMenuStrip = new ContextMenuStrip();
+
         MouseDown += OnMouseDown;
         MouseMove += OnMouseMove;
         MouseUp += OnMouseUp;

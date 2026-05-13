@@ -18,6 +18,8 @@ public class VirtualLayoutSerializer
         public bool TopMost { get; set; } = true;
         public bool PositionLocked { get; set; }
         public bool WindowLocked { get; set; }
+        public string? TargetProcessName { get; set; }
+        public string? TargetWindowTitle { get; set; }
         public List<VirtualButton> Buttons { get; set; } = [];
     }
 

@@ -38,7 +38,24 @@
       "Bash(taskkill -f -im KeyMacro.exe)",
       "Bash(dotnet run *)",
       "Bash(wait)",
-      "Bash(git check-ignore *)"
+      "Bash(git check-ignore *)",
+      "Bash(rm -f \"d:/AI_cc/spineQuickKeys/KeyMacro/bin/Release/publish/KeyMacro.exe\")",
+      "Bash(openspec new *)",
+      "Bash(openspec status *)",
+      "Bash(openspec instructions *)",
+      "Bash(mkdir -p \"d:/AI_cc/spineQuickKeys/openspec/changes/virtual-key-window-target/specs/vk-pick-mode-binding\")",
+      "Bash(mkdir -p \"d:/AI_cc/spineQuickKeys/openspec/changes/virtual-key-window-target/specs/widget-context-menu\")",
+      "Bash(awk '/private void OnButtonClicked/,/^    }/{ if\\(!found\\) {print; if\\(/OnButtonClicked/\\) found=1} }' VirtualKeyWindow.cs)",
+      "Bash(py --version)",
+      "Bash(/c/Users/Administrator/AppData/Local/Microsoft/WindowsApps/python -c ' *)",
+      "Bash(sed -i '363,396d' VirtualKeyWindow.cs)",
+      "Bash(sed -i '362r onclick_replacement.txt' VirtualKeyWindow.cs)",
+      "Bash(rm onclick_replacement.txt)",
+      "Bash(openspec list *)",
+      "Bash(cd \"d:/AI_cc/spineQuickKeys\" && mv openspec/changes/virtual-key-window-target \"openspec/changes/archive/2026-05-13-virtual-key-window-target\")"
+    ],
+    "additionalDirectories": [
+      "d:\\AI_cc\\spineQuickKeys\\openspec\\changes\\virtual-key-window-target"
     ]
   }
 }

@@ -49,15 +49,27 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 
 ## 右键菜单体系
 - **按钮右键菜单**（`OnWidgetContextMenu`）：修改按钮名称 / 绑定快捷键 / 按钮循环延迟（仅循环按钮）/ 删除当前按钮
-- **空白区域右键菜单**（`BuildBlankMenu`）：增加按钮 / 删除所有按钮 / 置顶/取消置顶 / 透明度 / 按钮位置锁定/解锁 / 保存/重置布局 / 窗口锁定/解锁
+- **空白区域右键菜单**（`BuildBlankMenu`）：增加按钮 / 删除所有按钮 / 置顶/取消置顶 / 透明度 / 按钮位置锁定/解锁 / 捕获/清除目标窗口 / 保存/重置布局 / 窗口锁定/解锁
 - 按钮循环延迟支持自定义数值（通过 InputBox）
 
 ## 架构要点
 - `HotkeyService` 通过重写 `WndProc` 接收 `WM_HOTKEY` 消息
 - `MacroPlayer.Play()` 是 async Task，包含 500ms 初始延迟（给用户松手时间）
+- `MacroPlayer.PlayToWindow()` 是 async Task，使用 PostMessage 直接向目标窗口发键盘消息，无初始延迟
 - 主窗口关闭时隐藏到系统托盘，不退出进程
 - 播放期间 `MacroPlayer.IsPlaying` 为 true 以阻止嵌套触发
 - `SpineHotkeyService.ToSpineFormat()` 将 WinForms 按键名转回 Spine 格式，避免写回 TXT 后 Spine 无法识别
+
+## 虚拟按键目标窗口机制
+- **目标窗口捕获**：VK 窗口右键菜单"捕获目标窗口"→ 隐藏窗口 → 3 秒倒计时 → 捕获前台窗口进程名 + 窗口标题 → 持久化到布局文件
+- **方案 A（PlayToWindow）**：通过 PostMessage 直接向目标窗口注入 WM_KEYDOWN/WM_KEYUP/WM_CHAR 消息，不切换焦点
+- **方案 B（自动激活）**：播放前 SetForegroundWindow 激活目标窗口，再用 SendKeys 发送
+- 两方案共存自动降级：优先方案 A，若检测无效则自动切换到方案 B
+
+## VkPickMode 绑定流程
+- SequenceEditor 录制触发快捷键时，若 VK 窗口存在即可进入 VkPickMode（无需按钮已绑定）
+- 点击任意虚拟按钮 → 自动填充关联虚拟按键名称（_txtVkBind）和触发快捷键（_txtHotkey，如有）
+- `MainForm.SyncVkButtonBindings` 仅更新名称匹配的按钮，不破坏右键菜单建立的绑定
 
 ## 版本管理与发布流程（必遵）
 
@@ -69,7 +81,7 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
    - 未修复问题，暂不更改版本号
 3. 总结并修改 CLAUDE.md   
 4. 总结修改内容，询问是否提交 git（以当前版本号作为提交名称）
-5. 修改完成后编译单独的 .exe 供测试
+5. 修改完成后导出一个单独的 .exe应用供测试
 # Git 提交规则（强制）
 
 当你需要为我自动提交代码时，必须严格遵守以下流程，**绝不省略**：

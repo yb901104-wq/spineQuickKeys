@@ -6,9 +6,11 @@ public partial class SequenceEditor : Form
 {
     private readonly MacroSequence _sequence;
     private bool _suppressEvents;
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     internal static bool IsVkPickMode { get; set; }
     private TextBox _txtName = null!;
     private TextBox _txtHotkey = null!;
+    private TextBox _txtVkBind = null!;
     private DataGridView _dgvSteps = null!;
     private Button _btnRecordHotkey = null!;
     private Button _btnAddStep = null!, _btnDelStep = null!;
@@ -39,22 +41,24 @@ public partial class SequenceEditor : Form
         MaximizeBox = true;
         MinimizeBox = true;
 
-        // ── Top: Name + Hotkey ──
+        // ── Top: Name + Hotkey + VK Bind ──
         var topPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Top,
-            Height = 75,
+            Height = 105,
             ColumnCount = 2,
-            RowCount = 2,
+            RowCount = 3,
             Padding = new Padding(12, 12, 12, 0)
         };
         topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
         topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
         topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+        topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
 
         topPanel.Controls.Add(new Label { Text = "序列名称:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 0);
         topPanel.Controls.Add(new Label { Text = "触发快捷键:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 1);
+        topPanel.Controls.Add(new Label { Text = "关联虚拟按键:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 2);
 
         _txtName = new TextBox { Dock = DockStyle.Fill, Font = new Font("Microsoft YaHei", 10) };
         topPanel.Controls.Add(_txtName, 1, 0);
@@ -75,6 +79,14 @@ public partial class SequenceEditor : Form
         hotkeyPanel.Controls.Add(_txtHotkey);
         hotkeyPanel.Controls.Add(_btnRecordHotkey);
         topPanel.Controls.Add(hotkeyPanel, 1, 1);
+
+        _txtVkBind = new TextBox
+        {
+            Dock = DockStyle.Fill,
+            Font = new Font("Microsoft YaHei", 10),
+            PlaceholderText = "输入虚拟按键名称（如: 按钮1）"
+        };
+        topPanel.Controls.Add(_txtVkBind, 1, 2);
 
         // ── Steps Toolbar ──
         var stepsToolbar = new FlowLayoutPanel
@@ -163,6 +175,7 @@ public partial class SequenceEditor : Form
     {
         _txtName.Text = _sequence.Name;
         _txtHotkey.Text = _sequence.TriggerHotkey;
+        _txtVkBind.Text = _sequence.TriggerVkButtonName;
         RefreshSteps();
     }
 
@@ -170,6 +183,7 @@ public partial class SequenceEditor : Form
     {
         _sequence.Name = _txtName.Text.Trim();
         _sequence.TriggerHotkey = _txtHotkey.Text.Trim();
+        _sequence.TriggerVkButtonName = _txtVkBind.Text.Trim();
         SaveStepsFromGrid();
     }
 
@@ -355,15 +369,15 @@ public partial class SequenceEditor : Form
 
     private void BtnRecordHotkey_Click(object? sender, EventArgs e)
     {
-        // If VK window is open and has bound buttons, enter VK pick mode
+        // If VK window is open, enter VK pick mode (no binding required)
         var vkWindow = Application.OpenForms.OfType<VirtualKeyWindow>().FirstOrDefault();
-        bool vkHasBound = vkWindow != null && vkWindow.Visible && vkWindow.HasBoundButtons();
+        bool vkAvailable = vkWindow != null && vkWindow.Visible;
 
-        if (vkHasBound)
+        if (vkAvailable)
         {
             IsVkPickMode = true;
             _txtHotkey.Text = "";
-            MessageBox.Show(this, "请在虚拟按键窗口中点击有绑定快捷键的按钮。\n点击后快捷键将自动填入。", "从虚拟按键读取");
+            MessageBox.Show(this, "请在虚拟按键窗口中点击一个按钮。\n按钮名将自动填入关联字段，有热键的序列会自动填入快捷键。", "从虚拟按键读取");
         }
         else
         {
@@ -373,12 +387,14 @@ public partial class SequenceEditor : Form
         }
     }
 
-    internal static void ReceiveVkHotkey(string hotkey)
+    internal static void ReceiveVkPick(string buttonName, string? hotkey)
     {
         var editor = Application.OpenForms.OfType<SequenceEditor>().FirstOrDefault();
         if (editor != null && IsVkPickMode)
         {
-            editor._txtHotkey.Text = hotkey;
+            editor._txtVkBind.Text = buttonName;
+            if (!string.IsNullOrEmpty(hotkey))
+                editor._txtHotkey.Text = hotkey;
             IsVkPickMode = false;
         }
     }
