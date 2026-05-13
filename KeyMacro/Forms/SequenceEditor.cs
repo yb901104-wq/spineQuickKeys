@@ -1,4 +1,5 @@
 using KeyMacro.Models;
+using KeyMacro.Services;
 
 namespace KeyMacro.Forms;
 
@@ -12,11 +13,15 @@ public partial class SequenceEditor : Form
     private TextBox _txtHotkey = null!;
     private TextBox _txtVkBind = null!;
     private DataGridView _dgvSteps = null!;
-    private Button _btnRecordHotkey = null!;
+    private Button _btnKeyboardRecord = null!;
+    private Button _btnVkPick = null!;
     private Button _btnAddStep = null!, _btnDelStep = null!;
     private Button _btnRecordKey = null!;
     private Button _btnMoveUp = null!, _btnMoveDown = null!;
     private Button _btnOk = null!, _btnCancel = null!;
+    private Panel _statusPanel = null!;
+    private Label _lblStatus = null!;
+    private Button _btnCancelPick = null!;
 
     public MacroSequence Sequence => _sequence;
 
@@ -63,9 +68,10 @@ public partial class SequenceEditor : Form
         _txtName = new TextBox { Dock = DockStyle.Fill, Font = new Font("Microsoft YaHei", 10) };
         topPanel.Controls.Add(_txtName, 1, 0);
 
-        var hotkeyPanel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1 };
+        var hotkeyPanel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1 };
         hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+        hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
+        hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
 
         _txtHotkey = new TextBox
         {
@@ -74,10 +80,13 @@ public partial class SequenceEditor : Form
             Font = new Font("Microsoft YaHei", 10),
             BackColor = Color.White
         };
-        _btnRecordHotkey = new Button { Text = "录制", Dock = DockStyle.Fill, FlatStyle = FlatStyle.Flat };
-        _btnRecordHotkey.Click += BtnRecordHotkey_Click;
+        _btnKeyboardRecord = new Button { Text = "键盘录入", Dock = DockStyle.Fill, FlatStyle = FlatStyle.Flat };
+        _btnKeyboardRecord.Click += BtnKeyboardRecord_Click;
+        _btnVkPick = new Button { Text = "虚拟按键", Dock = DockStyle.Fill, FlatStyle = FlatStyle.Flat };
+        _btnVkPick.Click += BtnVkPick_Click;
         hotkeyPanel.Controls.Add(_txtHotkey);
-        hotkeyPanel.Controls.Add(_btnRecordHotkey);
+        hotkeyPanel.Controls.Add(_btnKeyboardRecord);
+        hotkeyPanel.Controls.Add(_btnVkPick);
         topPanel.Controls.Add(hotkeyPanel, 1, 1);
 
         _txtVkBind = new TextBox
@@ -125,6 +134,37 @@ public partial class SequenceEditor : Form
         _dgvSteps.CellValueChanged += DgvSteps_CellValueChanged;
         _dgvSteps.CellBeginEdit += DgvSteps_CellBeginEdit;
 
+        // ── VkPickMode Status Bar ──
+        _statusPanel = new Panel
+        {
+            Dock = DockStyle.Bottom,
+            Height = 32,
+            BackColor = Color.FromArgb(0xFF, 0xCC, 0x00),
+            Visible = false,
+            Padding = new Padding(8, 0, 8, 0)
+        };
+        _lblStatus = new Label
+        {
+            Text = "虚拟按键拾取模式... 请在虚拟按键窗口中点击一个按钮。按 Esc 取消。",
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            ForeColor = Color.Black,
+            Font = new Font("Microsoft YaHei", 9)
+        };
+        _btnCancelPick = new Button
+        {
+            Text = "取消拾取",
+            Dock = DockStyle.Right,
+            Width = 100,
+            FlatStyle = FlatStyle.Flat,
+            BackColor = Color.FromArgb(0xD9, 0x5C, 0x5C),
+            ForeColor = Color.White,
+            Cursor = Cursors.Hand
+        };
+        _btnCancelPick.Click += (_, _) => ExitVkPickMode();
+        _statusPanel.Controls.Add(_lblStatus);
+        _statusPanel.Controls.Add(_btnCancelPick);
+
         // ── Bottom Buttons ──
         var bottomPanel = new FlowLayoutPanel
         {
@@ -136,7 +176,6 @@ public partial class SequenceEditor : Form
 
         _btnCancel = new Button { Text = "取消", AutoSize = true, MinimumSize = new Size(70, 30), FlatStyle = FlatStyle.Flat };
         _btnCancel.Click += (_, _) => { DialogResult = DialogResult.Cancel; Close(); };
-        FormClosed += (_, _) => IsVkPickMode = false;
 
         _btnOk = new Button
         {
@@ -155,9 +194,17 @@ public partial class SequenceEditor : Form
 
         // ── Add all panels in correct Z-order ──
         Controls.Add(bottomPanel);  // Dock=Bottom (lowest Z = allocated first)
+        Controls.Add(_statusPanel); // Dock=Bottom (above bottomPanel)
         Controls.Add(_dgvSteps);    // Dock=Fill
         Controls.Add(stepsToolbar); // Dock=Top (higher priority)
         Controls.Add(topPanel);     // Dock=Top (highest Z = allocated last = wins top spot)
+
+        // ── Form-level KeyPreview for Esc handling ──
+        KeyPreview = true;
+        KeyDown += SequenceEditor_KeyDown;
+
+        // ── FormClosed cleanup ──
+        FormClosed += (_, _) => IsVkPickMode = false;
     }
 
     private static Button MakeStepButton(string text)
@@ -367,23 +414,67 @@ public partial class SequenceEditor : Form
         _dgvSteps.Rows[target].Selected = true;
     }
 
-    private void BtnRecordHotkey_Click(object? sender, EventArgs e)
+    private void BtnKeyboardRecord_Click(object? sender, EventArgs e)
     {
-        // If VK window is open, enter VK pick mode (no binding required)
+        OperationLogger.Info($"SequenceEditor: keyboard record clicked for \"{_sequence.Name}\"");
+        using var recorder = new HotkeyRecorderForm();
+        if (recorder.ShowDialog(this) == DialogResult.OK)
+        {
+            _txtHotkey.Text = recorder.RecordedHotkey;
+            OperationLogger.Info($"SequenceEditor: hotkey recorded: {recorder.RecordedHotkey}");
+        }
+    }
+
+    private void BtnVkPick_Click(object? sender, EventArgs e)
+    {
         var vkWindow = Application.OpenForms.OfType<VirtualKeyWindow>().FirstOrDefault();
         bool vkAvailable = vkWindow != null && vkWindow.Visible;
 
-        if (vkAvailable)
+        if (!vkAvailable)
         {
-            IsVkPickMode = true;
-            _txtHotkey.Text = "";
-            MessageBox.Show(this, "请在虚拟按键窗口中点击一个按钮。\n按钮名将自动填入关联字段，有热键的序列会自动填入快捷键。", "从虚拟按键读取");
+            var result = MessageBox.Show(this,
+                "虚拟按键窗口未打开，是否打开虚拟按键窗口？",
+                "虚拟按键不可用",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (result == DialogResult.Yes)
+            {
+                MainForm.RequestOpenVirtualKeys();
+                vkWindow = Application.OpenForms.OfType<VirtualKeyWindow>().FirstOrDefault();
+                vkAvailable = vkWindow != null && vkWindow.Visible;
+            }
+            if (!vkAvailable)
+            {
+                MessageBox.Show(this, "无法打开虚拟按键窗口，请手动在主窗口点击「开启虚拟按键」。",
+                    "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
         }
-        else
+
+        EnterVkPickMode();
+    }
+
+    private void EnterVkPickMode()
+    {
+        IsVkPickMode = true;
+        _txtHotkey.Text = "";
+        _statusPanel.Visible = true;
+        OperationLogger.Info("SequenceEditor: entered VkPickMode");
+    }
+
+    internal void ExitVkPickMode()
+    {
+        if (!IsVkPickMode) return;
+        IsVkPickMode = false;
+        _statusPanel.Visible = false;
+        OperationLogger.Info("SequenceEditor: exited VkPickMode");
+    }
+
+    private void SequenceEditor_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.KeyCode == Keys.Escape && IsVkPickMode)
         {
-            using var recorder = new HotkeyRecorderForm();
-            if (recorder.ShowDialog(this) == DialogResult.OK)
-                _txtHotkey.Text = recorder.RecordedHotkey;
+            ExitVkPickMode();
+            e.SuppressKeyPress = true;
         }
     }
 
@@ -395,7 +486,9 @@ public partial class SequenceEditor : Form
             editor._txtVkBind.Text = buttonName;
             if (!string.IsNullOrEmpty(hotkey))
                 editor._txtHotkey.Text = hotkey;
-            IsVkPickMode = false;
+            editor.ExitVkPickMode();
+            OperationLogger.Info($"SequenceEditor: received VK pick: button=\"{buttonName}\", hotkey=\"{hotkey}\"");
+            editor.BringToFront();
         }
     }
 

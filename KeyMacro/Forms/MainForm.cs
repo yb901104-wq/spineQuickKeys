@@ -27,7 +27,7 @@ public partial class MainForm : Form
 
     public MainForm()
     {
-        Text = "快捷键助手 V1.94";
+        Text = "快捷键助手 V1.95";
         Size = new Size(900, 600);
         MinimumSize = new Size(600, 400);
         StartPosition = FormStartPosition.CenterScreen;
@@ -151,11 +151,16 @@ public partial class MainForm : Form
             Hide();
             return;
         }
+        OperationLogger.Info("Application shutting down");
         _hotkeyService.Dispose();
         _trayIcon.Dispose();
     }
 
-    private void MainForm_Shown(object? sender, EventArgs e) => LoadSequences();
+    private void MainForm_Shown(object? sender, EventArgs e)
+    {
+        OperationLogger.Info("Application started, version 1.94");
+        LoadSequences();
+    }
 
     private void ShowWindow()
     {
@@ -282,6 +287,7 @@ public partial class MainForm : Form
             if (editor.DialogResult == DialogResult.OK)
             {
                 _sequences.Add(editor.Sequence);
+                OperationLogger.Info($"MainForm: added sequence \"{editor.Sequence.Name}\" ({editor.Sequence.Id})");
                 SaveAndRefresh();
             }
             _openEditor = null;
@@ -309,7 +315,10 @@ public partial class MainForm : Form
         editor.FormClosed += (_, _) =>
         {
             if (editor.DialogResult == DialogResult.OK)
+            {
+                OperationLogger.Info($"MainForm: edited sequence \"{seq.Name}\" ({seq.Id})");
                 SaveAndRefresh();
+            }
             _openEditor = null;
             _btnAdd.Enabled = true;
             _btnEdit.Enabled = _sequences.Count > 0;
@@ -325,6 +334,7 @@ public partial class MainForm : Form
             MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
             return;
         _sequences.Remove(seq);
+        OperationLogger.Info($"MainForm: deleted sequence \"{seq.Name}\" ({seq.Id})");
         SaveAndRefresh();
     }
 
@@ -337,6 +347,7 @@ public partial class MainForm : Form
             _btnTest.Text = "测试";
             return;
         }
+        OperationLogger.Info($"MainForm: testing sequence \"{seq.Name}\" ({seq.Id})");
         Hide();
         _ = Task.Run(async () =>
         {
@@ -378,10 +389,11 @@ public partial class MainForm : Form
             "确认删除全部", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
             return;
         _sequences.Clear();
+        OperationLogger.Info("MainForm: deleted all sequences");
         SaveAndRefresh();
     }
 
-    private void OpenVirtualKeys()
+    internal void OpenVirtualKeys()
     {
         if (_vkWindow != null && !_vkWindow.IsDisposed)
         {
@@ -390,6 +402,7 @@ public partial class MainForm : Form
             return;
         }
 
+        OperationLogger.Info("MainForm: opening virtual key window");
         var bindingManager = new VirtualKeyBindingManager(_hotkeyService, _vkBtnManager);
         var loopExecutor = new VirtualLoopExecutor(_player);
 
@@ -402,14 +415,22 @@ public partial class MainForm : Form
     {
         if (_vkWindow != null && !_vkWindow.IsDisposed)
         {
+            OperationLogger.Info("MainForm: closing virtual key window");
             _vkWindow.Close();
             _vkWindow.Dispose();
             _vkWindow = null;
         }
     }
 
+    internal static void RequestOpenVirtualKeys()
+    {
+        var main = Application.OpenForms.OfType<MainForm>().FirstOrDefault();
+        main?.OpenVirtualKeys();
+    }
+
     private void ExitApp()
     {
+        OperationLogger.Info("Application exiting via tray menu");
         _hotkeyService.Dispose();
         _trayIcon.Visible = false;
         _trayIcon.Dispose();

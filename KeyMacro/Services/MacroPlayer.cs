@@ -30,6 +30,7 @@ public class MacroPlayer
     public async Task Play(MacroSequence sequence)
     {
         if (_isPlaying) return;
+        OperationLogger.Info($"MacroPlayer.Play: start \"{sequence.Name}\" ({sequence.Id}), steps={sequence.Steps.Count}, loop={sequence.Loop}");
 
         _cts = new CancellationTokenSource();
         var ct = _cts.Token;
@@ -79,15 +80,28 @@ public class MacroPlayer
                 }
             }
             while (sequence.Loop && !ct.IsCancellationRequested);
+
+            OperationLogger.Info($"MacroPlayer.Play: completed \"{sequence.Name}\", loops={loopCounter}");
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException)
+        {
+            OperationLogger.Info($"MacroPlayer.Play: cancelled \"{sequence.Name}\"");
+        }
+        catch (Exception ex)
+        {
+            OperationLogger.Error($"MacroPlayer.Play: error \"{sequence.Name}\": {ex.Message}");
+        }
         finally
         {
             _isPlaying = false;
         }
     }
 
-    public void Stop() => _cts?.Cancel();
+    public void Stop()
+    {
+        OperationLogger.Info("MacroPlayer.Stop: stop requested");
+        _cts?.Cancel();
+    }
 
     // ── PlayToWindow: PostMessage-based playback, no activation needed ──
 
@@ -117,6 +131,7 @@ public class MacroPlayer
     public async Task PlayToWindow(MacroSequence sequence, IntPtr targetHwnd)
     {
         if (_isPlaying) return;
+        OperationLogger.Info($"MacroPlayer.PlayToWindow: start \"{sequence.Name}\" ({sequence.Id}), hwnd=0x{targetHwnd:X8}");
 
         _cts = new CancellationTokenSource();
         var ct = _cts.Token;
@@ -164,8 +179,17 @@ public class MacroPlayer
                 }
             }
             while (sequence.Loop && !ct.IsCancellationRequested);
+
+            OperationLogger.Info($"MacroPlayer.PlayToWindow: completed \"{sequence.Name}\", loops={loopCounter}");
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException)
+        {
+            OperationLogger.Info($"MacroPlayer.PlayToWindow: cancelled \"{sequence.Name}\"");
+        }
+        catch (Exception ex)
+        {
+            OperationLogger.Error($"MacroPlayer.PlayToWindow: error \"{sequence.Name}\": {ex.Message}");
+        }
         finally
         {
             _isPlaying = false;

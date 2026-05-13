@@ -41,6 +41,7 @@ public sealed class HotkeyService : IDisposable
         var failed = new List<string>();
         UnregisterAll();
 
+        int registeredCount = 0;
         foreach (var seq in sequences)
         {
             _targetApps[seq.Id] = seq.TargetAppPath;
@@ -54,6 +55,7 @@ public sealed class HotkeyService : IDisposable
                 {
                     _hotkeyMap[_nextId] = seq.Id;
                     _nextId++;
+                    registeredCount++;
                 }
                 else
                 {
@@ -65,6 +67,11 @@ public sealed class HotkeyService : IDisposable
                 failed.Add(seq.TriggerHotkey);
             }
         }
+
+        if (failed.Count > 0)
+            OperationLogger.Warn($"HotkeyService.RegisterAll: registered {registeredCount}, failed {failed.Count}: {string.Join(", ", failed)}");
+        else
+            OperationLogger.Info($"HotkeyService.RegisterAll: registered {registeredCount} hotkeys, 0 failed");
         return failed;
     }
 
@@ -88,6 +95,7 @@ public sealed class HotkeyService : IDisposable
                     !IsForegroundTarget(targetPath))
                     return false;
 
+                OperationLogger.Info($"HotkeyService: triggered seqId={seqId}");
                 HotkeyTriggered?.Invoke(seqId);
                 return true;
             }

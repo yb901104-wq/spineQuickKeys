@@ -13,12 +13,19 @@ public class ConfigService
     {
         try
         {
-            if (!File.Exists(ConfigPath)) return [];
+            if (!File.Exists(ConfigPath))
+            {
+                OperationLogger.Info("ConfigService.Load: config file not found, returning empty list");
+                return [];
+            }
             var json = File.ReadAllText(ConfigPath);
-            return JsonSerializer.Deserialize<List<MacroSequence>>(json) ?? [];
+            var sequences = JsonSerializer.Deserialize<List<MacroSequence>>(json) ?? [];
+            OperationLogger.Info($"ConfigService.Load: loaded {sequences.Count} sequences");
+            return sequences;
         }
-        catch
+        catch (Exception ex)
         {
+            OperationLogger.Error($"ConfigService.Load: failed: {ex.Message}");
             return [];
         }
     }
@@ -31,7 +38,11 @@ public class ConfigService
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
             var json = JsonSerializer.Serialize(sequences, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(ConfigPath, json);
+            OperationLogger.Info($"ConfigService.Save: saved {sequences.Count} sequences");
         }
-        catch { }
+        catch (Exception ex)
+        {
+            OperationLogger.Error($"ConfigService.Save: failed: {ex.Message}");
+        }
     }
 }

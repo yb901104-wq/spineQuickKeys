@@ -19,6 +19,7 @@ KeyMacro/
 │   ├── ConfigService.cs     # JSON 配置读写 (%APPDATA%\KeyMacro\config.json)
 │   ├── HotkeyService.cs     # Win32 全局热键注册/监听
 │   ├── MacroPlayer.cs       # SendKeys 按键序列播放引擎
+│   ├── OperationLogger.cs   # 文件日志系统 (%APPDATA%\KeyMacro\logs\)
 │   ├── SpineHotkeyService.cs # Spine TXT 文件解析/保存 + 按键名格式转换 + 中文注解
 │   ├── VirtualButtonManager.cs # 虚拟按键列表管理
 │   ├── VirtualKeyBindingManager.cs # 虚拟按键 ↔ 序列绑定
@@ -67,9 +68,16 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 - 两方案共存自动降级：优先方案 A，若检测无效则自动切换到方案 B
 
 ## VkPickMode 绑定流程
-- SequenceEditor 录制触发快捷键时，若 VK 窗口存在即可进入 VkPickMode（无需按钮已绑定）
-- 点击任意虚拟按钮 → 自动填充关联虚拟按键名称（_txtVkBind）和触发快捷键（_txtHotkey，如有）
+- SequenceEditor 有两颗按钮录入触发快捷键：**键盘录入**（始终打开键盘录制窗口）和 **虚拟按键**（始终进入 VkPickMode）
+- VkPickMode 带有黄色状态栏提示，支持 Esc 取消和"取消拾取"按钮
+- 点击任意虚拟按钮 → 自动拾取关联虚拟按键名称（_txtVkBind）和触发快捷键（_txtHotkey，如有）
 - `MainForm.SyncVkButtonBindings` 仅更新名称匹配的按钮，不破坏右键菜单建立的绑定
+- `MainForm.RequestOpenVirtualKeys()` 可供 SequenceEditor 在 VK 窗口未打开时自动创建
+
+## 日志系统
+- `OperationLogger` 是静态类，日志路径 `%APPDATA%\KeyMacro\logs\yyyy-MM-dd.log`
+- 自动清理 7 天前的日志，单文件超 5MB 自动轮转
+- 关键操作（播放序列、热键触发、配置读写、VkPickMode）均记录日志
 
 ## 版本管理与发布流程（必遵）
 

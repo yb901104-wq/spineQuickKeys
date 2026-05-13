@@ -27,12 +27,19 @@ public class VirtualLayoutSerializer
     {
         try
         {
-            if (!File.Exists(LayoutPath)) return new LayoutData();
+            if (!File.Exists(LayoutPath))
+            {
+                OperationLogger.Info("VirtualLayoutSerializer.Load: layout file not found, returning defaults");
+                return new LayoutData();
+            }
             var json = File.ReadAllText(LayoutPath);
-            return JsonSerializer.Deserialize<LayoutData>(json) ?? new LayoutData();
+            var data = JsonSerializer.Deserialize<LayoutData>(json) ?? new LayoutData();
+            OperationLogger.Info($"VirtualLayoutSerializer.Load: loaded ({data.Buttons.Count} buttons)");
+            return data;
         }
-        catch
+        catch (Exception ex)
         {
+            OperationLogger.Error($"VirtualLayoutSerializer.Load: failed: {ex.Message}");
             return new LayoutData();
         }
     }
@@ -45,7 +52,11 @@ public class VirtualLayoutSerializer
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
             var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(LayoutPath, json);
+            OperationLogger.Info($"VirtualLayoutSerializer.Save: saved ({data.Buttons.Count} buttons)");
         }
-        catch { }
+        catch (Exception ex)
+        {
+            OperationLogger.Error($"VirtualLayoutSerializer.Save: failed: {ex.Message}");
+        }
     }
 }

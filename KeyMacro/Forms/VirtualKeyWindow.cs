@@ -363,12 +363,14 @@ public class VirtualKeyWindow : Form
     private async void OnButtonClicked(VirtualButtonWidget widget)
     {
         var vbtn = widget.VirtualButton;
+        OperationLogger.Info($"VKWindow.OnButtonClicked: button=\"{vbtn.Name}\" ({vbtn.Id}), VkPickMode={SequenceEditor.IsVkPickMode}");
 
         // VK pick mode — send button name + optional hotkey to SequenceEditor
         if (SequenceEditor.IsVkPickMode)
         {
             var seq = _bindingManager.ResolveBinding(vbtn, _sequences);
             var hotkey = seq != null ? seq.TriggerHotkey : null;
+            OperationLogger.Info($"VKWindow.OnButtonClicked: VkPickMode, sending name=\"{vbtn.Name}\", hotkey=\"{hotkey}\"");
             SequenceEditor.ReceiveVkPick(vbtn.Name, hotkey);
             return;
         }
@@ -378,6 +380,7 @@ public class VirtualKeyWindow : Form
             var seq = _bindingManager.ResolveBinding(vbtn, _sequences);
             if (seq != null)
             {
+                OperationLogger.Info($"VKWindow.OnButtonClicked: start loop, button=\"{vbtn.Name}\", seq=\"{seq.Name}\"");
                 _loopExecutor.StartLoop(vbtn, seq);
                 widget.IsActive = true;
             }
@@ -385,13 +388,18 @@ public class VirtualKeyWindow : Form
         }
 
         var sequence = _bindingManager.ResolveBinding(vbtn, _sequences);
-        if (sequence == null) return;
+        if (sequence == null)
+        {
+            OperationLogger.Warn($"VKWindow.OnButtonClicked: no binding for button=\"{vbtn.Name}\"");
+            return;
+        }
 
         var targetHwnd = ResolveTargetWindow();
         if (targetHwnd != IntPtr.Zero)
         {
             if (GetForegroundWindow() == targetHwnd)
             {
+                OperationLogger.Info($"VKWindow.OnButtonClicked: target already foreground, Play seq=\"{sequence.Name}\"");
                 // Target already foreground — normal Play
                 var player = new MacroPlayer();
                 _ = player.Play(sequence);
@@ -399,17 +407,22 @@ public class VirtualKeyWindow : Form
             else if (!_schemeAFailed)
             {
                 // Scheme A: PostMessage directly to target, no activation
+                OperationLogger.Info($"VKWindow.OnButtonClicked: scheme A (PostMessage), seq=\"{sequence.Name}\", hwnd=0x{targetHwnd:X8}");
                 var player = new MacroPlayer();
                 await player.PlayToWindow(sequence, targetHwnd);
                 // Quick heuristic: if target still not foreground after playback,
                 // PostMessage may be ineffective — flag for fallback next time.
                 await Task.Delay(100);
                 if (GetForegroundWindow() != targetHwnd)
+                {
+                    OperationLogger.Warn($"VKWindow.OnButtonClicked: scheme A failed, will fall back to scheme B");
                     _schemeAFailed = true;
+                }
             }
             else
             {
                 // Scheme B: activate target then normal Play
+                OperationLogger.Info($"VKWindow.OnButtonClicked: scheme B (activate+Play), seq=\"{sequence.Name}\"");
                 SetForegroundWindow(targetHwnd);
                 await Task.Delay(200);
                 var player = new MacroPlayer();
@@ -418,6 +431,7 @@ public class VirtualKeyWindow : Form
         }
         else
         {
+            OperationLogger.Info($"VKWindow.OnButtonClicked: no target, Play seq=\"{sequence.Name}\"");
             var player = new MacroPlayer();
             _ = player.Play(sequence);
         }
@@ -596,10 +610,12 @@ public class VirtualKeyWindow : Form
             Buttons = [.. _btnManager.Buttons]
         };
         _serializer.Save(data);
+        OperationLogger.Info($"VKWindow.SaveLayout: saved {data.Buttons.Count} buttons, target={_targetProcessName ?? "(none)"}");
     }
 
     private void LoadLayout()
     {
+        OperationLogger.Info("VKWindow.LoadLayout: loading layout");
         var data = _serializer.Load();
         _targetProcessName = data.TargetProcessName;
         _targetWindowTitle = data.TargetWindowTitle;
@@ -625,6 +641,7 @@ public class VirtualKeyWindow : Form
                     (screen.WorkingArea.Height - Height) / 2);
         }
         UpdateScale();
+        OperationLogger.Info($"VKWindow.LoadLayout: loaded {data.Buttons.Count} buttons, target={_targetProcessName ?? "(none)"}");
     }
 
     private void ResetLayout() { _btnManager.Clear(); SaveLayout(); }
