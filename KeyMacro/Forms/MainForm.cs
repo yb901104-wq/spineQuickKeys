@@ -158,7 +158,7 @@ public partial class MainForm : Form
 
     private void MainForm_Shown(object? sender, EventArgs e)
     {
-        OperationLogger.Info($"Application started, version 1.95");
+        OperationLogger.Info($"Application started, version 1.98");
         LoadSequences();
     }
 

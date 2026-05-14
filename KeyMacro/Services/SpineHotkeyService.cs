@@ -19,6 +19,9 @@ public class SpineHotkeyService
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "KeyMacro", "spine_translations.txt");
 
+    private static readonly string ProjectTranslationPath =
+        Path.Combine(Directory.GetCurrentDirectory(), "spine_translations.txt");
+
     public SpineHotkeyService(string filePath)
     {
         FilePath = filePath;
@@ -124,12 +127,14 @@ public class SpineHotkeyService
     }
 
     /// <summary>
-    /// Ensure the translation file exists in %APPDATA%\KeyMacro\, create from defaults if missing.
+    /// Ensure the translation file exists, create from defaults if missing.
+    /// Prefers project-adjacent file, falls back to APPDATA.
     /// </summary>
     public static void EnsureTranslationFile()
     {
         try
         {
+            if (File.Exists(ProjectTranslationPath)) return;
             var dir = Path.GetDirectoryName(TranslationPath)!;
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
             if (!File.Exists(TranslationPath))
@@ -140,10 +145,11 @@ public class SpineHotkeyService
 
     private static Dictionary<string, string> LoadTranslationFile()
     {
+        var path = File.Exists(ProjectTranslationPath) ? ProjectTranslationPath : TranslationPath;
         try
         {
-            if (!File.Exists(TranslationPath)) return [];
-            var lines = File.ReadAllLines(TranslationPath, System.Text.Encoding.UTF8);
+            if (!File.Exists(path)) return [];
+            var lines = File.ReadAllLines(path, System.Text.Encoding.UTF8);
             var dict = new Dictionary<string, string>();
             foreach (var line in lines)
             {

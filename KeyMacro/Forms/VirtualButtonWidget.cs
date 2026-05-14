@@ -22,7 +22,7 @@ public class VirtualButtonWidget : UserControl
     private const int LargeWidth = 96;
     private const int LoopWidth = 110;
 
-    // Colors per spec
+    // Default static colors (fallback when no skin is loaded)
     private static readonly Color ColorTopRim = Color.FromArgb(0x3C, 0x3C, 0x3C);
     private static readonly Color ColorBarTop = Color.FromArgb(0x4A, 0x4A, 0x4A);
     private static readonly Color ColorBarBottom = Color.FromArgb(0x38, 0x38, 0x38);
@@ -30,6 +30,22 @@ public class VirtualButtonWidget : UserControl
     private static readonly Color ColorGrooveLight = Color.FromArgb(0x4A, 0x4A, 0x4A);
     private static readonly Color ColorActiveGlow = Color.FromArgb(0x00, 0xE5, 0xFF);
     private static readonly Color ColorText = Color.FromArgb(0xE0, 0xE0, 0xE0);
+    private static readonly Color ColorDimText = Color.FromArgb(0x88, 0x88, 0x88);
+    private static readonly Color ColorBorder = Color.FromArgb(0x00, 0x00, 0x00);
+
+    // Instance fields overridable by skin
+    private Color _colorBarTop = ColorBarTop;
+    private Color _colorBarBottom = ColorBarBottom;
+    private Color _colorTopRim = ColorTopRim;
+    private Color _colorActiveGlow = ColorActiveGlow;
+    private Color _colorText = ColorText;
+    private Color _colorDimText = ColorDimText;
+    private Color _colorBorder = ColorBorder;
+
+    // Cached button images (null = fall back to GDI+)
+    private Image? _imgNormal;
+    private Image? _imgPressed;
+    private Image? _imgActive;
 
     public VirtualButton VirtualButton => _vbtn;
     public event Action<VirtualButtonWidget>? Clicked;
@@ -118,6 +134,30 @@ public class VirtualButtonWidget : UserControl
         {
             _txtLoopCount.Text = _vbtn.LoopCount.ToString();
         }
+    }
+
+    /// <summary>Apply colors and images from a skin loader. Falls back to defaults for missing keys.</summary>
+    public void ApplySkin(VkSkinLoader loader)
+    {
+        _colorBarTop = loader.GetColor("btn_bg_top", ColorBarTop);
+        _colorBarBottom = loader.GetColor("btn_bg_bottom", ColorBarBottom);
+        _colorTopRim = loader.GetColor("window_rim", ColorTopRim);
+        _colorActiveGlow = loader.GetColor("btn_active_glow", ColorActiveGlow);
+        _colorText = loader.GetColor("btn_text", ColorText);
+        _colorDimText = loader.GetColor("btn_dim_text", ColorDimText);
+        _colorBorder = loader.GetColor("window_border", ColorBorder);
+
+        // Cache button images per-style, with fallback to generic name
+        var style = _vbtn.StyleType switch
+        {
+            VirtualButtonStyle.LargeIcon => "large",
+            VirtualButtonStyle.LoopIcon => "loop",
+            _ => "small"
+        };
+        _imgNormal = loader.GetButtonImage($"{style}_normal") ?? loader.GetButtonImage("normal");
+        _imgPressed = loader.GetButtonImage($"{style}_pressed") ?? loader.GetButtonImage("pressed");
+        _imgActive = loader.GetButtonImage($"{style}_active") ?? loader.GetButtonImage("active");
+        Invalidate();
     }
 
     public void UpdateButton(VirtualButton vbtn)
@@ -219,14 +259,30 @@ public class VirtualButtonWidget : UserControl
         var radius = 2;
 
         if (_isPressed)
-            DrawPressed(g, rect, radius);
+        {
+            if (_imgPressed != null)
+                g.DrawImage(_imgPressed, rect);
+            else
+                DrawPressed(g, rect, radius);
+        }
+        else if (_isActive && _imgActive != null)
+        {
+            // Active PNG fully replaces normal when glowing
+            g.DrawImage(_imgActive, rect);
+        }
         else
-            DrawStatic(g, rect, radius);
+        {
+            if (_imgNormal != null)
+                g.DrawImage(_imgNormal, rect);
+            else
+                DrawStatic(g, rect, radius);
+        }
+
+        // GDI+ glow overlay when active but no active PNG
+        if (_isActive && !_isPressed && _imgActive == null)
+            DrawActiveOverlay(g, rect, radius);
 
         DrawContent(g, rect);
-
-        if (_isActive && !_isPressed)
-            DrawActiveOverlay(g, rect, radius);
     }
 
     private void DrawStatic(Graphics g, Rectangle rect, int radius)
@@ -234,11 +290,11 @@ public class VirtualButtonWidget : UserControl
         var barRect = new Rectangle(0, 0, Width - 1, Height - 1);
 
         using var bodyPath = MakeRoundedPath(barRect, radius, _isFirstInRow, _isLastInRow);
-        using var bodyBrush = new LinearGradientBrush(barRect, ColorBarTop, ColorBarBottom, LinearGradientMode.Vertical);
+        using var bodyBrush = new LinearGradientBrush(barRect, _colorBarTop, _colorBarBottom, LinearGradientMode.Vertical);
         g.FillPath(bodyBrush, bodyPath);
 
         // Top rim 1px #3C3C3C
-        using var rimPen = new Pen(ColorTopRim);
+        using var rimPen = new Pen(_colorTopRim);
         var rimRect = new Rectangle(barRect.X, barRect.Y, barRect.Width, 1);
         using var rimPath = MakeRoundedPath(rimRect, radius, _isFirstInRow, _isLastInRow);
         g.DrawPath(rimPen, rimPath);
@@ -253,7 +309,7 @@ public class VirtualButtonWidget : UserControl
         }
 
         // Outer 1px #000000 border
-        using var borderPen = new Pen(Color.FromArgb(0x00, 0x00, 0x00));
+        using var borderPen = new Pen(_colorBorder);
         if (_isFirstInRow)
             g.DrawLine(borderPen, 0, 0, 0, Height - 1);
         if (_isLastInRow)
@@ -273,7 +329,7 @@ public class VirtualButtonWidget : UserControl
     private void DrawActiveOverlay(Graphics g, Rectangle rect, int radius)
     {
         var innerRect = new Rectangle(3, 3, Width - 7, Height - 7);
-        using var glowPen = new Pen(Color.FromArgb(120, ColorActiveGlow), 1);
+        using var glowPen = new Pen(Color.FromArgb(120, _colorActiveGlow), 1);
         using var glowPath = MakeRoundedPath(innerRect, 1, true, true);
         g.DrawPath(glowPen, glowPath);
     }
@@ -281,8 +337,8 @@ public class VirtualButtonWidget : UserControl
     private void DrawContent(Graphics g, Rectangle rect)
     {
         using var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
-        using var textBrush = new SolidBrush(_isActive ? ColorActiveGlow : ColorText);
-        using var dimBrush = new SolidBrush(Color.FromArgb(0x88, 0x88, 0x88));
+        using var textBrush = new SolidBrush(_isActive ? _colorActiveGlow : _colorText);
+        using var dimBrush = new SolidBrush(_colorDimText);
 
         var iconChar = _vbtn.Name.Length > 0 ? _vbtn.Name[0].ToString() : "☐";
 

@@ -1,28 +1,111 @@
 using System.Drawing.Drawing2D;
+using System.Reflection;
 using System.Text.Json;
 
 namespace KeyMacro.Services;
 
 public class VkSkinLoader
 {
-    private readonly string _skinDir;
+    private readonly string _skinName;
+    private readonly string _skinDir = "";
     private SkinData? _skin;
     private readonly Dictionary<string, Image> _imageCache = [];
+    private static readonly Assembly _assembly = Assembly.GetExecutingAssembly();
+    private const string EmbeddedPrefix = "KeyMacro.skins.";
 
     public VkSkinLoader(string? skinPath)
     {
-        _skinDir = string.IsNullOrEmpty(skinPath)
-            ? ""
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "KeyMacro", "skins", skinPath);
+        _skinName = skinPath ?? "";
+        OperationLogger.Info($"VkSkinLoader: skinPath=\"{skinPath}\"");
+
+        // Disk path for development fallback
+        if (!string.IsNullOrEmpty(skinPath))
+        {
+            var cwdDir = Path.Combine(Directory.GetCurrentDirectory(), "skins", skinPath);
+            OperationLogger.Info($"VkSkinLoader: trying CWD path \"{cwdDir}\" exists={Directory.Exists(cwdDir)}");
+            if (Directory.Exists(cwdDir))
+            { _skinDir = cwdDir; OperationLogger.Info($"VkSkinLoader: using CWD path \"{_skinDir}\""); return; }
+
+            var exeDir = Path.Combine(AppContext.BaseDirectory, "skins", skinPath);
+            OperationLogger.Info($"VkSkinLoader: trying BaseDir path \"{exeDir}\" exists={Directory.Exists(exeDir)}");
+            _skinDir = Directory.Exists(exeDir) ? exeDir : "";
+        }
+        OperationLogger.Info($"VkSkinLoader: _skinDir=\"{_skinDir}\" _skinName=\"{_skinName}\"");
     }
 
     public bool HasSkin => _skin != null;
 
+    /// <summary>Open an embedded resource stream for a file in the current skin.</summary>
+    private Stream? OpenEmbedded(string fileName)
+    {
+        if (string.IsNullOrEmpty(_skinName)) return null;
+        var name = $"{EmbeddedPrefix}{_skinName}.{fileName}";
+        OperationLogger.Info($"VkSkinLoader.OpenEmbedded: looking for \"{name}\"");
+        var stream = _assembly.GetManifestResourceStream(name);
+        OperationLogger.Info($"VkSkinLoader.OpenEmbedded: \"{name}\" -> {(stream != null ? "FOUND" : "null")}");
+        return stream;
+    }
+
+    /// <summary>Load an image from embedded resources, then fall back to disk.</summary>
+    private Image? LoadSkinImage(string fileName)
+    {
+        var cacheKey = fileName;
+        if (_imageCache.TryGetValue(cacheKey, out var cached)) return cached;
+
+        Image? img = null;
+
+        // 1. Try embedded resource (published single-file exe)
+        try
+        {
+            using var stream = OpenEmbedded(fileName);
+            if (stream != null)
+            {
+                var ms = new MemoryStream();
+                stream.CopyTo(ms);
+                ms.Position = 0;
+                img = Image.FromStream(ms);
+                OperationLogger.Info($"VkSkinLoader.LoadSkinImage: loaded \"{fileName}\" from embedded ({ms.Length} bytes)");
+            }
+        }
+        catch (Exception ex)
+        {
+            OperationLogger.Error($"VkSkinLoader.LoadSkinImage: embedded failed for \"{fileName}\": {ex.Message}");
+        }
+
+        // 2. Fall back to disk (development)
+        if (img == null && !string.IsNullOrEmpty(_skinDir))
+        {
+            var path = Path.Combine(_skinDir, fileName);
+            if (File.Exists(path))
+            {
+                try { img = Image.FromFile(path); }
+                catch { }
+            }
+        }
+
+        if (img != null)
+            _imageCache[cacheKey] = img;
+        return img;
+    }
+
     public void Load()
     {
-        if (string.IsNullOrEmpty(_skinDir) || !Directory.Exists(_skinDir)) return;
+        // 1. Try embedded skin.json
+        try
+        {
+            using var stream = OpenEmbedded("skin.json");
+            if (stream != null)
+            {
+                using var reader = new StreamReader(stream);
+                var json = reader.ReadToEnd();
+                _skin = JsonSerializer.Deserialize<SkinData>(json) ?? new SkinData();
+                return;
+            }
+        }
+        catch { }
 
+        // 2. Fall back to disk
+        if (string.IsNullOrEmpty(_skinDir) || !Directory.Exists(_skinDir)) return;
         var jsonPath = Path.Combine(_skinDir, "skin.json");
         if (!File.Exists(jsonPath)) return;
 
@@ -31,10 +114,7 @@ public class VkSkinLoader
             var json = File.ReadAllText(jsonPath);
             _skin = JsonSerializer.Deserialize<SkinData>(json) ?? new SkinData();
         }
-        catch
-        {
-            _skin = null;
-        }
+        catch { _skin = null; }
     }
 
     public Color GetColor(string key, Color defaultColor)
@@ -45,44 +125,13 @@ public class VkSkinLoader
         catch { return defaultColor; }
     }
 
-    public Image? GetButtonImage(string state)
-    {
-        if (string.IsNullOrEmpty(_skinDir)) return null;
-        if (_imageCache.TryGetValue(state, out var cached)) return cached;
+    public Image? GetButtonImage(string state) => LoadSkinImage($"btn_{state}.png");
 
-        var path = Path.Combine(_skinDir, $"btn_{state}.png");
-        if (!File.Exists(path)) return null;
-
-        try
-        {
-            var img = Image.FromFile(path);
-            _imageCache[state] = img;
-            return img;
-        }
-        catch { return null; }
-    }
-
-    public Image? GetWindowBackground()
-    {
-        if (string.IsNullOrEmpty(_skinDir)) return null;
-        if (_imageCache.TryGetValue("_window_bg", out var cached)) return cached;
-
-        var path = Path.Combine(_skinDir, "window_bg.png");
-        if (!File.Exists(path)) return null;
-
-        try
-        {
-            var img = Image.FromFile(path);
-            _imageCache["_window_bg"] = img;
-            return img;
-        }
-        catch { return null; }
-    }
+    public Image? GetWindowBackground() => LoadSkinImage("window_bg.png");
 
     /// <summary>Draw a 9-slice scaled image to the target rectangle.</summary>
     public static void DrawNineSlice(Graphics g, Image img, Rectangle target, int margin = 4)
     {
-        var src = new Rectangle(0, 0, img.Width, img.Height);
         int m = Math.Min(margin, Math.Min(img.Width / 2, img.Height / 2));
 
         // corners

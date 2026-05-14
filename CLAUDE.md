@@ -24,7 +24,8 @@ KeyMacro/
 │   ├── VirtualButtonManager.cs # 虚拟按键列表管理
 │   ├── VirtualKeyBindingManager.cs # 虚拟按键 ↔ 序列绑定
 │   ├── VirtualLayoutSerializer.cs # 虚拟按键窗口布局持久化
-│   └── VirtualLoopExecutor.cs # 循环按钮执行器
+│   ├── VirtualLoopExecutor.cs # 循环按钮执行器
+│   └── VkSkinLoader.cs        # 皮肤资源加载器（嵌入资源 + 磁盘双源）
 └── Forms/
     ├── MainForm.cs          # 主窗口 + 系统托盘
     ├── SequenceEditor.cs    # 序列编辑器 + 热键录制对话框
@@ -112,6 +113,15 @@ BaseBtnWidth: SmallIcon=48  LargeIcon=96  LoopIcon=110
 - `OperationLogger` 是静态类，日志路径 `%APPDATA%\KeyMacro\logs\yyyy-MM-dd.log`
 - 自动清理 7 天前的日志，单文件超 5MB 自动轮转
 - 关键操作（播放序列、热键触发、配置读写、VkPickMode）均记录日志
+
+## 皮肤资源系统
+- `VkSkinLoader` 加载皮肤资源，支持**嵌入式资源**（发布后的 exe）和**磁盘**（开发时 `dotnet run`）双源
+- 有图（PNG）→ 绘制图片；无图 → 回退 GDI+ 硬编码绘制
+- 按钮图片按样式命名：`btn_{style}_{state}.png`（style=small/large/loop, state=normal/pressed/active），无样式名时回退通用 `btn_{state}.png`
+- 窗口背景 `window_bg.png` 使用 9-slice 缩放（边距 10px）
+- 资源放在 `KeyMacro/skins/<名称>/` 目录，通过 `virtual_layout.json` 的 `SkinPath` 字段指定
+- `skin.json` 可配置颜色字段（可选），缺失时使用硬编码默认值
+- `ConfigService`/`VirtualLayoutSerializer`/`SpineHotkeyService` 均采用双路径策略：先加载项目目录（CWD），再 APPDATA，最后回退嵌入式默认值
 
 ## 版本管理与发布流程（必遵）
 

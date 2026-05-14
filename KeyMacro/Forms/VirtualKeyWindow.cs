@@ -93,6 +93,7 @@ public class VirtualKeyWindow : Form
         var layoutData = _serializer.Load();
         _skinLoader = new VkSkinLoader(layoutData.SkinPath);
         _skinLoader.Load();
+        ApplyWindowSkin();
         LoadLayoutData(layoutData);
 
         FormClosing += (_, e) =>
@@ -380,6 +381,7 @@ public class VirtualKeyWindow : Form
         for (int i = 0; i < buttons.Count; i++)
         {
             var w = new VirtualButtonWidget(buttons[i]);
+            w.ApplySkin(_skinLoader);
             w.IsFirstInRow = i == 0; w.IsLastInRow = i == buttons.Count - 1;
             w.Clicked += OnButtonClicked;
             w.Dragged += OnButtonDragged;
@@ -491,6 +493,35 @@ public class VirtualKeyWindow : Form
         var seq = _sequences.Find(s => s.Id == vbtn.BindActionId);
         if (seq != null) { seq.LoopIntervalMs = vbtn.LoopInterval; seq.LoopCount = vbtn.LoopCount; _sequencesChangedCallback?.Invoke(); }
         SaveLayout();
+    }
+
+    // ── Skin ──
+
+    private Image? _bgImage;
+
+    private void ApplyWindowSkin()
+    {
+        _bgImage = _skinLoader.GetWindowBackground();
+        if (_bgImage != null)
+        {
+            _panel.BackColor = Color.Transparent;
+            _panel.BackgroundImage = null;
+            _panel.Paint -= Panel_PaintBg;
+            _panel.Paint += Panel_PaintBg;
+            return;
+        }
+
+        _panel.Paint -= Panel_PaintBg;
+        _panel.BackgroundImage = null;
+        var bg = _skinLoader.GetColor("window_bg", Color.FromArgb(0x0D, 0x0D, 0x0D));
+        BackColor = bg;
+        _panel.BackColor = bg;
+    }
+
+    private void Panel_PaintBg(object? sender, PaintEventArgs e)
+    {
+        if (_bgImage == null) return;
+        VkSkinLoader.DrawNineSlice(e.Graphics, _bgImage, _panel.ClientRectangle, 10);
     }
 
     // ── Layout persistence ──
