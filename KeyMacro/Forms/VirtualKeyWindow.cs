@@ -498,13 +498,16 @@ public class VirtualKeyWindow : Form
     // ── Skin ──
 
     private Image? _bgImage;
+    private static readonly Color ChromaKey = Color.FromArgb(0xFF, 0x00, 0xFF); // Fuchsia
 
     private void ApplyWindowSkin()
     {
         _bgImage = _skinLoader.GetWindowBackground();
         if (_bgImage != null)
         {
-            _panel.BackColor = Color.Transparent;
+            BackColor = ChromaKey;
+            TransparencyKey = ChromaKey;
+            _panel.BackColor = ChromaKey;
             _panel.BackgroundImage = null;
             _panel.Paint -= Panel_PaintBg;
             _panel.Paint += Panel_PaintBg;
@@ -512,6 +515,7 @@ public class VirtualKeyWindow : Form
         }
 
         _panel.Paint -= Panel_PaintBg;
+        TransparencyKey = Color.Empty;
         _panel.BackgroundImage = null;
         var bg = _skinLoader.GetColor("window_bg", Color.FromArgb(0x0D, 0x0D, 0x0D));
         BackColor = bg;
