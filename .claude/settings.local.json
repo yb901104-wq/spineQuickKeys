@@ -70,7 +70,16 @@
       "Bash(sed -i 's/while \\(sequence.Loop &&/while \\(sequence.LoopCount != 1 \\\\&\\\\&/g' MacroPlayer.cs)",
       "Bash(sed -i '240s/case 6:/case 5:/' MainForm.cs)",
       "Bash(sed -i '241s/Cells\\\\[6\\\\]/Cells[5]/' MainForm.cs)",
-      "Bash(sed -i '247s/Cells\\\\[7\\\\]/Cells[6]/' MainForm.cs)"
+      "Bash(sed -i '247s/Cells\\\\[7\\\\]/Cells[6]/' MainForm.cs)",
+      "Bash(sed -i '35d' VirtualKeyWindow.cs)",
+      "Bash(sed -i '47,51d' VirtualKeyWindow.cs)",
+      "Bash(sed -i '75s/\\\\/\\\\/ overlay at top, no Dock/Dock = DockStyle.Top,/' VirtualKeyWindow.cs)",
+      "Bash(sed -i '80s/Visible = false/Visible = true/' VirtualKeyWindow.cs)",
+      "Bash(sed -i '160,196d' VirtualKeyWindow.cs)",
+      "Bash(sed -i 's/Controls.Add\\(_panel\\);\\\\nControls.Add\\(_resizeGrip\\);\\\\nControls.Add\\(_toolbar\\);/Controls.Add\\(_toolbar\\);\\\\n        Controls.Add\\(_panel\\);/' VirtualKeyWindow.cs)",
+      "Bash(sed -i '93s/\\\\/\\\\/ Toolbar.*/\\\\/\\\\/ Title bar \\(Dock=Top\\)/' VirtualKeyWindow.cs)",
+      "Bash(sed -i 's/Width = 320,/Dock = DockStyle.Top,/' VirtualKeyWindow.cs)",
+      "Bash(sed -i '101s/Visible = false/Visible = true/' VirtualKeyWindow.cs)"
     ],
     "additionalDirectories": [
       "d:\\AI_cc\\spineQuickKeys\\openspec\\changes\\virtual-key-window-target"

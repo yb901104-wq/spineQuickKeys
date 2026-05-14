@@ -22,6 +22,7 @@ public class VirtualLayoutSerializer
         public string? TargetWindowTitle { get; set; }
         public string? SkinPath { get; set; }
         public bool SingleLineMode { get; set; } = true;
+        public float ScaleFactor { get; set; }
         public List<VirtualButton> Buttons { get; set; } = [];
     }
 

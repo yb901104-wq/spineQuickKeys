@@ -32,7 +32,6 @@ public class VirtualKeyWindow : Form
     private readonly Action? _sequencesChangedCallback;
     private readonly FlowLayoutPanel _panel;
     private readonly Panel _toolbar;
-    private readonly Panel _resizeGrip;
     private readonly Label _lblToolbarInfo;
     private readonly Dictionary<string, VirtualButtonWidget> _widgets = [];
     private bool _isDraggingWindow;
@@ -43,13 +42,9 @@ public class VirtualKeyWindow : Form
     private bool _windowLocked;
     private string? _targetProcessName;
     private string? _targetWindowTitle;
+    private float _scaleFactor = 1.0f;
     private bool _schemeAFailed;
     private bool _singleLineMode = true;
-    private bool _isResizing;
-    private Point _resizeStart;
-    private float _scaleFactor = 1.0f;
-    private Size _resizeStartSize;
-
     private const int BasePanelWidth = 400;
     private VkSkinLoader _skinLoader = new(null);
 
@@ -74,6 +69,7 @@ public class VirtualKeyWindow : Form
         TopMost = true;
         ShowInTaskbar = false;
         FormBorderStyle = FormBorderStyle.None;
+        Size = new Size(320, 100);
         Opacity = _opacityValue;
 
         // Custom border
@@ -94,14 +90,15 @@ public class VirtualKeyWindow : Form
             }
         };
 
-        // Toolbar (visible when unlocked)
+        // Title bar (Dock=Top)
         _toolbar = new Panel
         {
             Dock = DockStyle.Top,
             Height = 28,
             BackColor = Color.FromArgb(0x1A, 0x1A, 0x1A),
             Padding = new Padding(8, 0, 8, 0),
-            Cursor = Cursors.SizeAll
+            Cursor = Cursors.SizeAll,
+            Visible = true
         };
         _lblToolbarInfo = new Label
         {
@@ -127,63 +124,46 @@ public class VirtualKeyWindow : Form
         _toolbar.Controls.Add(btnClose);
         _toolbar.MouseDown += (_, e) =>
         {
+            if (e.Button == MouseButtons.Left && !_windowLocked && e.X < _toolbar.Width - 28)
+            {
+                _isDraggingWindow = true;
+                _dragStart = Control.MousePosition;
+            }
+        };
+        _lblToolbarInfo.MouseDown += (_, e) =>
+        {
             if (e.Button == MouseButtons.Left && !_windowLocked)
             {
                 _isDraggingWindow = true;
-                _dragStart = e.Location;
+                _dragStart = Control.MousePosition;
             }
         };
+        _toolbar.MouseMove += (_, e) =>
+        {
+            if (_isDraggingWindow)
+            {
+                var pos = Control.MousePosition;
+                Left += pos.X - _dragStart.X;
+                Top += pos.Y - _dragStart.Y;
+                _dragStart = pos;
+            }
+        };
+        _toolbar.MouseUp += (_, e) => _isDraggingWindow = false;
+
 
         _panel = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
             AutoScroll = true,
-            Padding = new Padding(8, 4, 8, 8),
+            Padding = new Padding(10),
             BackColor = Color.FromArgb(0x0D, 0x0D, 0x0D)
         };
         _panel.MouseClick += (_, e) => OperationLogger.Info($"VKWindow._panel.MouseClick: btn={e.Button}, loc=({e.X},{e.Y}), widgets={_widgets.Count}");
 
-        // Resize grip
-        _resizeGrip = new Panel
-        {
-            Width = 14,
-            Height = 14,
-            Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
-            Cursor = Cursors.SizeNWSE,
-            BackColor = Color.Transparent
-        };
-        _resizeGrip.Paint += (_, e) =>
-        {
-            using var p = new Pen(Color.FromArgb(0x66, 0x66, 0x66));
-            int x = _resizeGrip.Width - 4, y = _resizeGrip.Height - 4;
-            for (int i = 0; i < 3; i++)
-            {
-                e.Graphics.DrawLine(p, x - i * 4, y, x, y - i * 4);
-                e.Graphics.DrawLine(p, x - i * 4 - 1, y, x - 1, y - i * 4);
-            }
-        };
-        _resizeGrip.MouseDown += (_, e) =>
-        {
-            if (e.Button == MouseButtons.Left) { _isResizing = true; _resizeStart = e.Location; _resizeStartSize = Size; }
-        };
-        _resizeGrip.MouseMove += (_, e) =>
-        {
-            if (_isResizing)
-            {
-                var newW = Math.Max(100, _resizeStartSize.Width + e.X - _resizeStart.X);
-                var newH = Math.Max(60, _resizeStartSize.Height + e.Y - _resizeStart.Y);
-                Width = newW;
-                Height = newH;
-                _scaleFactor = (float)Math.Max(0.5, Math.Min(2.0, (double)newW / BasePanelWidth));
-                UpdateScale();
-            }
-        };
-        _resizeGrip.MouseUp += (_, e) => _isResizing = false;
 
-        Controls.Add(_panel);
-        Controls.Add(_resizeGrip);
         Controls.Add(_toolbar);
-        Resize += (_, _) => { _resizeGrip.Location = new Point(ClientSize.Width - 14, ClientSize.Height - 14); UpdateScale(); };
+        Controls.Add(_panel);
+        Resize += (_, _) => _toolbar.Width = ClientSize.Width;
 
         // Blank area context menu
         var blankMenu = BuildBlankMenu();
@@ -277,6 +257,15 @@ public class VirtualKeyWindow : Form
             var item = scaleMenu.DropDownItems.Add($"{pct}%");
             item.Click += (_, _) => SetScaleFromMenu(pct / 100f);
         }
+        scaleMenu.DropDownItems.Add("-");
+        var customItem = scaleMenu.DropDownItems.Add("自定义...");
+        customItem.Click += (_, _) =>
+        {
+            var input = Microsoft.VisualBasic.Interaction.InputBox(
+                "输入缩放比例 (10-200):", "自定义缩放", ((int)(_scaleFactor * 100)).ToString());
+            if (int.TryParse(input, out var pct) && pct >= 10 && pct <= 200)
+                SetScaleFromMenu(pct / 100f);
+        };
         m.Items.Add(scaleMenu);
 
         m.Items.Add("-");
@@ -323,7 +312,11 @@ public class VirtualKeyWindow : Form
     private void UpdateWindowLockState()
     {
         _toolbar.Visible = !_windowLocked;
-        _resizeGrip.Visible = !_windowLocked;
+        // Adjust panel padding top to free/cover toolbar area
+        var p = _panel.Padding;
+        _panel.Padding = _windowLocked
+            ? new Padding(p.Left, 10, p.Right, p.Bottom)
+            : new Padding(p.Left, 10 + 28, p.Right, p.Bottom);
     }
 
     // ── Layout mode ──
@@ -332,6 +325,7 @@ public class VirtualKeyWindow : Form
     {
         _singleLineMode = !_singleLineMode;
         ApplyLayoutMode();
+        RecalculateSize();
         SaveLayout();
     }
 
@@ -341,12 +335,9 @@ public class VirtualKeyWindow : Form
         {
             _panel.WrapContents = false;
             _panel.AutoScroll = false;
-            AutoSizeMode = AutoSizeMode.GrowAndShrink;
-            AutoSize = true;
         }
         else
         {
-            AutoSize = false;
             _panel.WrapContents = true;
             _panel.AutoScroll = true;
         }
@@ -356,7 +347,57 @@ public class VirtualKeyWindow : Form
     {
         _scaleFactor = factor;
         UpdateScale();
+        RecalculateSize();
         SaveLayout();
+    }
+
+    private void RecalculateSize()
+    {
+        var padding = _panel.Padding;
+        int barH = _toolbar.Visible ? _toolbar.Height : 0;
+        int fp = Padding.Horizontal; // form padding (1 left + 1 right = 2)
+
+        if (_widgets.Count == 0)
+        {
+            if (_singleLineMode) ClientSize = new Size(80 + fp, barH + padding.Top + 20);
+            return;
+        }
+
+        if (_singleLineMode)
+        {
+            int totalW = padding.Left + padding.Right + fp;
+            int maxH = 0;
+            foreach (var w in _widgets.Values)
+            {
+                totalW += w.Width;
+                if (w.Height > maxH) maxH = w.Height;
+            }
+            int totalH = barH + padding.Top + maxH + padding.Bottom;
+            ClientSize = new Size(totalW, totalH);
+        }
+        else
+        {
+            // Multi-row: keep width, adjust height
+            int totalH = barH;
+            int rowH = 0;
+            int rowW = padding.Left;
+            foreach (var w in _widgets.Values)
+            {
+                if (rowW + w.Width > ClientSize.Width - padding.Right && rowW > padding.Left)
+                {
+                    totalH += rowH;
+                    rowW = padding.Left + w.Width;
+                    rowH = w.Height;
+                }
+                else
+                {
+                    rowW += w.Width;
+                    if (w.Height > rowH) rowH = w.Height;
+                }
+            }
+            totalH += rowH + padding.Top + padding.Bottom;
+            ClientSize = new Size(ClientSize.Width, totalH);
+        }
     }
 
     // ── Target window capture ──
@@ -507,6 +548,7 @@ public class VirtualKeyWindow : Form
             _widgets[buttons[i].Id] = widget;
         }
         UpdateScale();
+        RecalculateSize();
         _panel.ResumeLayout();
         _lblToolbarInfo.Text = (_targetProcessName != null ? $"[目标: {_targetWindowTitle ?? _targetProcessName}] " : "") +
                               $"{_widgets.Count} 个按钮";
@@ -776,7 +818,8 @@ public class VirtualKeyWindow : Form
             TargetProcessName = _targetProcessName,
             TargetWindowTitle = _targetWindowTitle,
             Buttons = [.. _btnManager.Buttons],
-            SingleLineMode = _singleLineMode
+            SingleLineMode = _singleLineMode,
+            ScaleFactor = _scaleFactor
         };
         _serializer.Save(data);
         OperationLogger.Info($"VKWindow.SaveLayout: saved {data.Buttons.Count} buttons, target={_targetProcessName ?? "(none)"}, singleLine={_singleLineMode}");
@@ -788,12 +831,17 @@ public class VirtualKeyWindow : Form
         _targetProcessName = data.TargetProcessName;
         _targetWindowTitle = data.TargetWindowTitle;
         _singleLineMode = data.SingleLineMode;
+        _scaleFactor = data.ScaleFactor > 0 ? data.ScaleFactor : 1.0f;
 
         if (data.Buttons.Count > 0)
         {
             _btnManager.LoadFrom(data.Buttons);
-            Location = new Point(data.WindowX, data.WindowY);
-            Size = new Size(data.WindowWidth, data.WindowHeight);
+            var savedLoc = new Point(data.WindowX, data.WindowY);
+            var testRect = new Rectangle(savedLoc, new Size(Math.Max(data.WindowWidth, 100), Math.Max(data.WindowHeight, 100)));
+            var onScreen = Screen.AllScreens.Any(s => s.WorkingArea.IntersectsWith(testRect));
+            Location = onScreen ? savedLoc : new Point(
+                (Screen.PrimaryScreen!.WorkingArea.Width - Width) / 2,
+                (Screen.PrimaryScreen!.WorkingArea.Height - Height) / 2);
             _topMostState = data.TopMost;
             TopMost = _topMostState;
             _positionLocked = data.PositionLocked;
@@ -802,50 +850,24 @@ public class VirtualKeyWindow : Form
                 w.AllowDragging = !_positionLocked;
             ApplyLayoutMode();
             UpdateWindowLockState();
+            UpdateScale();
+            RecalculateSize();
         }
         else
         {
-            AutoSizeMode = AutoSizeMode.GrowAndShrink;
-            AutoSize = true;
+            Size = new Size(320, 100);
             var screen = Screen.PrimaryScreen;
             if (screen != null)
                 Location = new Point(
                     (screen.WorkingArea.Width - Width) / 2,
                     (screen.WorkingArea.Height - Height) / 2);
+            UpdateScale();
         }
-        UpdateScale();
-        OperationLogger.Info($"VKWindow.LoadLayout: loaded {data.Buttons.Count} buttons, target={_targetProcessName ?? "(none)"}, singleLine={_singleLineMode}");
+        OperationLogger.Info($"VKWindow.LoadLayout: loaded {data.Buttons.Count} buttons, target={_targetProcessName ?? "(none)"}, singleLine={_singleLineMode}, scale={_scaleFactor}");
     }
 
     private void LoadLayout() { LoadLayoutData(_serializer.Load()); }
 
     private void ResetLayout() { _btnManager.Clear(); SaveLayout(); }
 
-    // ── Window dragging ──
-
-    protected override void OnMouseDown(MouseEventArgs e)
-    {
-        base.OnMouseDown(e);
-        if (e.Button == MouseButtons.Left && e.Y < 24 && !_windowLocked)
-        {
-            _isDraggingWindow = true;
-            _dragStart = e.Location;
-        }
-    }
-
-    protected override void OnMouseMove(MouseEventArgs e)
-    {
-        base.OnMouseMove(e);
-        if (_isDraggingWindow)
-        {
-            Left += e.X - _dragStart.X;
-            Top += e.Y - _dragStart.Y;
-        }
-    }
-
-    protected override void OnMouseUp(MouseEventArgs e)
-    {
-        base.OnMouseUp(e);
-        _isDraggingWindow = false;
-    }
 }
