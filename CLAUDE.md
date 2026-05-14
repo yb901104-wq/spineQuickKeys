@@ -83,26 +83,30 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 - `MainForm.SyncVkButtonBindings` 仅更新名称匹配的按钮，不破坏右键菜单建立的绑定
 - `MainForm.RequestOpenVirtualKeys()` 可供 SequenceEditor 在 VK 窗口未打开时自动创建
 
-## 虚拟按键窗口 UI
-- `FormBorderStyle = None`，无标准标题栏，自定义边框绘制（支持皮肤 9-slice 贴图）
-- 工具栏（窗口解锁时显示）：目标窗口名 + 按钮数量 + 关闭按钮，可拖拽移动窗口
-- 窗口锁定后隐藏工具栏并禁止拖拽
-- **右下角缩放手柄**：拖拽改变窗口大小，ScaleFactor 同步缩放所有按钮
-- **布局模式**：单排（WrapContents=false + AutoSize 水平撑开）/ 多排（固定宽度+换行），右键菜单切换
-- 右键菜单缩放子菜单：50% / 75% / 100% / 150% / 200%
+## 虚拟按键窗口
+- `FormBorderStyle = FixedSingle`，原生 Windows 标题栏（自带拖动、关闭、系统菜单）
+- 标题栏文字：`[目标] 虚拟按键 (N)`，显示目标名和按钮数量
+- 锁定：切换 `FormBorderStyle = None`，标题栏消失，窗口/按钮位置不动
+- **无自绘工具栏、无自定义拖拽事件、无缩放手柄**
+- **布局模式**：单排（所有按钮横排）/ 多排（自动换行），右键菜单切换
+- **缩放**：右键菜单百分比预设（50/75/100/150/200%）+ 自定义输入（10-200%）
+- **无拖拽缩放，无最小/最大尺寸限制**
+
+## 虚拟按键布局算法
+- 基于基础常量计算，不依赖控件运行时属性：
+```
+BASE_BTN_H = 48   BASE_GAP = 4   BASE_MARGIN = 10
+BaseBtnWidth: SmallIcon=48  LargeIcon=96  LoopIcon=110
+
+窗口宽 = margin + sum(各按钮实际宽) + (N-1)×gap + margin + 边框补偿
+窗口高 = 标题栏(28) + margin + btnH + margin + 边框补偿
+```
+- 按钮间距 `gap`、边距 `margin` 随 ScaleFactor 等比缩放
+- Panel.Padding 和 widget.Margin 同步更新，保证视觉一致性
 
 ## 虚拟按键右键菜单
 - 按钮右键菜单顶部显示 `[ 按钮名 ]` 作为标题（禁用，仅展示），下方依次为修改名称/绑定快捷键/循环延迟/删除
-- 空白区域右键菜单顶部为增加按钮选项，下方为窗口控制（置顶/透明度/锁定/目标窗口/保存布局）
-
-## 自定义皮肤系统
-- 皮肤目录：`%APPDATA%\KeyMacro\skins\<name>\`
-- `skin.json`：配色（10 个颜色字段）+ 元数据，缺失字段自动回退默认值
-- PNG 图片：`btn_normal.png` / `btn_hover.png` / `btn_pressed.png` / `btn_active.png` / `window_bg.png`
-- `window_bg.png` 使用 9-slice 缩放（4px 边距），四角不拉伸
-- 无图时回退现有 GDI+ 颜色绘制
-- 皮肤路径持久化在 `virtual_layout.json` 的 `SkinPath` 字段
-- 详细规范见 [SKIN_GUIDE.md](KeyMacro/SKIN_GUIDE.md)
+- 空白区域右键菜单顶部为增加按钮选项，下方为窗口控制（置顶/透明度/锁定/目标窗口/单排多排/缩放/保存重置布局/关闭）
 
 ## 日志系统
 - `OperationLogger` 是静态类，日志路径 `%APPDATA%\KeyMacro\logs\yyyy-MM-dd.log`

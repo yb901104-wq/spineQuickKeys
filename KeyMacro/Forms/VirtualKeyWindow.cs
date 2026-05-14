@@ -8,19 +8,14 @@ public class VirtualKeyWindow : Form
 {
     [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
-
     [DllImport("user32.dll")]
     private static extern bool SetForegroundWindow(IntPtr hWnd);
-
     [DllImport("user32.dll")]
-    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
-
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
     [DllImport("user32.dll")]
     private static extern int GetWindowTextLength(IntPtr hWnd);
-
     [DllImport("user32.dll")]
-    private static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder text, int maxLength);
-
+    private static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder text, int maxLen);
     [DllImport("user32.dll")]
     private static extern bool IsWindow(IntPtr hWnd);
 
@@ -31,21 +26,28 @@ public class VirtualKeyWindow : Form
     private readonly List<MacroSequence> _sequences;
     private readonly Action? _sequencesChangedCallback;
     private readonly FlowLayoutPanel _panel;
-    private readonly Panel _toolbar;
-    private readonly Label _lblToolbarInfo;
     private readonly Dictionary<string, VirtualButtonWidget> _widgets = [];
-    private bool _isDraggingWindow;
-    private Point _dragStart;
+
     private bool _topMostState = true;
     private double _opacityValue = 1.0;
-    private bool _positionLocked;
-    private bool _windowLocked;
-    private string? _targetProcessName;
-    private string? _targetWindowTitle;
+    private bool _posLocked;
+    private bool _winLocked;
+    private string? _targetProc;
+    private string? _targetTitle;
+    private bool _singleLine = true;
     private float _scaleFactor = 1.0f;
     private bool _schemeAFailed;
-    private bool _singleLineMode = true;
-    private const int BasePanelWidth = 400;
+
+    // ── Layout base metrics at 100% scale ──
+    private const int BASE_BTN_H = 48;
+    private const int BASE_GAP = 4;
+    private const int BASE_MARGIN = 10;
+    private static int BaseBtnWidth(VirtualButtonStyle style) => style switch
+    {
+        VirtualButtonStyle.LargeIcon => 96,
+        VirtualButtonStyle.LoopIcon => 110,
+        _ => 48
+    };
     private VkSkinLoader _skinLoader = new(null);
 
     public VirtualKeyWindow(
@@ -68,106 +70,24 @@ public class VirtualKeyWindow : Form
         StartPosition = FormStartPosition.Manual;
         TopMost = true;
         ShowInTaskbar = false;
-        FormBorderStyle = FormBorderStyle.None;
+        FormBorderStyle = FormBorderStyle.FixedSingle;
+        MaximizeBox = false;
+        MinimizeBox = false;
         Size = new Size(320, 100);
         Opacity = _opacityValue;
-
-        // Custom border
-        Padding = new Padding(1);
-        Paint += (_, e) =>
-        {
-            var bg = _skinLoader.GetWindowBackground();
-            if (bg != null)
-            {
-                VkSkinLoader.DrawNineSlice(e.Graphics, bg, new Rectangle(0, 0, Width, Height));
-            }
-            else
-            {
-                using var outerPen = new Pen(_skinLoader.GetColor("window_border", Color.FromArgb(0x00, 0x00, 0x00)));
-                e.Graphics.DrawRectangle(outerPen, 0, 0, Width - 1, Height - 1);
-                using var rimPen = new Pen(_skinLoader.GetColor("window_rim", Color.FromArgb(0x3C, 0x3C, 0x3C)));
-                e.Graphics.DrawLine(rimPen, 1, 1, Width - 2, 1);
-            }
-        };
-
-        // Title bar (Dock=Top)
-        _toolbar = new Panel
-        {
-            Dock = DockStyle.Top,
-            Height = 28,
-            BackColor = Color.FromArgb(0x1A, 0x1A, 0x1A),
-            Padding = new Padding(8, 0, 8, 0),
-            Cursor = Cursors.SizeAll,
-            Visible = true
-        };
-        _lblToolbarInfo = new Label
-        {
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft,
-            ForeColor = Color.FromArgb(0xAA, 0xAA, 0xAA),
-            Font = new Font("Microsoft YaHei", 9),
-            Text = "虚拟按键"
-        };
-        var btnClose = new Button
-        {
-            Text = "✕",
-            Dock = DockStyle.Right,
-            Width = 28,
-            FlatStyle = FlatStyle.Flat,
-            ForeColor = Color.FromArgb(0xAA, 0xAA, 0xAA),
-            BackColor = Color.Transparent,
-            FlatAppearance = { BorderSize = 0 },
-            Cursor = Cursors.Hand
-        };
-        btnClose.Click += (_, _) => { _loopExecutor.StopAll(); SaveLayout(); Hide(); };
-        _toolbar.Controls.Add(_lblToolbarInfo);
-        _toolbar.Controls.Add(btnClose);
-        _toolbar.MouseDown += (_, e) =>
-        {
-            if (e.Button == MouseButtons.Left && !_windowLocked && e.X < _toolbar.Width - 28)
-            {
-                _isDraggingWindow = true;
-                _dragStart = Control.MousePosition;
-            }
-        };
-        _lblToolbarInfo.MouseDown += (_, e) =>
-        {
-            if (e.Button == MouseButtons.Left && !_windowLocked)
-            {
-                _isDraggingWindow = true;
-                _dragStart = Control.MousePosition;
-            }
-        };
-        _toolbar.MouseMove += (_, e) =>
-        {
-            if (_isDraggingWindow)
-            {
-                var pos = Control.MousePosition;
-                Left += pos.X - _dragStart.X;
-                Top += pos.Y - _dragStart.Y;
-                _dragStart = pos;
-            }
-        };
-        _toolbar.MouseUp += (_, e) => _isDraggingWindow = false;
-
 
         _panel = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
-            AutoScroll = true,
-            Padding = new Padding(10),
-            BackColor = Color.FromArgb(0x0D, 0x0D, 0x0D)
+            Padding = new Padding(BASE_MARGIN),
+            BackColor = Color.FromArgb(0x0D, 0x0D, 0x0D),
+            WrapContents = false,
+            AutoScroll = false
         };
-        _panel.MouseClick += (_, e) => OperationLogger.Info($"VKWindow._panel.MouseClick: btn={e.Button}, loc=({e.X},{e.Y}), widgets={_widgets.Count}");
-
-
-        Controls.Add(_toolbar);
         Controls.Add(_panel);
-        Resize += (_, _) => _toolbar.Width = ClientSize.Width;
 
-        // Blank area context menu
-        var blankMenu = BuildBlankMenu();
-        _panel.ContextMenuStrip = blankMenu;
+        var menu = BuildBlankMenu();
+        _panel.ContextMenuStrip = menu;
 
         _btnManager.ButtonsChanged += RebuildWidgets;
         var layoutData = _serializer.Load();
@@ -179,15 +99,12 @@ public class VirtualKeyWindow : Form
         {
             if (e.CloseReason == CloseReason.UserClosing)
             {
-                _loopExecutor.StopAll();
-                SaveLayout();
-                e.Cancel = true;
-                Hide();
+                _loopExecutor.StopAll(); SaveLayout(); e.Cancel = true; Hide();
             }
         };
     }
 
-    // ── Blank area context menu ──
+    // ── Context menu ──
 
     private ContextMenuStrip BuildBlankMenu()
     {
@@ -201,203 +118,182 @@ public class VirtualKeyWindow : Form
             if (_btnManager.Buttons.Count == 0) return;
             if (MessageBox.Show("确定删除所有虚拟按钮？此操作不可撤销。", "确认",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
-            {
-                _btnManager.Clear();
-                RebuildWidgets();
-            }
+                { _btnManager.Clear(); RebuildWidgets(); }
         });
         m.Items.Add("-");
+        m.Items.Add("置顶/取消置顶", null, (_, _) => { _topMostState = !_topMostState; TopMost = _topMostState; });
 
-        // Topmost toggle
-        m.Items.Add("置顶/取消置顶", null, (_, _) => ToggleTopMost());
+        var opMenu = new ToolStripMenuItem("透明度");
+        opMenu.DropDownItems.Add("100%", null, (_, _) => SetOpacity(1.0));
+        opMenu.DropDownItems.Add("80%", null, (_, _) => SetOpacity(0.8));
+        opMenu.DropDownItems.Add("60%", null, (_, _) => SetOpacity(0.6));
+        opMenu.DropDownItems.Add("40%", null, (_, _) => SetOpacity(0.4));
+        m.Items.Add(opMenu);
 
-        // Opacity submenu
-        var opacityMenu = new ToolStripMenuItem("透明度");
-        opacityMenu.DropDownItems.Add("100%", null, (_, _) => SetOpacity(1.0));
-        opacityMenu.DropDownItems.Add("80%", null, (_, _) => SetOpacity(0.8));
-        opacityMenu.DropDownItems.Add("60%", null, (_, _) => SetOpacity(0.6));
-        opacityMenu.DropDownItems.Add("40%", null, (_, _) => SetOpacity(0.4));
-        m.Items.Add(opacityMenu);
-
-        // Position lock toggle
-        m.Items.Add(_positionLocked ? "✓ 按钮位置已锁定" : "按钮位置锁定/解锁", null, (_, _) => TogglePositionLock());
-
-        m.Items.Add("-");
-
-        // Target window capture
-        m.Items.Add("捕获目标窗口", null, (_, _) => CaptureTargetWindow());
-        var clearTargetItem = new ToolStripMenuItem("清除目标窗口");
-        clearTargetItem.Click += (_, _) => ClearTargetWindow();
-        clearTargetItem.Visible = false;
-        m.Items.Add(clearTargetItem);
-
-        m.Opened += (_, _) =>
+        m.Items.Add(_posLocked ? "✓ 按钮位置已锁定" : "按钮位置锁定/解锁", null, (_, _) =>
         {
-            var display = _targetWindowTitle ?? _targetProcessName;
-            clearTargetItem.Text = string.IsNullOrEmpty(display)
-                ? "清除目标窗口"
-                : $"清除目标窗口 ({display})";
-            clearTargetItem.Visible = !string.IsNullOrEmpty(_targetProcessName);
-
-            // Refresh layout mode text
-            m.Items[^6].Text = _singleLineMode ? "✓ 单排" : "单排/多排";
-            // Refresh lock text
-            m.Items[^3].Text = _windowLocked ? "✓ 窗口已锁定" : "窗口锁定/解锁";
-        };
-
+            _posLocked = !_posLocked;
+            foreach (var w in _widgets.Values) w.AllowDragging = !_posLocked;
+        });
         m.Items.Add("-");
+        m.Items.Add("捕获目标窗口", null, (_, _) => CaptureTargetWindow());
+        var clearTarget = new ToolStripMenuItem("清除目标窗口");
+        clearTarget.Click += (_, _) => ClearTargetWindow();
+        m.Items.Add(clearTarget);
 
-        // Layout mode toggle
-        m.Items.Add(_singleLineMode ? "✓ 单排" : "单排/多排", null, (_, _) => ToggleLayoutMode());
+        m.Items.Add(_singleLine ? "✓ 单排" : "单排/多排", null, (_, _) => ToggleLayoutMode());
 
-        // Scale submenu
         var scaleMenu = new ToolStripMenuItem("缩放");
         foreach (var pct in new[] { 50, 75, 100, 150, 200 })
         {
             var item = scaleMenu.DropDownItems.Add($"{pct}%");
-            item.Click += (_, _) => SetScaleFromMenu(pct / 100f);
+            item.Click += (_, _) => SetScale(pct / 100f);
         }
         scaleMenu.DropDownItems.Add("-");
-        var customItem = scaleMenu.DropDownItems.Add("自定义...");
-        customItem.Click += (_, _) =>
+        var cust = scaleMenu.DropDownItems.Add("自定义...");
+        cust.Click += (_, _) =>
         {
-            var input = Microsoft.VisualBasic.Interaction.InputBox(
-                "输入缩放比例 (10-200):", "自定义缩放", ((int)(_scaleFactor * 100)).ToString());
-            if (int.TryParse(input, out var pct) && pct >= 10 && pct <= 200)
-                SetScaleFromMenu(pct / 100f);
+            var input = Microsoft.VisualBasic.Interaction.InputBox("输入缩放比例 (10-200):", "自定义缩放",
+                ((int)(_scaleFactor * 100)).ToString());
+            if (int.TryParse(input, out var pct) && pct >= 10 && pct <= 200) SetScale(pct / 100f);
         };
         m.Items.Add(scaleMenu);
 
         m.Items.Add("-");
-
         m.Items.Add("保存布局", null, (_, _) => SaveLayout());
         m.Items.Add("重置布局", null, (_, _) => ResetLayout());
-
-        // Window lock toggle
-        m.Items.Add(_windowLocked ? "✓ 窗口已锁定" : "窗口锁定/解锁", null, (_, _) => ToggleWindowLock());
-
+        var lockItem = m.Items.Add(_winLocked ? "✓ 窗口已锁定" : "窗口锁定/解锁", null, (_, _) => ToggleWindowLock());
         m.Items.Add("-");
         m.Items.Add("关闭窗口", null, (_, _) => { _loopExecutor.StopAll(); SaveLayout(); Hide(); });
 
+        m.Opened += (_, _) =>
+        {
+            var display = _targetTitle ?? _targetProc;
+            clearTarget.Text = string.IsNullOrEmpty(display) ? "清除目标窗口" : $"清除目标窗口 ({display})";
+            clearTarget.Visible = !string.IsNullOrEmpty(_targetProc);
+            var layoutIdx = m.Items.IndexOf(clearTarget) + 1;
+            if (layoutIdx < m.Items.Count)
+                m.Items[layoutIdx].Text = _singleLine ? "✓ 单排" : "单排/多排";
+            lockItem.Text = _winLocked ? "✓ 窗口已锁定" : "窗口锁定/解锁";
+        };
         return m;
     }
 
-    private void ToggleTopMost()
+    private void OnWidgetContextMenu(VirtualButtonWidget widget, Point location)
     {
-        _topMostState = !_topMostState;
-        TopMost = _topMostState;
-        // Rebuild menu to reflect new state next time
+        var vbtn = widget.VirtualButton;
+        var menu = new ContextMenuStrip();
+        var nameItem = menu.Items.Add($"[ {vbtn.Name} ]");
+        nameItem.Enabled = false;
+        menu.Items.Add("-");
+        menu.Items.Add("修改按钮名称", null, (_, _) =>
+        {
+            var input = Microsoft.VisualBasic.Interaction.InputBox("输入新的按钮名称:", "修改按钮名称", vbtn.Name);
+            if (!string.IsNullOrWhiteSpace(input) && input.Trim() != vbtn.Name)
+                { vbtn.Name = input.Trim(); widget.UpdateButton(vbtn); SaveLayout(); }
+        });
+        var bindItem = new ToolStripMenuItem("绑定快捷键");
+        bindItem.DropDownItems.Add("设置绑定", null, (_, _) => ShowBindingDialog(widget));
+        if (!string.IsNullOrEmpty(vbtn.BindActionId))
+            bindItem.DropDownItems.Add("清除绑定", null, (_, _) => { _bindingManager.Unbind(vbtn); widget.UpdateButton(vbtn); SaveLayout(); });
+        menu.Items.Add(bindItem);
+        if (vbtn.StyleType == VirtualButtonStyle.LoopIcon)
+        {
+            var intvMenu = new ToolStripMenuItem("按钮循环延迟");
+            intvMenu.DropDownItems.Add("100ms", null, (_, _) => SetLoopInterval(vbtn, widget, 100));
+            intvMenu.DropDownItems.Add("300ms", null, (_, _) => SetLoopInterval(vbtn, widget, 300));
+            intvMenu.DropDownItems.Add("500ms", null, (_, _) => SetLoopInterval(vbtn, widget, 500));
+            intvMenu.DropDownItems.Add("-");
+            intvMenu.DropDownItems.Add("自定义...", null, (_, _) =>
+            {
+                var input = Microsoft.VisualBasic.Interaction.InputBox("循环延迟 (ms):", "设置循环延迟", vbtn.LoopInterval.ToString());
+                if (int.TryParse(input, out var ms) && ms > 0) SetLoopInterval(vbtn, widget, ms);
+            });
+            menu.Items.Add(intvMenu);
+        }
+        menu.Items.Add("-");
+        menu.Items.Add("删除当前按钮", null, (_, _) =>
+        {
+            _loopExecutor.StopLoop(vbtn.Id); _btnManager.RemoveButton(vbtn.Id); SaveLayout();
+        });
+        menu.Show(widget, location);
     }
 
-    private void SetOpacity(double val)
+    private void SetLoopInterval(VirtualButton vbtn, VirtualButtonWidget widget, int ms)
     {
-        _opacityValue = val;
-        Opacity = val;
+        vbtn.LoopInterval = ms;
+        var seq = _sequences.Find(s => s.Id == vbtn.BindActionId);
+        if (seq != null) { seq.LoopIntervalMs = ms; _sequencesChangedCallback?.Invoke(); }
+        widget.UpdateButton(vbtn); SaveLayout();
     }
 
-    private void TogglePositionLock()
+    private void ShowBindingDialog(VirtualButtonWidget widget)
     {
-        _positionLocked = !_positionLocked;
-        foreach (var w in _widgets.Values)
-            w.AllowDragging = !_positionLocked;
+        var vbtn = widget.VirtualButton;
+        var avail = _sequences.Where(s => !string.IsNullOrEmpty(s.Name)).ToList();
+        if (avail.Count == 0) { MessageBox.Show("没有可绑定的快捷动作，请先在主窗口创建序列。", "提示"); return; }
+        using var menu = new ContextMenuStrip();
+        foreach (var seq in avail)
+        {
+            var item = menu.Items.Add(seq.Name);
+            item.Click += (_, _) =>
+            {
+                if (!_bindingManager.TryBind(vbtn, seq.Id))
+                    { MessageBox.Show("该动作已被其他虚拟按钮绑定。", "冲突", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                widget.UpdateButton(vbtn); SaveLayout();
+            };
+        }
+        menu.Show(widget, new Point(0, 0));
     }
 
+    // ── Op / Lock ──
+
+    private void SetOpacity(double val) { _opacityValue = val; Opacity = val; }
 
     private void ToggleWindowLock()
     {
-        _windowLocked = !_windowLocked;
-        UpdateWindowLockState();
+        _winLocked = !_winLocked;
+        if (_winLocked)
+        {
+            FormBorderStyle = FormBorderStyle.None;
+            ControlBox = false;
+            Text = "";
+        }
+        else
+        {
+            FormBorderStyle = FormBorderStyle.FixedSingle;
+            ControlBox = true;
+            UpdateTitle();
+        }
     }
 
-    private void UpdateWindowLockState()
-    {
-        _toolbar.Visible = !_windowLocked;
-        // Adjust panel padding top to free/cover toolbar area
-        var p = _panel.Padding;
-        _panel.Padding = _windowLocked
-            ? new Padding(p.Left, 10, p.Right, p.Bottom)
-            : new Padding(p.Left, 10 + 28, p.Right, p.Bottom);
-    }
+    public bool HasBoundButtons() => _btnManager.Buttons.Any(b => !string.IsNullOrEmpty(b.BindActionId));
 
     // ── Layout mode ──
 
     private void ToggleLayoutMode()
     {
-        _singleLineMode = !_singleLineMode;
-        ApplyLayoutMode();
-        RecalculateSize();
-        SaveLayout();
+        _singleLine = !_singleLine;
+        if (_singleLine) { _panel.WrapContents = false; _panel.AutoScroll = false; }
+        else { _panel.WrapContents = true; _panel.AutoScroll = true; }
+        RecalculateSize(); SaveLayout();
     }
 
-    private void ApplyLayoutMode()
+    // ── Scale ──
+
+    private void SetScale(float factor)
     {
-        if (_singleLineMode)
-        {
-            _panel.WrapContents = false;
-            _panel.AutoScroll = false;
-        }
-        else
-        {
-            _panel.WrapContents = true;
-            _panel.AutoScroll = true;
-        }
+        _scaleFactor = Math.Clamp(factor, 0.1f, 2.0f);
+        int margin = Math.Max(1, (int)(BASE_MARGIN * _scaleFactor));
+        _panel.Padding = new Padding(margin);
+        UpdateScale(); RecalculateSize(); SaveLayout();
     }
 
-    private void SetScaleFromMenu(float factor)
+    // ── Title ──
+
+    private void UpdateTitle()
     {
-        _scaleFactor = factor;
-        UpdateScale();
-        RecalculateSize();
-        SaveLayout();
-    }
-
-    private void RecalculateSize()
-    {
-        var padding = _panel.Padding;
-        int barH = _toolbar.Visible ? _toolbar.Height : 0;
-        int fp = Padding.Horizontal; // form padding (1 left + 1 right = 2)
-
-        if (_widgets.Count == 0)
-        {
-            if (_singleLineMode) ClientSize = new Size(80 + fp, barH + padding.Top + 20);
-            return;
-        }
-
-        if (_singleLineMode)
-        {
-            int totalW = padding.Left + padding.Right + fp;
-            int maxH = 0;
-            foreach (var w in _widgets.Values)
-            {
-                totalW += w.Width;
-                if (w.Height > maxH) maxH = w.Height;
-            }
-            int totalH = barH + padding.Top + maxH + padding.Bottom;
-            ClientSize = new Size(totalW, totalH);
-        }
-        else
-        {
-            // Multi-row: keep width, adjust height
-            int totalH = barH;
-            int rowH = 0;
-            int rowW = padding.Left;
-            foreach (var w in _widgets.Values)
-            {
-                if (rowW + w.Width > ClientSize.Width - padding.Right && rowW > padding.Left)
-                {
-                    totalH += rowH;
-                    rowW = padding.Left + w.Width;
-                    rowH = w.Height;
-                }
-                else
-                {
-                    rowW += w.Width;
-                    if (w.Height > rowH) rowH = w.Height;
-                }
-            }
-            totalH += rowH + padding.Top + padding.Bottom;
-            ClientSize = new Size(ClientSize.Width, totalH);
-        }
+        Text = (_targetProc != null ? $"[{_targetTitle ?? _targetProc}] " : "") + $"虚拟按键 ({_widgets.Count})";
     }
 
     // ── Target window capture ──
@@ -407,161 +303,130 @@ public class VirtualKeyWindow : Form
         Hide();
         using var overlay = new Form
         {
-            Text = "",
-            StartPosition = FormStartPosition.CenterScreen,
-            Size = new Size(400, 120),
-            FormBorderStyle = FormBorderStyle.None,
-            BackColor = Color.Black,
-            Opacity = 0.85,
-            TopMost = true,
-            ShowInTaskbar = false
+            Text = "", StartPosition = FormStartPosition.CenterScreen, Size = new Size(400, 120),
+            FormBorderStyle = FormBorderStyle.None, BackColor = Color.Black, Opacity = 0.85,
+            TopMost = true, ShowInTaskbar = false
         };
-        var label = new Label
-        {
-            Text = "请在 3 秒内切换到目标窗口...",
-            Dock = DockStyle.Fill,
-            ForeColor = Color.White,
-            Font = new Font("Microsoft YaHei", 14, FontStyle.Bold),
-            TextAlign = ContentAlignment.MiddleCenter
-        };
-        overlay.Controls.Add(label);
+        var lbl = new Label { Text = "请在 3 秒内切换到目标窗口...", Dock = DockStyle.Fill,
+            ForeColor = Color.White, Font = new Font("Microsoft YaHei", 14, FontStyle.Bold), TextAlign = ContentAlignment.MiddleCenter };
+        overlay.Controls.Add(lbl);
         overlay.Show();
-
         var timer = new System.Windows.Forms.Timer { Interval = 3000 };
         timer.Tick += (_, _) =>
         {
             timer.Stop();
             var hwnd = GetForegroundWindow();
-            overlay.Close();
-            overlay.Dispose();
-
+            overlay.Close(); overlay.Dispose();
             if (hwnd != IntPtr.Zero)
             {
                 GetWindowThreadProcessId(hwnd, out var pid);
                 try
                 {
                     using var proc = System.Diagnostics.Process.GetProcessById((int)pid);
-                    _targetProcessName = proc.ProcessName;
-
+                    _targetProc = proc.ProcessName;
                     var len = GetWindowTextLength(hwnd);
-                    if (len > 0)
-                    {
-                        var sb = new System.Text.StringBuilder(len + 1);
-                        GetWindowText(hwnd, sb, sb.Capacity);
-                        _targetWindowTitle = sb.ToString();
-                    }
-                    else
-                    {
-                        _targetWindowTitle = null;
-                    }
-
-                    var displayName = _targetWindowTitle ?? _targetProcessName;
-                    MessageBox.Show(this, $"目标窗口已捕获: {displayName}", "捕获成功",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    var sb = new System.Text.StringBuilder(len + 1);
+                    GetWindowText(hwnd, sb, sb.Capacity);
+                    _targetTitle = len > 0 ? sb.ToString() : null;
+                    MessageBox.Show(this, $"目标窗口已捕获: {_targetTitle ?? _targetProc}", "捕获成功");
                 }
-                catch
-                {
-                    _targetProcessName = null;
-                    _targetWindowTitle = null;
-                    MessageBox.Show(this, "无法获取目标进程信息。", "捕获失败",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
+                catch { _targetProc = null; _targetTitle = null; MessageBox.Show(this, "无法获取目标进程信息。", "捕获失败", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
             }
             Show();
+            UpdateTitle();
         };
         timer.Start();
     }
 
     private void ClearTargetWindow()
     {
-        _targetProcessName = null;
-        _targetWindowTitle = null;
-        _schemeAFailed = false;
-        SaveLayout();
+        _targetProc = null; _targetTitle = null; _schemeAFailed = false; SaveLayout(); UpdateTitle();
     }
 
-    /// <summary>Resolve target window handle by process name (and optional title).</summary>
     private IntPtr ResolveTargetWindow()
     {
-        if (string.IsNullOrEmpty(_targetProcessName))
-            return IntPtr.Zero;
-
-        var procs = System.Diagnostics.Process.GetProcessesByName(_targetProcessName);
-        if (procs.Length == 0)
-            return IntPtr.Zero;
-
+        if (string.IsNullOrEmpty(_targetProc)) return IntPtr.Zero;
+        var procs = System.Diagnostics.Process.GetProcessesByName(_targetProc);
         foreach (var proc in procs)
         {
             var hwnd = proc.MainWindowHandle;
-            if (hwnd == IntPtr.Zero || !IsWindow(hwnd))
-                continue;
-
-            if (!string.IsNullOrEmpty(_targetWindowTitle))
+            if (hwnd == IntPtr.Zero || !IsWindow(hwnd)) continue;
+            if (!string.IsNullOrEmpty(_targetTitle))
             {
                 var len = GetWindowTextLength(hwnd);
                 if (len > 0)
                 {
                     var sb = new System.Text.StringBuilder(len + 1);
                     GetWindowText(hwnd, sb, sb.Capacity);
-                    if (sb.ToString() == _targetWindowTitle)
-                        return hwnd;
+                    if (sb.ToString() == _targetTitle) return hwnd;
                 }
                 continue;
             }
-
             return hwnd;
         }
-
         return IntPtr.Zero;
     }
 
-    public bool HasBoundButtons()
-    {
-        return _btnManager.Buttons.Any(b => !string.IsNullOrEmpty(b.BindActionId));
-    }
+    // ── Button mgmt ──
 
-    // ── Button management ──
-
-    private void AddButton(VirtualButtonStyle style)
-    {
-        _btnManager.AddButton(style);
-        RebuildWidgets();
-    }
+    private void AddButton(VirtualButtonStyle style) { _btnManager.AddButton(style); RebuildWidgets(); }
 
     private void RebuildWidgets()
     {
         _panel.SuspendLayout();
         _panel.Controls.Clear();
         _widgets.Clear();
-
         var buttons = _btnManager.Buttons;
         for (int i = 0; i < buttons.Count; i++)
         {
-            var widget = new VirtualButtonWidget(buttons[i]);
-            widget.IsFirstInRow = i == 0;
-            widget.IsLastInRow = i == buttons.Count - 1;
-            widget.Clicked += OnButtonClicked;
-            widget.Dragged += OnButtonDragged;
-            widget.ContextMenuRequested += OnWidgetContextMenu;
-            widget.LoopCountEdited += OnLoopCountEdited;
-            _panel.Controls.Add(widget);
-            _widgets[buttons[i].Id] = widget;
+            var w = new VirtualButtonWidget(buttons[i]);
+            w.IsFirstInRow = i == 0; w.IsLastInRow = i == buttons.Count - 1;
+            w.Clicked += OnButtonClicked;
+            w.Dragged += OnButtonDragged;
+            w.ContextMenuRequested += OnWidgetContextMenu;
+            w.LoopCountEdited += OnLoopCountEdited;
+            _panel.Controls.Add(w);
+            _widgets[buttons[i].Id] = w;
         }
         UpdateScale();
         RecalculateSize();
         _panel.ResumeLayout();
-        _lblToolbarInfo.Text = (_targetProcessName != null ? $"[目标: {_targetWindowTitle ?? _targetProcessName}] " : "") +
-                              $"{_widgets.Count} 个按钮";
-        OperationLogger.Info($"VKWindow.RebuildWidgets: created {_widgets.Count} widgets from {buttons.Count} buttons");
+        UpdateTitle();
+        OperationLogger.Info($"VKWindow.Rebuild: {_widgets.Count} widgets");
     }
 
     private void UpdateScale()
     {
-        foreach (var w in _widgets.Values)
+        foreach (var w in _widgets.Values) { w.ScaleFactor = _scaleFactor; w.UpdateSize(); }
+    }
+
+    private void RecalculateSize()
+    {
+        int ncW = Width - ClientSize.Width;
+        int ncH = Height - ClientSize.Height;
+        float S = _scaleFactor;
+        int btnH = Math.Max(1, (int)(BASE_BTN_H * S));
+        int gap = Math.Max(1, (int)(BASE_GAP * S));
+        int margin = Math.Max(1, (int)(BASE_MARGIN * S));
+        int n = _widgets.Count;
+        int barH = !_winLocked ? 28 : 0; // native title bar
+
+        if (n == 0)
         {
-            w.ScaleFactor = _scaleFactor;
-            w.UpdateSize();
+            Size = new Size(margin * 2 + 20 + ncW, barH + margin * 2 + 20 + ncH);
+            return;
         }
+
+        // Window width  = margin + sum(各按钮宽) + (N-1)×gap + margin
+        // Window height = titleBar + margin + btnH + margin
+        int totalW = margin + _widgets.Values.Sum(w => Math.Max(1, (int)(BaseBtnWidth(w.VirtualButton.StyleType) * S))) + (n - 1) * gap + margin;
+        int totalH = barH + margin + btnH + margin;
+        Size = new Size(totalW + ncW, totalH + ncH);
+
+        // Update widget margins for consistent gaps
+        int halfGap = gap / 2;
+        foreach (var w in _widgets.Values)
+            w.Margin = new Padding(halfGap);
     }
 
     // ── Button events ──
@@ -569,305 +434,115 @@ public class VirtualKeyWindow : Form
     private async void OnButtonClicked(VirtualButtonWidget widget)
     {
         var vbtn = widget.VirtualButton;
-        OperationLogger.Info($"VKWindow.OnButtonClicked: button=\"{vbtn.Name}\" ({vbtn.Id}), VkPickMode={SequenceEditor.IsVkPickMode}");
+        OperationLogger.Info($"VKWindow.Click: \"{vbtn.Name}\" VkPick={SequenceEditor.IsVkPickMode}");
 
-        // VK pick mode — send button name + optional hotkey to SequenceEditor
         if (SequenceEditor.IsVkPickMode)
         {
             var seq = _bindingManager.ResolveBinding(vbtn, _sequences);
-            var hotkey = seq != null ? seq.TriggerHotkey : null;
-            OperationLogger.Info($"VKWindow.OnButtonClicked: VkPickMode, sending name=\"{vbtn.Name}\", hotkey=\"{hotkey}\"");
-            SequenceEditor.ReceiveVkPick(vbtn.Name, hotkey);
+            SequenceEditor.ReceiveVkPick(vbtn.Name, seq?.TriggerHotkey);
             return;
         }
 
         if (vbtn.StyleType == VirtualButtonStyle.LoopIcon && vbtn.LoopEnabled)
         {
             var seq = _bindingManager.ResolveBinding(vbtn, _sequences);
-            if (seq != null)
-            {
-                OperationLogger.Info($"VKWindow.OnButtonClicked: start loop, button=\"{vbtn.Name}\", seq=\"{seq.Name}\"");
-                _loopExecutor.StartLoop(vbtn, seq);
-                widget.IsActive = true;
-            }
+            if (seq != null) { _loopExecutor.StartLoop(vbtn, seq); widget.IsActive = true; }
             return;
         }
 
         var sequence = _bindingManager.ResolveBinding(vbtn, _sequences);
-        if (sequence == null)
+        if (sequence == null) { OperationLogger.Warn($"VKWindow.Click: no binding"); return; }
+
+        var hwnd = ResolveTargetWindow();
+        if (hwnd == IntPtr.Zero)
         {
-            OperationLogger.Warn($"VKWindow.OnButtonClicked: no binding for button=\"{vbtn.Name}\"");
+            _ = new MacroPlayer().Play(sequence);
             return;
         }
 
-        var targetHwnd = ResolveTargetWindow();
-        if (targetHwnd != IntPtr.Zero)
+        if (GetForegroundWindow() == hwnd)
         {
-            if (GetForegroundWindow() == targetHwnd)
-            {
-                OperationLogger.Info($"VKWindow.OnButtonClicked: target already foreground, Play seq=\"{sequence.Name}\"");
-                // Target already foreground — normal Play
-                var player = new MacroPlayer();
-                _ = player.Play(sequence);
-            }
-            else if (!_schemeAFailed)
-            {
-                // Scheme A: PostMessage directly to target, no activation
-                OperationLogger.Info($"VKWindow.OnButtonClicked: scheme A (PostMessage), seq=\"{sequence.Name}\", hwnd=0x{targetHwnd:X8}");
-                var player = new MacroPlayer();
-                await player.PlayToWindow(sequence, targetHwnd);
-                // Quick heuristic: if target still not foreground after playback,
-                // PostMessage may be ineffective — flag for fallback next time.
-                await Task.Delay(100);
-                if (GetForegroundWindow() != targetHwnd)
-                {
-                    OperationLogger.Warn($"VKWindow.OnButtonClicked: scheme A failed, will fall back to scheme B");
-                    _schemeAFailed = true;
-                }
-            }
-            else
-            {
-                // Scheme B: activate target then normal Play
-                OperationLogger.Info($"VKWindow.OnButtonClicked: scheme B (activate+Play), seq=\"{sequence.Name}\"");
-                SetForegroundWindow(targetHwnd);
-                await Task.Delay(200);
-                var player = new MacroPlayer();
-                _ = player.Play(sequence);
-            }
+            _ = new MacroPlayer().Play(sequence);
+        }
+        else if (!_schemeAFailed)
+        {
+            var player = new MacroPlayer();
+            await player.PlayToWindow(sequence, hwnd);
+            await Task.Delay(100);
+            if (GetForegroundWindow() != hwnd) { _schemeAFailed = true; }
         }
         else
         {
-            OperationLogger.Info($"VKWindow.OnButtonClicked: no target, Play seq=\"{sequence.Name}\"");
-            var player = new MacroPlayer();
-            _ = player.Play(sequence);
+            SetForegroundWindow(hwnd);
+            await Task.Delay(200);
+            _ = new MacroPlayer().Play(sequence);
         }
-    }
-
-    private static void RestoreForeground(IntPtr hWnd)
-    {
-        if (hWnd != IntPtr.Zero)
-            SetForegroundWindow(hWnd);
     }
 
     private void OnButtonDragged(VirtualButtonWidget widget, int dx, int dy)
     {
         var vbtn = widget.VirtualButton;
-        _btnManager.UpdatePosition(vbtn.Id,
-            widget.Location.X + dx,
-            widget.Location.Y + dy);
+        _btnManager.UpdatePosition(vbtn.Id, widget.Location.X + dx, widget.Location.Y + dy);
     }
 
     private void OnLoopCountEdited(VirtualButtonWidget widget, int count)
     {
         var vbtn = widget.VirtualButton;
-        SyncSequence(vbtn);
-        SaveLayout();
-    }
-
-    // ── Context menu on button ──
-
-    private void OnWidgetContextMenu(VirtualButtonWidget widget, Point location)
-    {
-        var vbtn = widget.VirtualButton;
-        var menu = new ContextMenuStrip();
-        // 0. Button name header (disabled, for display only)
-        var nameItem = menu.Items.Add($"[ {vbtn.Name} ]");
-        nameItem.Enabled = false;
-        menu.Items.Add("-");
-
-        // 1. Modify button name
-        menu.Items.Add("修改按钮名称", null, (_, _) =>
-        {
-            var input = Microsoft.VisualBasic.Interaction.InputBox(
-                "输入新的按钮名称:", "修改按钮名称", vbtn.Name);
-            if (!string.IsNullOrWhiteSpace(input) && input.Trim() != vbtn.Name)
-            {
-                vbtn.Name = input.Trim();
-                widget.UpdateButton(vbtn);
-                SaveLayout();
-            }
-        });
-
-        // 2. Bind shortcut (submenu: set/clear)
-        var bindItem = new ToolStripMenuItem("绑定快捷键");
-        bindItem.DropDownItems.Add("设置绑定", null, (_, _) => ShowBindingDialog(widget));
-        if (!string.IsNullOrEmpty(vbtn.BindActionId))
-        {
-            bindItem.DropDownItems.Add("清除绑定", null, (_, _) =>
-            {
-                _bindingManager.Unbind(vbtn);
-                widget.UpdateButton(vbtn);
-                SaveLayout();
-            });
-        }
-        menu.Items.Add(bindItem);
-
-        // 3. Loop delay (loop-only)
-        if (vbtn.StyleType == VirtualButtonStyle.LoopIcon)
-        {
-            var intervalMenu = new ToolStripMenuItem("按钮循环延迟");
-            intervalMenu.DropDownItems.Add("100ms", null, (_, _) => UpdateLoopInterval(vbtn, widget, 100));
-            intervalMenu.DropDownItems.Add("300ms", null, (_, _) => UpdateLoopInterval(vbtn, widget, 300));
-            intervalMenu.DropDownItems.Add("500ms", null, (_, _) => UpdateLoopInterval(vbtn, widget, 500));
-            intervalMenu.DropDownItems.Add("-");
-            intervalMenu.DropDownItems.Add("自定义...", null, (_, _) =>
-            {
-                var input = Microsoft.VisualBasic.Interaction.InputBox(
-                    "循环延迟 (ms):", "设置循环延迟", vbtn.LoopInterval.ToString());
-                if (int.TryParse(input, out var ms) && ms > 0)
-                {
-                    vbtn.LoopInterval = ms;
-                    SyncSequence(vbtn);
-                    widget.UpdateButton(vbtn);
-                    SaveLayout();
-                }
-            });
-            menu.Items.Add(intervalMenu);
-        }
-
-        menu.Items.Add("-");
-
-        // 4. Delete current button
-        menu.Items.Add("删除当前按钮", null, (_, _) =>
-        {
-            _loopExecutor.StopLoop(vbtn.Id);
-            _btnManager.RemoveButton(vbtn.Id);
-            SaveLayout();
-        });
-
-        menu.Show(widget, location);
-    }
-
-    private void SetStyle(VirtualButton vbtn, VirtualButtonWidget widget, VirtualButtonStyle style)
-    {
-        vbtn.StyleType = style;
-        widget.UpdateButton(vbtn);
-        widget.UpdateSize();
-        SaveLayout();
-    }
-
-    private void UpdateLoopInterval(VirtualButton vbtn, VirtualButtonWidget widget, int ms)
-    {
-        vbtn.LoopInterval = ms;
-        SyncSequence(vbtn);
-        widget.UpdateButton(vbtn);
-        SaveLayout();
-    }
-
-    /// <summary>Sync loop params to bound MacroSequence, then notify MainForm.</summary>
-    private void SyncSequence(VirtualButton vbtn)
-    {
         var seq = _sequences.Find(s => s.Id == vbtn.BindActionId);
-        if (seq != null)
-        {
-            seq.LoopIntervalMs = vbtn.LoopInterval;
-            seq.LoopCount = vbtn.LoopCount;
-            _sequencesChangedCallback?.Invoke();
-        }
+        if (seq != null) { seq.LoopIntervalMs = vbtn.LoopInterval; seq.LoopCount = vbtn.LoopCount; _sequencesChangedCallback?.Invoke(); }
+        SaveLayout();
     }
 
-    // ── Binding ──
-
-    private void ShowBindingDialog(VirtualButtonWidget widget)
-    {
-        var vbtn = widget.VirtualButton;
-        var available = _sequences.Where(s => !string.IsNullOrEmpty(s.Name)).ToList();
-        if (available.Count == 0)
-        {
-            MessageBox.Show("没有可绑定的快捷动作，请先在主窗口创建序列。", "提示",
-                MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return;
-        }
-
-        using var menu = new ContextMenuStrip();
-        foreach (var seq in available)
-        {
-            var item = menu.Items.Add(seq.Name);
-            item.Click += (_, _) =>
-            {
-                if (!_bindingManager.TryBind(vbtn, seq.Id))
-                {
-                    MessageBox.Show("该动作已被其他虚拟按钮绑定。", "冲突",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-                widget.UpdateButton(vbtn);
-                SaveLayout();
-            };
-        }
-        menu.Show(widget, new Point(0, 0));
-    }
-
-    private string ResolveSequenceName(string id)
-    {
-        var seq = _sequences.Find(s => s.Id == id);
-        return seq?.Name ?? "(已删除)";
-    }
-
-    // ── Layout save/load ──
+    // ── Layout persistence ──
 
     private void SaveLayout()
     {
-        var data = new VirtualLayoutSerializer.LayoutData
+        _serializer.Save(new VirtualLayoutSerializer.LayoutData
         {
-            WindowX = Left, WindowY = Top,
-            WindowWidth = Width, WindowHeight = Height,
-            TopMost = _topMostState,
-            PositionLocked = _positionLocked,
-            WindowLocked = _windowLocked,
-            TargetProcessName = _targetProcessName,
-            TargetWindowTitle = _targetWindowTitle,
-            Buttons = [.. _btnManager.Buttons],
-            SingleLineMode = _singleLineMode,
-            ScaleFactor = _scaleFactor
-        };
-        _serializer.Save(data);
-        OperationLogger.Info($"VKWindow.SaveLayout: saved {data.Buttons.Count} buttons, target={_targetProcessName ?? "(none)"}, singleLine={_singleLineMode}");
+            WindowX = Left, WindowY = Top, WindowWidth = Width, WindowHeight = Height,
+            TopMost = _topMostState, PositionLocked = _posLocked, WindowLocked = _winLocked,
+            TargetProcessName = _targetProc, TargetWindowTitle = _targetTitle,
+            SingleLineMode = _singleLine, ScaleFactor = _scaleFactor,
+            Buttons = [.. _btnManager.Buttons]
+        });
     }
 
     private void LoadLayoutData(VirtualLayoutSerializer.LayoutData data)
     {
-        OperationLogger.Info("VKWindow.LoadLayoutData: loading layout");
-        _targetProcessName = data.TargetProcessName;
-        _targetWindowTitle = data.TargetWindowTitle;
-        _singleLineMode = data.SingleLineMode;
+        _targetProc = data.TargetProcessName;
+        _targetTitle = data.TargetWindowTitle;
+        _singleLine = data.SingleLineMode;
         _scaleFactor = data.ScaleFactor > 0 ? data.ScaleFactor : 1.0f;
+        int margin = Math.Max(1, (int)(BASE_MARGIN * _scaleFactor));
+        _panel.Padding = new Padding(margin);
 
         if (data.Buttons.Count > 0)
         {
             _btnManager.LoadFrom(data.Buttons);
             var savedLoc = new Point(data.WindowX, data.WindowY);
             var testRect = new Rectangle(savedLoc, new Size(Math.Max(data.WindowWidth, 100), Math.Max(data.WindowHeight, 100)));
-            var onScreen = Screen.AllScreens.Any(s => s.WorkingArea.IntersectsWith(testRect));
-            Location = onScreen ? savedLoc : new Point(
-                (Screen.PrimaryScreen!.WorkingArea.Width - Width) / 2,
-                (Screen.PrimaryScreen!.WorkingArea.Height - Height) / 2);
-            _topMostState = data.TopMost;
-            TopMost = _topMostState;
-            _positionLocked = data.PositionLocked;
-            _windowLocked = data.WindowLocked;
-            foreach (var w in _widgets.Values)
-                w.AllowDragging = !_positionLocked;
-            ApplyLayoutMode();
-            UpdateWindowLockState();
+            Location = Screen.AllScreens.Any(s => s.WorkingArea.IntersectsWith(testRect))
+                ? savedLoc : new Point(Screen.PrimaryScreen!.WorkingArea.Width / 2 - Width / 2,
+                    Screen.PrimaryScreen!.WorkingArea.Height / 2 - Height / 2);
+            _topMostState = data.TopMost; TopMost = _topMostState;
+            _posLocked = data.PositionLocked; _winLocked = data.WindowLocked;
+            foreach (var w in _widgets.Values) w.AllowDragging = !_posLocked;
+            if (_singleLine) { _panel.WrapContents = false; _panel.AutoScroll = false; }
+            else { _panel.WrapContents = true; _panel.AutoScroll = true; }
+            if (_winLocked) { FormBorderStyle = FormBorderStyle.None; ControlBox = false; Text = ""; }
+            else { FormBorderStyle = FormBorderStyle.FixedSingle; ControlBox = true; }
             UpdateScale();
             RecalculateSize();
         }
         else
         {
             Size = new Size(320, 100);
-            var screen = Screen.PrimaryScreen;
-            if (screen != null)
-                Location = new Point(
-                    (screen.WorkingArea.Width - Width) / 2,
-                    (screen.WorkingArea.Height - Height) / 2);
-            UpdateScale();
+            var s = Screen.PrimaryScreen;
+            if (s != null) Location = new Point((s.WorkingArea.Width - Width) / 2, (s.WorkingArea.Height - Height) / 2);
         }
-        OperationLogger.Info($"VKWindow.LoadLayout: loaded {data.Buttons.Count} buttons, target={_targetProcessName ?? "(none)"}, singleLine={_singleLineMode}, scale={_scaleFactor}");
+        UpdateTitle();
     }
 
-    private void LoadLayout() { LoadLayoutData(_serializer.Load()); }
-
+    private void LoadLayout() => LoadLayoutData(_serializer.Load());
     private void ResetLayout() { _btnManager.Clear(); SaveLayout(); }
-
 }
