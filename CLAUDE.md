@@ -34,7 +34,7 @@ KeyMacro/
 ```
 
 ## 关键约定
-- **序列（MacroSequence）**：由触发快捷键 + 多个步骤组成
+- **序列（MacroSequence）**：由触发快捷键 + 多个步骤组成，`LoopCount`（1=单次 >1=循环N次 0=无限）
 - **步骤（MacroStep）**：类型（单键/组合键/文本）+ 按键值 + 延迟(ms)
 - **_suppressEvents**：SequenceEditor 使用此标志防止 DataGridView 事件递归
 - **config.json**：存储在 `%APPDATA%\KeyMacro\`，由 ConfigService 管理
@@ -55,11 +55,16 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 
 ## 架构要点
 - `HotkeyService` 通过重写 `WndProc` 接收 `WM_HOTKEY` 消息
-- `MacroPlayer.Play()` 是 async Task，包含 500ms 初始延迟（给用户松手时间）
+- `MacroPlayer.Play()` 是 async Task，包含 500ms 初始延迟（给用户松手时间），循环由 `LoopCount` 控制
 - `MacroPlayer.PlayToWindow()` 是 async Task，使用 PostMessage 直接向目标窗口发键盘消息，无初始延迟
 - 主窗口关闭时隐藏到系统托盘，不退出进程
 - 播放期间 `MacroPlayer.IsPlaying` 为 true 以阻止嵌套触发
 - `SpineHotkeyService.ToSpineFormat()` 将 WinForms 按键名转回 Spine 格式，避免写回 TXT 后 Spine 无法识别
+
+## 循环机制
+- `MacroSequence` 无单独的 `Loop` 开关字段，由 `LoopCount` 单一控制：1=执行一次，>1=循环N次，0=无限循环
+- 循环播放中的按钮再次点击可停止（调用 `MacroPlayer.Stop()`）
+- 主窗口列显示"循环(次)"，MainForm 不再有"循环执行"复选框
 
 ## 虚拟按键目标窗口机制
 - **目标窗口捕获**：VK 窗口右键菜单"捕获目标窗口"→ 隐藏窗口 → 3 秒倒计时 → 捕获前台窗口进程名 + 窗口标题 → 持久化到布局文件
@@ -67,12 +72,20 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 - **方案 B（自动激活）**：播放前 SetForegroundWindow 激活目标窗口，再用 SendKeys 发送
 - 两方案共存自动降级：优先方案 A，若检测无效则自动切换到方案 B
 
+## 主窗口序列列表
+- "触发快捷键"列：绑定键盘热键时显示快捷键，绑定虚拟按键时显示"虚拟按键(按钮名)"
+- 所有列均为固定宽度（`AutoSizeMode = None`），拖动分隔线时行为一致
+
 ## VkPickMode 绑定流程
 - SequenceEditor 有两颗按钮录入触发快捷键：**键盘录入**（始终打开键盘录制窗口）和 **虚拟按键**（始终进入 VkPickMode）
 - VkPickMode 带有黄色状态栏提示，支持 Esc 取消和"取消拾取"按钮
 - 点击任意虚拟按钮 → 自动拾取关联虚拟按键名称（_txtVkBind）和触发快捷键（_txtHotkey，如有）
 - `MainForm.SyncVkButtonBindings` 仅更新名称匹配的按钮，不破坏右键菜单建立的绑定
 - `MainForm.RequestOpenVirtualKeys()` 可供 SequenceEditor 在 VK 窗口未打开时自动创建
+
+## 虚拟按键右键菜单
+- 按钮右键菜单顶部显示 `[ 按钮名 ]` 作为标题（禁用，仅展示），下方依次为修改名称/绑定快捷键/循环延迟/删除
+- 空白区域右键菜单顶部为增加按钮选项，下方为窗口控制（置顶/透明度/锁定/目标窗口/保存布局）
 
 ## 日志系统
 - `OperationLogger` 是静态类，日志路径 `%APPDATA%\KeyMacro\logs\yyyy-MM-dd.log`

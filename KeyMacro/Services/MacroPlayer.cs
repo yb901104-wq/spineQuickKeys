@@ -30,7 +30,7 @@ public class MacroPlayer
     public async Task Play(MacroSequence sequence)
     {
         if (_isPlaying) return;
-        OperationLogger.Info($"MacroPlayer.Play: start \"{sequence.Name}\" ({sequence.Id}), steps={sequence.Steps.Count}, loop={sequence.Loop}");
+        OperationLogger.Info($"MacroPlayer.Play: start \"{sequence.Name}\" ({sequence.Id}), steps={sequence.Steps.Count}, count={sequence.LoopCount}");
 
         _cts = new CancellationTokenSource();
         var ct = _cts.Token;
@@ -72,14 +72,14 @@ public class MacroPlayer
                         await Task.Delay(step.DelayMs, ct);
                 }
 
-                if (sequence.Loop && !ct.IsCancellationRequested)
+                if (sequence.LoopCount != 1 && !ct.IsCancellationRequested)
                 {
                     if (sequence.LoopCount > 0 && loopCounter >= sequence.LoopCount)
                         break;
                     await Task.Delay(sequence.LoopIntervalMs, ct);
                 }
             }
-            while (sequence.Loop && !ct.IsCancellationRequested);
+            while (sequence.LoopCount != 1 && !ct.IsCancellationRequested);
 
             OperationLogger.Info($"MacroPlayer.Play: completed \"{sequence.Name}\", loops={loopCounter}");
         }
@@ -171,14 +171,14 @@ public class MacroPlayer
                         await Task.Delay(step.DelayMs, ct);
                 }
 
-                if (sequence.Loop && !ct.IsCancellationRequested)
+                if (sequence.LoopCount != 1 && !ct.IsCancellationRequested)
                 {
                     if (sequence.LoopCount > 0 && loopCounter >= sequence.LoopCount)
                         break;
                     await Task.Delay(sequence.LoopIntervalMs, ct);
                 }
             }
-            while (sequence.Loop && !ct.IsCancellationRequested);
+            while (sequence.LoopCount != 1 && !ct.IsCancellationRequested);
 
             OperationLogger.Info($"MacroPlayer.PlayToWindow: completed \"{sequence.Name}\", loops={loopCounter}");
         }

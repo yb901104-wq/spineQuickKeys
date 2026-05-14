@@ -50,15 +50,15 @@ public partial class SequenceEditor : Form
         var topPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Top,
-            Height = 105,
+            Height = 130,
             ColumnCount = 2,
             RowCount = 3,
             Padding = new Padding(12, 12, 12, 0)
         };
         topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
         topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
-        topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+        topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
+        topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
         topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
 
         topPanel.Controls.Add(new Label { Text = "序列名称:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 0);
@@ -70,8 +70,8 @@ public partial class SequenceEditor : Form
 
         var hotkeyPanel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1 };
         hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
-        hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
+        hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+        hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
 
         _txtHotkey = new TextBox
         {

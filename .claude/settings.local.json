@@ -52,7 +52,25 @@
       "Bash(sed -i '362r onclick_replacement.txt' VirtualKeyWindow.cs)",
       "Bash(rm onclick_replacement.txt)",
       "Bash(openspec list *)",
-      "Bash(cd \"d:/AI_cc/spineQuickKeys\" && mv openspec/changes/virtual-key-window-target \"openspec/changes/archive/2026-05-13-virtual-key-window-target\")"
+      "Bash(cd \"d:/AI_cc/spineQuickKeys\" && mv openspec/changes/virtual-key-window-target \"openspec/changes/archive/2026-05-13-virtual-key-window-target\")",
+      "Bash(sed -i '192s/e.ColumnIndex == 8/e.ColumnIndex == 7/' MainForm.cs)",
+      "Bash(sed -i '208s/e.ColumnIndex == 9/e.ColumnIndex == 8/' MainForm.cs)",
+      "Bash(sed -i '216s/e.ColumnIndex == 6 || e.ColumnIndex == 7/e.ColumnIndex == 5 || e.ColumnIndex == 6/' MainForm.cs)",
+      "Bash(sed -i '239,242d' MainForm.cs)",
+      "Bash(sed -i '246s/case 7:/case 6:/' MainForm.cs)",
+      "Bash(sed -i '484,517d' MainForm.cs)",
+      "Bash(sed -i '483r mainform_cols_patch.txt' MainForm.cs)",
+      "Bash(rm mainform_cols_patch.txt)",
+      "Bash(sed -i '537s/seq.TriggerHotkey/!string.IsNullOrEmpty\\(seq.TriggerVkButtonName\\) ? $\"虚拟按键\\({seq.TriggerVkButtonName}\\)\" : seq.TriggerHotkey/' MainForm.cs)",
+      "Bash(sed -i '538s/seq.Loop, //' MainForm.cs)",
+      "Bash(sed -i '/public bool Loop/d' MacroSequence.cs)",
+      "Bash(sed -i 's/LoopCount { get; set; } = 0;/LoopCount { get; set; } = 1;/' MacroSequence.cs)",
+      "Bash(sed -i 's/loop={sequence.Loop}/count={sequence.LoopCount}/g' MacroPlayer.cs)",
+      "Bash(sed -i 's/if \\(sequence.Loop &&/if \\(sequence.LoopCount != 1 \\\\&\\\\&/g' MacroPlayer.cs)",
+      "Bash(sed -i 's/while \\(sequence.Loop &&/while \\(sequence.LoopCount != 1 \\\\&\\\\&/g' MacroPlayer.cs)",
+      "Bash(sed -i '240s/case 6:/case 5:/' MainForm.cs)",
+      "Bash(sed -i '241s/Cells\\\\[6\\\\]/Cells[5]/' MainForm.cs)",
+      "Bash(sed -i '247s/Cells\\\\[7\\\\]/Cells[6]/' MainForm.cs)"
     ],
     "additionalDirectories": [
       "d:\\AI_cc\\spineQuickKeys\\openspec\\changes\\virtual-key-window-target"

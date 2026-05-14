@@ -466,6 +466,10 @@ public class VirtualKeyWindow : Form
     {
         var vbtn = widget.VirtualButton;
         var menu = new ContextMenuStrip();
+        // 0. Button name header (disabled, for display only)
+        var nameItem = menu.Items.Add($"[ {vbtn.Name} ]");
+        nameItem.Enabled = false;
+        menu.Items.Add("-");
 
         // 1. Modify button name
         menu.Items.Add("修改按钮名称", null, (_, _) =>

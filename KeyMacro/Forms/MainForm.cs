@@ -27,7 +27,7 @@ public partial class MainForm : Form
 
     public MainForm()
     {
-        Text = "快捷键助手 V1.95";
+        Text = "快捷键助手 V1.96";
         Size = new Size(900, 600);
         MinimumSize = new Size(600, 400);
         StartPosition = FormStartPosition.CenterScreen;
@@ -89,7 +89,7 @@ public partial class MainForm : Form
             RowHeadersVisible = false,
             MultiSelect = false,
             SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-            AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+            AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None,
             EditMode = DataGridViewEditMode.EditOnEnter
         };
         _dgv.CellDoubleClick += (_, _) => EditSequence();
@@ -189,7 +189,7 @@ public partial class MainForm : Form
         if (e.RowIndex < 0 || e.RowIndex >= _sequences.Count) return;
         var seq = _sequences[e.RowIndex];
 
-        if (e.ColumnIndex == 8)
+        if (e.ColumnIndex == 7)
         {
             using var dialog = new OpenFileDialog
             {
@@ -205,7 +205,7 @@ public partial class MainForm : Form
                 SaveAndRefresh();
             }
         }
-        else if (e.ColumnIndex == 9)
+        else if (e.ColumnIndex == 8)
         {
             if (!string.IsNullOrEmpty(seq.TargetAppPath))
             {
@@ -213,7 +213,7 @@ public partial class MainForm : Form
                 SaveAndRefresh();
             }
         }
-        else if (e.ColumnIndex == 6 || e.ColumnIndex == 7)
+        else if (e.ColumnIndex == 5 || e.ColumnIndex == 6)
         {
             _dgv.BeginEdit(true);
         }
@@ -236,19 +236,15 @@ public partial class MainForm : Form
                 }
                 break;
 
-            case 5: // 循环执行
-                seq.Loop = _dgv.Rows[e.RowIndex].Cells[5].Value is true;
-                _config.Save(_sequences);
-                break;
 
-            case 6: // 间隔(ms)
-                int.TryParse(_dgv.Rows[e.RowIndex].Cells[6].Value?.ToString(), out var interval);
+            case 5: // 间隔(ms)
+                int.TryParse(_dgv.Rows[e.RowIndex].Cells[5].Value?.ToString(), out var interval);
                 seq.LoopIntervalMs = interval > 0 ? interval : 200;
                 _config.Save(_sequences);
                 break;
 
-            case 7: // 循环次数
-                int.TryParse(_dgv.Rows[e.RowIndex].Cells[7].Value?.ToString(), out var count);
+            case 6: // 循环次数
+                int.TryParse(_dgv.Rows[e.RowIndex].Cells[6].Value?.ToString(), out var count);
                 seq.LoopCount = count >= 0 ? count : 0;
                 _config.Save(_sequences);
                 break;
@@ -479,16 +475,28 @@ public partial class MainForm : Form
             Width = 50,
             AutoSizeMode = DataGridViewAutoSizeColumnMode.None
         });
-        _dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "序列名称", ReadOnly = true });
-        _dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "触发快捷键", ReadOnly = true });
-        _dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "目标软件", ReadOnly = true });
-        _dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "步骤数", ReadOnly = true, Width = 55, AutoSizeMode = DataGridViewAutoSizeColumnMode.None });
-        _dgv.Columns.Add(new DataGridViewCheckBoxColumn
+        _dgv.Columns.Add(new DataGridViewTextBoxColumn
         {
-            HeaderText = "循环执行",
-            Width = 60,
+            HeaderText = "序列名称",
+            ReadOnly = true,
+            Width = 200,
             AutoSizeMode = DataGridViewAutoSizeColumnMode.None
         });
+        _dgv.Columns.Add(new DataGridViewTextBoxColumn
+        {
+            HeaderText = "触发快捷键",
+            ReadOnly = true,
+            Width = 150,
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.None
+        });
+        _dgv.Columns.Add(new DataGridViewTextBoxColumn
+        {
+            HeaderText = "目标软件",
+            ReadOnly = true,
+            Width = 150,
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.None
+        });
+        _dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "步骤数", ReadOnly = true, Width = 55, AutoSizeMode = DataGridViewAutoSizeColumnMode.None });
         _dgv.Columns.Add(new DataGridViewTextBoxColumn
         {
             HeaderText = "间隔(ms)",
@@ -497,8 +505,8 @@ public partial class MainForm : Form
         });
         _dgv.Columns.Add(new DataGridViewTextBoxColumn
         {
-            HeaderText = "循环次数",
-            Width = 60,
+            HeaderText = "循环(次)",
+            Width = 70,
             AutoSizeMode = DataGridViewAutoSizeColumnMode.None
         });
         _dgv.Columns.Add(new DataGridViewButtonColumn
@@ -527,8 +535,8 @@ public partial class MainForm : Form
                 ? "全局"
                 : Path.GetFileName(seq.TargetAppPath);
             var idx = _dgv.Rows.Add(
-                seq.Enabled, seq.Name, seq.TriggerHotkey, appName, seq.Steps.Count,
-                seq.Loop, seq.LoopIntervalMs.ToString(), seq.LoopCount.ToString());
+                seq.Enabled, seq.Name, !string.IsNullOrEmpty(seq.TriggerVkButtonName) ? $"虚拟按键({seq.TriggerVkButtonName})" : seq.TriggerHotkey, appName, seq.Steps.Count,
+                seq.LoopIntervalMs.ToString(), seq.LoopCount.ToString());
             _dgv.Rows[idx].Tag = seq.Id;
         }
 
