@@ -20,6 +20,8 @@ public class VirtualLayoutSerializer
         public bool WindowLocked { get; set; }
         public string? TargetProcessName { get; set; }
         public string? TargetWindowTitle { get; set; }
+        public string? SkinPath { get; set; }
+        public bool SingleLineMode { get; set; } = true;
         public List<VirtualButton> Buttons { get; set; } = [];
     }
 

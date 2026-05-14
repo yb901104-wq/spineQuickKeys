@@ -31,6 +31,9 @@ public class VirtualKeyWindow : Form
     private readonly List<MacroSequence> _sequences;
     private readonly Action? _sequencesChangedCallback;
     private readonly FlowLayoutPanel _panel;
+    private readonly Panel _toolbar;
+    private readonly Panel _resizeGrip;
+    private readonly Label _lblToolbarInfo;
     private readonly Dictionary<string, VirtualButtonWidget> _widgets = [];
     private bool _isDraggingWindow;
     private Point _dragStart;
@@ -41,8 +44,14 @@ public class VirtualKeyWindow : Form
     private string? _targetProcessName;
     private string? _targetWindowTitle;
     private bool _schemeAFailed;
+    private bool _singleLineMode = true;
+    private bool _isResizing;
+    private Point _resizeStart;
+    private float _scaleFactor = 1.0f;
+    private Size _resizeStartSize;
 
     private const int BasePanelWidth = 400;
+    private VkSkinLoader _skinLoader = new(null);
 
     public VirtualKeyWindow(
         VirtualButtonManager btnManager,
@@ -64,38 +73,128 @@ public class VirtualKeyWindow : Form
         StartPosition = FormStartPosition.Manual;
         TopMost = true;
         ShowInTaskbar = false;
-        FormBorderStyle = FormBorderStyle.Sizable;
+        FormBorderStyle = FormBorderStyle.None;
         Opacity = _opacityValue;
-        Size = new Size(400, 300);
-        MinimumSize = new Size(160, 100);
 
-        // Dual border
+        // Custom border
         Padding = new Padding(1);
         Paint += (_, e) =>
         {
-            using var outerPen = new Pen(Color.FromArgb(0x00, 0x00, 0x00));
-            e.Graphics.DrawRectangle(outerPen, 0, 0, Width - 1, Height - 1);
-            using var rimPen = new Pen(Color.FromArgb(0x3C, 0x3C, 0x3C));
-            e.Graphics.DrawLine(rimPen, 1, 1, Width - 2, 1);
+            var bg = _skinLoader.GetWindowBackground();
+            if (bg != null)
+            {
+                VkSkinLoader.DrawNineSlice(e.Graphics, bg, new Rectangle(0, 0, Width, Height));
+            }
+            else
+            {
+                using var outerPen = new Pen(_skinLoader.GetColor("window_border", Color.FromArgb(0x00, 0x00, 0x00)));
+                e.Graphics.DrawRectangle(outerPen, 0, 0, Width - 1, Height - 1);
+                using var rimPen = new Pen(_skinLoader.GetColor("window_rim", Color.FromArgb(0x3C, 0x3C, 0x3C)));
+                e.Graphics.DrawLine(rimPen, 1, 1, Width - 2, 1);
+            }
+        };
+
+        // Toolbar (visible when unlocked)
+        _toolbar = new Panel
+        {
+            Dock = DockStyle.Top,
+            Height = 28,
+            BackColor = Color.FromArgb(0x1A, 0x1A, 0x1A),
+            Padding = new Padding(8, 0, 8, 0),
+            Cursor = Cursors.SizeAll
+        };
+        _lblToolbarInfo = new Label
+        {
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            ForeColor = Color.FromArgb(0xAA, 0xAA, 0xAA),
+            Font = new Font("Microsoft YaHei", 9),
+            Text = "虚拟按键"
+        };
+        var btnClose = new Button
+        {
+            Text = "✕",
+            Dock = DockStyle.Right,
+            Width = 28,
+            FlatStyle = FlatStyle.Flat,
+            ForeColor = Color.FromArgb(0xAA, 0xAA, 0xAA),
+            BackColor = Color.Transparent,
+            FlatAppearance = { BorderSize = 0 },
+            Cursor = Cursors.Hand
+        };
+        btnClose.Click += (_, _) => { _loopExecutor.StopAll(); SaveLayout(); Hide(); };
+        _toolbar.Controls.Add(_lblToolbarInfo);
+        _toolbar.Controls.Add(btnClose);
+        _toolbar.MouseDown += (_, e) =>
+        {
+            if (e.Button == MouseButtons.Left && !_windowLocked)
+            {
+                _isDraggingWindow = true;
+                _dragStart = e.Location;
+            }
         };
 
         _panel = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
             AutoScroll = true,
-            Padding = new Padding(8),
+            Padding = new Padding(8, 4, 8, 8),
             BackColor = Color.FromArgb(0x0D, 0x0D, 0x0D)
         };
         _panel.MouseClick += (_, e) => OperationLogger.Info($"VKWindow._panel.MouseClick: btn={e.Button}, loc=({e.X},{e.Y}), widgets={_widgets.Count}");
+
+        // Resize grip
+        _resizeGrip = new Panel
+        {
+            Width = 14,
+            Height = 14,
+            Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
+            Cursor = Cursors.SizeNWSE,
+            BackColor = Color.Transparent
+        };
+        _resizeGrip.Paint += (_, e) =>
+        {
+            using var p = new Pen(Color.FromArgb(0x66, 0x66, 0x66));
+            int x = _resizeGrip.Width - 4, y = _resizeGrip.Height - 4;
+            for (int i = 0; i < 3; i++)
+            {
+                e.Graphics.DrawLine(p, x - i * 4, y, x, y - i * 4);
+                e.Graphics.DrawLine(p, x - i * 4 - 1, y, x - 1, y - i * 4);
+            }
+        };
+        _resizeGrip.MouseDown += (_, e) =>
+        {
+            if (e.Button == MouseButtons.Left) { _isResizing = true; _resizeStart = e.Location; _resizeStartSize = Size; }
+        };
+        _resizeGrip.MouseMove += (_, e) =>
+        {
+            if (_isResizing)
+            {
+                var newW = Math.Max(100, _resizeStartSize.Width + e.X - _resizeStart.X);
+                var newH = Math.Max(60, _resizeStartSize.Height + e.Y - _resizeStart.Y);
+                Width = newW;
+                Height = newH;
+                _scaleFactor = (float)Math.Max(0.5, Math.Min(2.0, (double)newW / BasePanelWidth));
+                UpdateScale();
+            }
+        };
+        _resizeGrip.MouseUp += (_, e) => _isResizing = false;
+
         Controls.Add(_panel);
-        Resize += (_, _) => UpdateScale();
+        Controls.Add(_resizeGrip);
+        Controls.Add(_toolbar);
+        Resize += (_, _) => { _resizeGrip.Location = new Point(ClientSize.Width - 14, ClientSize.Height - 14); UpdateScale(); };
 
         // Blank area context menu
         var blankMenu = BuildBlankMenu();
         _panel.ContextMenuStrip = blankMenu;
 
         _btnManager.ButtonsChanged += RebuildWidgets;
-        LoadLayout();
+        var layoutData = _serializer.Load();
+        _skinLoader = new VkSkinLoader(layoutData.SkinPath);
+        _skinLoader.Load();
+        LoadLayoutData(layoutData);
+
         FormClosing += (_, e) =>
         {
             if (e.CloseReason == CloseReason.UserClosing)
@@ -159,7 +258,26 @@ public class VirtualKeyWindow : Form
                 ? "清除目标窗口"
                 : $"清除目标窗口 ({display})";
             clearTargetItem.Visible = !string.IsNullOrEmpty(_targetProcessName);
+
+            // Refresh layout mode text
+            m.Items[^6].Text = _singleLineMode ? "✓ 单排" : "单排/多排";
+            // Refresh lock text
+            m.Items[^3].Text = _windowLocked ? "✓ 窗口已锁定" : "窗口锁定/解锁";
         };
+
+        m.Items.Add("-");
+
+        // Layout mode toggle
+        m.Items.Add(_singleLineMode ? "✓ 单排" : "单排/多排", null, (_, _) => ToggleLayoutMode());
+
+        // Scale submenu
+        var scaleMenu = new ToolStripMenuItem("缩放");
+        foreach (var pct in new[] { 50, 75, 100, 150, 200 })
+        {
+            var item = scaleMenu.DropDownItems.Add($"{pct}%");
+            item.Click += (_, _) => SetScaleFromMenu(pct / 100f);
+        }
+        m.Items.Add(scaleMenu);
 
         m.Items.Add("-");
 
@@ -168,6 +286,9 @@ public class VirtualKeyWindow : Form
 
         // Window lock toggle
         m.Items.Add(_windowLocked ? "✓ 窗口已锁定" : "窗口锁定/解锁", null, (_, _) => ToggleWindowLock());
+
+        m.Items.Add("-");
+        m.Items.Add("关闭窗口", null, (_, _) => { _loopExecutor.StopAll(); SaveLayout(); Hide(); });
 
         return m;
     }
@@ -196,6 +317,46 @@ public class VirtualKeyWindow : Form
     private void ToggleWindowLock()
     {
         _windowLocked = !_windowLocked;
+        UpdateWindowLockState();
+    }
+
+    private void UpdateWindowLockState()
+    {
+        _toolbar.Visible = !_windowLocked;
+        _resizeGrip.Visible = !_windowLocked;
+    }
+
+    // ── Layout mode ──
+
+    private void ToggleLayoutMode()
+    {
+        _singleLineMode = !_singleLineMode;
+        ApplyLayoutMode();
+        SaveLayout();
+    }
+
+    private void ApplyLayoutMode()
+    {
+        if (_singleLineMode)
+        {
+            _panel.WrapContents = false;
+            _panel.AutoScroll = false;
+            AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            AutoSize = true;
+        }
+        else
+        {
+            AutoSize = false;
+            _panel.WrapContents = true;
+            _panel.AutoScroll = true;
+        }
+    }
+
+    private void SetScaleFromMenu(float factor)
+    {
+        _scaleFactor = factor;
+        UpdateScale();
+        SaveLayout();
     }
 
     // ── Target window capture ──
@@ -347,15 +508,16 @@ public class VirtualKeyWindow : Form
         }
         UpdateScale();
         _panel.ResumeLayout();
+        _lblToolbarInfo.Text = (_targetProcessName != null ? $"[目标: {_targetWindowTitle ?? _targetProcessName}] " : "") +
+                              $"{_widgets.Count} 个按钮";
         OperationLogger.Info($"VKWindow.RebuildWidgets: created {_widgets.Count} widgets from {buttons.Count} buttons");
     }
 
     private void UpdateScale()
     {
-        float scale = (float)Math.Max(0.5, Math.Min(2.0, (double)ClientSize.Width / BasePanelWidth));
         foreach (var w in _widgets.Values)
         {
-            w.ScaleFactor = scale;
+            w.ScaleFactor = _scaleFactor;
             w.UpdateSize();
         }
     }
@@ -613,18 +775,19 @@ public class VirtualKeyWindow : Form
             WindowLocked = _windowLocked,
             TargetProcessName = _targetProcessName,
             TargetWindowTitle = _targetWindowTitle,
-            Buttons = [.. _btnManager.Buttons]
+            Buttons = [.. _btnManager.Buttons],
+            SingleLineMode = _singleLineMode
         };
         _serializer.Save(data);
-        OperationLogger.Info($"VKWindow.SaveLayout: saved {data.Buttons.Count} buttons, target={_targetProcessName ?? "(none)"}");
+        OperationLogger.Info($"VKWindow.SaveLayout: saved {data.Buttons.Count} buttons, target={_targetProcessName ?? "(none)"}, singleLine={_singleLineMode}");
     }
 
-    private void LoadLayout()
+    private void LoadLayoutData(VirtualLayoutSerializer.LayoutData data)
     {
-        OperationLogger.Info("VKWindow.LoadLayout: loading layout");
-        var data = _serializer.Load();
+        OperationLogger.Info("VKWindow.LoadLayoutData: loading layout");
         _targetProcessName = data.TargetProcessName;
         _targetWindowTitle = data.TargetWindowTitle;
+        _singleLineMode = data.SingleLineMode;
 
         if (data.Buttons.Count > 0)
         {
@@ -637,9 +800,13 @@ public class VirtualKeyWindow : Form
             _windowLocked = data.WindowLocked;
             foreach (var w in _widgets.Values)
                 w.AllowDragging = !_positionLocked;
+            ApplyLayoutMode();
+            UpdateWindowLockState();
         }
         else
         {
+            AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            AutoSize = true;
             var screen = Screen.PrimaryScreen;
             if (screen != null)
                 Location = new Point(
@@ -647,8 +814,10 @@ public class VirtualKeyWindow : Form
                     (screen.WorkingArea.Height - Height) / 2);
         }
         UpdateScale();
-        OperationLogger.Info($"VKWindow.LoadLayout: loaded {data.Buttons.Count} buttons, target={_targetProcessName ?? "(none)"}");
+        OperationLogger.Info($"VKWindow.LoadLayout: loaded {data.Buttons.Count} buttons, target={_targetProcessName ?? "(none)"}, singleLine={_singleLineMode}");
     }
+
+    private void LoadLayout() { LoadLayoutData(_serializer.Load()); }
 
     private void ResetLayout() { _btnManager.Clear(); SaveLayout(); }
 
