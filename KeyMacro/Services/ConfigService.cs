@@ -5,9 +5,15 @@ namespace KeyMacro.Services;
 
 public class ConfigService
 {
-    private static readonly string AppDataPath =
+    private static readonly string AppDataDir =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "KeyMacro", "config.json");
+            "KeyMacro");
+
+    private static readonly string AppDataPath =
+        Path.Combine(AppDataDir, "config.json");
+
+    private static readonly string SpinePathFile =
+        Path.Combine(AppDataDir, ".spine_path");
 
     private static readonly string ProjectPath =
         Path.Combine(Directory.GetCurrentDirectory(), "config.json");
@@ -44,8 +50,7 @@ public class ConfigService
     {
         try
         {
-            var dir = Path.GetDirectoryName(AppDataPath)!;
-            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+            if (!Directory.Exists(AppDataDir)) Directory.CreateDirectory(AppDataDir);
             var json = JsonSerializer.Serialize(sequences, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(AppDataPath, json);
             OperationLogger.Info($"ConfigService.Save: saved {sequences.Count} sequences");
@@ -54,5 +59,30 @@ public class ConfigService
         {
             OperationLogger.Error($"ConfigService.Save: failed: {ex.Message}");
         }
+    }
+
+    public static string? LoadSpinePath()
+    {
+        try
+        {
+            return File.Exists(SpinePathFile) ? File.ReadAllText(SpinePathFile).Trim() : null;
+        }
+        catch { return null; }
+    }
+
+    public static void SaveSpinePath(string path)
+    {
+        try
+        {
+            if (!Directory.Exists(AppDataDir)) Directory.CreateDirectory(AppDataDir);
+            File.WriteAllText(SpinePathFile, path);
+        }
+        catch { }
+    }
+
+    public static void ClearSpinePath()
+    {
+        try { if (File.Exists(SpinePathFile)) File.Delete(SpinePathFile); }
+        catch { }
     }
 }

@@ -6,6 +6,8 @@ public class SpineHotkeyEditor : Form
 {
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     public static List<SpineHotkeyEntry>? LastLoadedEntries { get; private set; }
+
+    public static void SetLoadedEntries(List<SpineHotkeyEntry>? entries) => LastLoadedEntries = entries;
     private SpineHotkeyService _service;
     private List<SpineHotkeyEntry> _entries = [];
     private string _searchFilter = "";

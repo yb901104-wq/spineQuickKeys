@@ -351,7 +351,7 @@ public class VirtualButtonWidget : UserControl
         using var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
         using var textBrush = new SolidBrush(_isActive ? _colorActiveGlow : _colorText);
         using var dimBrush = new SolidBrush(_colorDimText);
-        int propFontSize = Math.Max(6, (int)(Height * 0.17f));
+        int propFontSize = Math.Max(6, (int)(Height * 0.07f));
 
         switch (_vbtn.StyleType)
         {

@@ -16,7 +16,7 @@ public partial class MainForm : Form
     private DataGridView _dgv = null!;
     private Button _btnAdd = null!, _btnEdit = null!, _btnDelete = null!;
     private Button _btnTest = null!, _btnPause = null!;
-    private Button _btnSpine = null!, _btnDeleteAll = null!;
+    private Button _btnSpine = null!, _btnSpineRelease = null!, _btnDeleteAll = null!;
     private Button _btnVkOpen = null!, _btnVkClose = null!;
     private Button _btnImport = null!, _btnExport = null!;
     private ToolStripMenuItem? _pauseTrayItem;
@@ -28,7 +28,7 @@ public partial class MainForm : Form
 
     public MainForm()
     {
-        Text = "快捷键助手 V2.02";
+        Text = "快捷键助手 V2.03";
         Size = new Size(900, 600);
         MinimumSize = new Size(600, 400);
         StartPosition = FormStartPosition.CenterScreen;
@@ -58,6 +58,8 @@ public partial class MainForm : Form
         _btnTest = CreateButton("测试", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
         _btnPause = CreateButton("暂停全部", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
         _btnSpine = CreateButton("Spine热键编辑", Color.FromArgb(0x6B, 0x46, 0xC3), Color.White);
+        _btnSpineRelease = CreateButton("释放", Color.FromArgb(0x80, 0x80, 0x80), Color.White);
+        _btnSpineRelease.Enabled = false;
         _btnDeleteAll = CreateButton("删除全部", Color.FromArgb(0xD9, 0x5C, 0x5C), Color.White);
         _btnVkOpen = CreateButton("开启虚拟按键", Color.FromArgb(0x00, 0xC8, 0x53), Color.White);
         _btnVkClose = CreateButton("关闭虚拟按键", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
@@ -70,13 +72,14 @@ public partial class MainForm : Form
         _btnTest.Click += (_, _) => TestSequence();
         _btnPause.Click += (_, _) => TogglePause();
         _btnSpine.Click += (_, _) => OpenSpineEditor();
+        _btnSpineRelease.Click += (_, _) => ReleaseSpineData();
         _btnDeleteAll.Click += (_, _) => DeleteAllSequences();
         _btnVkOpen.Click += (_, _) => OpenVirtualKeys();
         _btnVkClose.Click += (_, _) => CloseVirtualKeys();
         _btnImport.Click += (_, _) => ImportDataBundle();
         _btnExport.Click += (_, _) => ExportDataBundle();
 
-        toolStrip.Controls.AddRange([_btnAdd, _btnEdit, _btnDelete, _btnTest, _btnPause, _btnSpine, _btnDeleteAll, _btnVkOpen, _btnVkClose, _btnImport, _btnExport]);
+        toolStrip.Controls.AddRange([_btnAdd, _btnEdit, _btnDelete, _btnTest, _btnPause, _btnSpine, _btnSpineRelease, _btnDeleteAll, _btnVkOpen, _btnVkClose, _btnImport, _btnExport]);
         Controls.Add(toolStrip);
 
         var dgvPanel = new Panel
@@ -165,6 +168,25 @@ public partial class MainForm : Form
     {
         OperationLogger.Info($"Application started, version 1.98");
         LoadSequences();
+
+        // Auto-load spine entries if saved path exists and file is valid
+        var spinePath = ConfigService.LoadSpinePath();
+        if (!string.IsNullOrEmpty(spinePath) && File.Exists(spinePath))
+        {
+            try
+            {
+                var svc = new SpineHotkeyService(spinePath);
+                SpineHotkeyEditor.SetLoadedEntries(svc.Load());
+                OperationLogger.Info($"MainForm: auto-loaded {SpineHotkeyEditor.LastLoadedEntries?.Count} spine entries from {spinePath}");
+            }
+            catch (Exception ex)
+            {
+                OperationLogger.Error($"MainForm: auto-load spine failed: {ex.Message}");
+                SpineHotkeyEditor.SetLoadedEntries(null);
+                ConfigService.ClearSpinePath();
+            }
+        }
+        UpdateSpineReleaseButton();
     }
 
     private void ShowWindow()
@@ -377,6 +399,14 @@ public partial class MainForm : Form
 
     private void OpenSpineEditor()
     {
+        var lastPath = ConfigService.LoadSpinePath();
+        if (!string.IsNullOrEmpty(lastPath) && File.Exists(lastPath) && SpineHotkeyEditor.LastLoadedEntries != null)
+        {
+            using var editor = new SpineHotkeyEditor(lastPath);
+            editor.ShowDialog();
+            return;
+        }
+
         var spineDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Spine", "settings");
         using var dialog = new OpenFileDialog
         {
@@ -387,8 +417,24 @@ public partial class MainForm : Form
         };
         if (dialog.ShowDialog() != DialogResult.OK) return;
 
-        using var editor = new SpineHotkeyEditor(dialog.FileName);
-        editor.ShowDialog();
+        ConfigService.SaveSpinePath(dialog.FileName);
+        using var editorFromDlg = new SpineHotkeyEditor(dialog.FileName);
+        editorFromDlg.ShowDialog();
+    }
+
+    private void ReleaseSpineData()
+    {
+        SpineHotkeyEditor.SetLoadedEntries(null);
+        ConfigService.ClearSpinePath();
+        _btnSpineRelease.Enabled = false;
+        _btnSpineRelease.BackColor = Color.FromArgb(0x80, 0x80, 0x80);
+    }
+
+    private void UpdateSpineReleaseButton()
+    {
+        _btnSpineRelease.Enabled = SpineHotkeyEditor.LastLoadedEntries != null;
+        _btnSpineRelease.BackColor = SpineHotkeyEditor.LastLoadedEntries != null
+            ? Color.FromArgb(0xD9, 0x5C, 0x5C) : Color.FromArgb(0x80, 0x80, 0x80);
     }
 
     private void DeleteAllSequences()
@@ -604,35 +650,47 @@ public partial class MainForm : Form
         {
             HeaderText = "序列名称",
             ReadOnly = true,
-            Width = (int)(200 * ds),
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.None
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
+            FillWeight = 28,
+            MinimumWidth = (int)(80 * ds)
         });
         _dgv.Columns.Add(new DataGridViewTextBoxColumn
         {
             HeaderText = "触发快捷键",
             ReadOnly = true,
-            Width = (int)(150 * ds),
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.None
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
+            FillWeight = 18,
+            MinimumWidth = (int)(60 * ds)
         });
         _dgv.Columns.Add(new DataGridViewTextBoxColumn
         {
             HeaderText = "目标软件",
             ReadOnly = true,
-            Width = (int)(150 * ds),
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.None
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
+            FillWeight = 18,
+            MinimumWidth = (int)(60 * ds)
         });
-        _dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "步骤数", ReadOnly = true, Width = (int)(55 * ds), AutoSizeMode = DataGridViewAutoSizeColumnMode.None });
+        _dgv.Columns.Add(new DataGridViewTextBoxColumn
+        {
+            HeaderText = "步骤数",
+            ReadOnly = true,
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
+            FillWeight = 10,
+            MinimumWidth = (int)(40 * ds)
+        });
         _dgv.Columns.Add(new DataGridViewTextBoxColumn
         {
             HeaderText = "间隔(ms)",
-            Width = (int)(70 * ds),
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.None
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
+            FillWeight = 12,
+            MinimumWidth = (int)(50 * ds)
         });
         _dgv.Columns.Add(new DataGridViewTextBoxColumn
         {
             HeaderText = "循环(次)",
-            Width = (int)(70 * ds),
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.None
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
+            FillWeight = 12,
+            MinimumWidth = (int)(50 * ds)
         });
         _dgv.Columns.Add(new DataGridViewButtonColumn
         {
@@ -649,6 +707,7 @@ public partial class MainForm : Form
             Text = "✕",
             UseColumnTextForButtonValue = true,
             AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
+            FillWeight = 2,
             ReadOnly = true
         });
 
