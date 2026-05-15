@@ -52,8 +52,8 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 ```
 
 ## 右键菜单体系
-- **按钮右键菜单**（`OnWidgetContextMenu`）：修改按钮名称 / 绑定快捷键 / 按钮循环延迟（仅循环按钮）/ 增加间隔 / 删除当前按钮
-- **空白区域右键菜单**（`BuildBlankMenu`）：增加按钮 / 删除所有按钮 / 置顶/取消置顶 / 透明度 / 按钮位置锁定/解锁 / 捕获/清除目标窗口 / 单排/多排 / 缩放(50-200%) / 窗口锁定/解锁 / 关闭窗口
+- **按钮右键菜单**（`OnWidgetContextMenu`）：修改按钮名称 / 按钮循环延迟（仅循环按钮）/ 增加间隔 / 强制停止 / 删除当前按钮
+- **空白区域右键菜单**（`BuildBlankMenu`）：增加按钮 / 删除所有按钮 / 置顶/取消置顶 / 透明度 / 按钮位置锁定/解锁 / 捕获/清除目标窗口 / 竖向模式 / 缩放(50-200%) / 窗口锁定/解锁 / 关闭窗口
 - 按钮循环延迟支持自定义数值（通过 InputBox）
 - **间隔**（Spacer）：通过"增加间隔"在按钮之间插入固定宽度空白分隔条，不可交互，随缩放等比变化
 
@@ -84,7 +84,7 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 - SequenceEditor 有两颗按钮录入触发快捷键：**键盘录入**（始终打开键盘录制窗口）和 **虚拟按键**（始终进入 VkPickMode）
 - VkPickMode 带有黄色状态栏提示，支持 Esc 取消和"取消拾取"按钮
 - 点击任意虚拟按钮 → 自动拾取关联虚拟按键名称（_txtVkBind）和触发快捷键（_txtHotkey，如有）
-- `MainForm.SyncVkButtonBindings` 仅更新名称匹配的按钮，不破坏右键菜单建立的绑定
+- `MainForm.SyncVkButtonBindings` 是唯一绑定机制：通过 `TriggerVkButtonName ↔ vbtn.Name` 匹配自动同步 `BindActionId`，不支持按钮级别的单独绑定
 - `MainForm.RequestOpenVirtualKeys()` 可供 SequenceEditor 在 VK 窗口未打开时自动创建
 
 ## 虚拟按键窗口
@@ -92,7 +92,7 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 - 标题栏文字：`[目标] 虚拟按键 (N)`，显示目标名和按钮数量
 - 锁定：切换 `FormBorderStyle = None`，标题栏消失，窗口/按钮位置不动
 - **无自绘工具栏、无自定义拖拽事件、无缩放手柄**
-- **布局模式**：单排（所有按钮横排）/ 多排（自动换行），右键菜单切换
+- **布局方向**：横排（默认）/ 竖排，右键菜单切换。始终单排，无多排模式
 - **缩放**：右键菜单百分比预设（50/75/100/150/200%）+ 自定义输入（10-200%）
 - **无拖拽缩放，无最小/最大尺寸限制**
 
@@ -102,15 +102,19 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 BASE_BTN_H = 48   BASE_GAP = 4   BASE_MARGIN = 10   BASE_SPACER_W = 20
 BaseBtnWidth: SmallIcon=48  LargeIcon=96  LoopIcon=110
 
-窗口宽 = margin + sum(各按钮实际宽) + (N-1)×gap + margin + 边框补偿
-窗口高 = 标题栏(28) + margin + btnH + margin + 边框补偿
+横排:
+  窗口宽 = margin + sum(各按钮实际宽) + (N-1)×gap + margin + 边框补偿
+  窗口高 = 标题栏(28) + margin + btnH + margin + 边框补偿
+竖排:
+  窗口宽 = margin + max(各按钮实际宽) + margin + 边框补偿
+  窗口高 = 标题栏(28) + margin + sum(各按钮高) + (N-1)×gap + margin + 边框补偿
 ```
 - 按钮间距 `gap`、边距 `margin`、间隔宽度随 ScaleFactor 等比缩放
 - Panel.Padding 和 widget.Margin 同步更新，保证视觉一致性
 
 ## 虚拟按键右键菜单
-- 按钮右键菜单顶部显示 `[ 按钮名 ]` 作为标题（禁用，仅展示），下方依次为修改名称/绑定快捷键/循环延迟/增加间隔/删除
-- 空白区域右键菜单顶部为增加按钮选项，下方为窗口控制（置顶/透明度/锁定/目标窗口/单排多排/缩放/窗口锁定/关闭）
+- 按钮右键菜单顶部显示 `[ 按钮名 ]` 作为标题（禁用，仅展示），下方依次为修改名称/循环延迟（仅循环按钮）/按钮间距/强制停止/删除
+- 空白区域右键菜单顶部为增加按钮选项，下方为窗口控制（置顶/透明度/锁定/目标窗口/竖向模式/缩放/窗口锁定/关闭）
 
 ## 日志系统
 - `OperationLogger` 是静态类，日志路径 `%APPDATA%\KeyMacro\logs\yyyy-MM-dd.log`
@@ -129,7 +133,7 @@ BaseBtnWidth: SmallIcon=48  LargeIcon=96  LoopIcon=110
 ## DPI 缩放
 - `HighDpiMode.PerMonitorV2` 已在 `Program.cs` 中设置
 - **VirtualKeyWindow**：`GetEffectiveScale()` = `_scaleFactor * (DeviceDpi / 96f)` 合并系统 DPI 和用户缩放
-- **VirtualButtonWidget**：`ScaleFactor` 接收 VKWindow 传入的有效缩放值，`Scaled(val)` 自动用于尺寸和字号
+- **VirtualButtonWidget**：`ScaleFactor` 接收 VKWindow 传入的有效缩放值，`Scaled(val)` 自动用于尺寸；字号改用按钮高度的比例（`Height * 0.17`），自动适配 DPI
 - **MainForm**：DataGridView 列宽在 `RefreshGrid()` 中乘以 `DeviceDpi / 96f`
 - **SequenceEditor**：`OnLoad` 中对 `_topPanel` 行高/列宽应用 DPI 系数
 - 所有窗口覆盖 `OnDpiChanged` 以支持跨显示器 DPI 切换

@@ -50,7 +50,7 @@ public class VirtualButtonWidget : UserControl
     public VirtualButton VirtualButton => _vbtn;
     public event Action<VirtualButtonWidget>? Clicked;
     public event Action<VirtualButtonWidget, int, int>? Dragged;
-    public event Action<VirtualButtonWidget, int>? DragEnded;
+    public event Action<VirtualButtonWidget, int, int>? DragEnded;
     public event Action<VirtualButtonWidget, Point>? ContextMenuRequested;
     public event Action<VirtualButtonWidget, int>? LoopCountEdited;
 
@@ -81,6 +81,9 @@ public class VirtualButtonWidget : UserControl
 
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     public bool AllowDragging { get; set; } = true;
+
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public bool VerticalMode { get; set; }
 
     public VirtualButtonWidget(VirtualButton vbtn)
     {
@@ -195,7 +198,7 @@ public class VirtualButtonWidget : UserControl
                 int margin = Scaled(2);
                 _txtLoopCount.Location = new Point(Width - sw + margin, Scaled(12));
                 _txtLoopCount.Size = new Size(sw - margin * 2, Scaled(40));
-                _txtLoopCount.Font = new Font("Microsoft YaHei", Scaled(8), FontStyle.Bold);
+                _txtLoopCount.Font = new Font("Microsoft YaHei", Math.Max(6, (int)(Height * 0.15f)), FontStyle.Bold);
                 _txtLoopCount.Text = _vbtn.LoopCount.ToString();
             }
         }
@@ -232,8 +235,9 @@ public class VirtualButtonWidget : UserControl
         if (_isDragging)
         {
             var dx = e.X - _dragStart.X;
-            if (Math.Abs(dx) > 3)
-                DragEnded?.Invoke(this, dx);
+            var dy = e.Y - _dragStart.Y;
+            if (Math.Abs(dx) > 3 || Math.Abs(dy) > 3)
+                DragEnded?.Invoke(this, dx, dy);
         }
         _isDragging = false;
         if (_isPressed)
@@ -347,19 +351,20 @@ public class VirtualButtonWidget : UserControl
         using var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
         using var textBrush = new SolidBrush(_isActive ? _colorActiveGlow : _colorText);
         using var dimBrush = new SolidBrush(_colorDimText);
+        int propFontSize = Math.Max(6, (int)(Height * 0.17f));
 
         switch (_vbtn.StyleType)
         {
             case VirtualButtonStyle.SmallIcon:
             {
-                using var nameFont = new Font("Microsoft YaHei", Scaled(9), FontStyle.Bold);
+                using var nameFont = new Font("Microsoft YaHei", propFontSize, FontStyle.Bold);
                 var nameR = new RectangleF(2, 0, Width - 4, Height);
                 g.DrawString(_vbtn.Name, nameFont, textBrush, nameR, sf);
                 break;
             }
             case VirtualButtonStyle.LargeIcon:
             {
-                using var nameFont = new Font("Microsoft YaHei", Scaled(10), FontStyle.Bold);
+                using var nameFont = new Font("Microsoft YaHei", propFontSize, FontStyle.Bold);
                 var nameR = new RectangleF(2, 0, Width - 4, Height);
                 g.DrawString(_vbtn.Name, nameFont, textBrush, nameR, sf);
                 break;
@@ -367,7 +372,7 @@ public class VirtualButtonWidget : UserControl
             case VirtualButtonStyle.LoopIcon:
             {
                 int leftW = Width - Scaled(44);
-                using var nameFont = new Font("Microsoft YaHei", Scaled(9), FontStyle.Bold);
+                using var nameFont = new Font("Microsoft YaHei", propFontSize, FontStyle.Bold);
                 var nameR = new RectangleF(2, 0, leftW - 4, Height);
                 g.DrawString(_vbtn.Name, nameFont, textBrush, nameR, sf);
                 break;
@@ -377,7 +382,7 @@ public class VirtualButtonWidget : UserControl
 
     // ── Geometry ──
 
-    private static GraphicsPath MakeRoundedPath(Rectangle rect, int r, bool roundLeft, bool roundRight)
+    private GraphicsPath MakeRoundedPath(Rectangle rect, int r, bool roundLeft, bool roundRight)
     {
         var path = new GraphicsPath();
         r = Math.Min(r, Math.Min(rect.Width / 2, rect.Height / 2));
@@ -392,17 +397,39 @@ public class VirtualButtonWidget : UserControl
         }
         else if (roundLeft)
         {
-            path.AddArc(rect.X, rect.Y, r, r, 180, 90);
-            path.AddLine(rect.Right, rect.Y, rect.Right, rect.Bottom);
-            path.AddArc(rect.X, rect.Bottom - r, r, r, 90, 90);
-            path.AddLine(rect.X + r, rect.Bottom, rect.Right, rect.Bottom);
+            if (VerticalMode)
+            {
+                // Top rounded (first in column)
+                path.AddArc(rect.X, rect.Y, r, r, 180, 90);
+                path.AddArc(rect.Right - r, rect.Y, r, r, 270, 90);
+                path.AddLine(rect.Right, rect.Y + r, rect.Right, rect.Bottom);
+                path.AddLine(rect.Right, rect.Bottom, rect.X, rect.Bottom);
+            }
+            else
+            {
+                path.AddArc(rect.X, rect.Y, r, r, 180, 90);
+                path.AddLine(rect.Right, rect.Y, rect.Right, rect.Bottom);
+                path.AddArc(rect.X, rect.Bottom - r, r, r, 90, 90);
+                path.AddLine(rect.X + r, rect.Bottom, rect.Right, rect.Bottom);
+            }
         }
         else if (roundRight)
         {
-            path.AddLine(rect.X, rect.Y, rect.Right - r, rect.Y);
-            path.AddArc(rect.Right - r, rect.Y, r, r, 270, 90);
-            path.AddArc(rect.Right - r, rect.Bottom - r, r, r, 0, 90);
-            path.AddLine(rect.X, rect.Bottom, rect.Right - r, rect.Bottom);
+            if (VerticalMode)
+            {
+                // Bottom rounded (last in column)
+                path.AddLine(rect.X, rect.Y, rect.Right, rect.Y);
+                path.AddLine(rect.Right, rect.Y, rect.Right, rect.Bottom - r);
+                path.AddArc(rect.Right - r, rect.Bottom - r, r, r, 0, 90);
+                path.AddArc(rect.X, rect.Bottom - r, r, r, 90, 90);
+            }
+            else
+            {
+                path.AddLine(rect.X, rect.Y, rect.Right - r, rect.Y);
+                path.AddArc(rect.Right - r, rect.Y, r, r, 270, 90);
+                path.AddArc(rect.Right - r, rect.Bottom - r, r, r, 0, 90);
+                path.AddLine(rect.X, rect.Bottom, rect.Right - r, rect.Bottom);
+            }
         }
         else
             path.AddRectangle(rect);

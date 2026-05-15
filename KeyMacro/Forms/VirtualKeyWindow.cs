@@ -35,7 +35,8 @@ public class VirtualKeyWindow : Form
     private bool _winLocked;
     private string? _targetProc;
     private string? _targetTitle;
-    private bool _singleLine = true;
+    private bool _vertical;
+    private ToolStripMenuItem? _orientMenuItem;
     private float _scaleFactor = 1.0f;
     private bool _schemeAFailed;
 
@@ -85,7 +86,8 @@ public class VirtualKeyWindow : Form
             Padding = new Padding(BASE_MARGIN),
             BackColor = Color.FromArgb(0x0D, 0x0D, 0x0D),
             WrapContents = false,
-            AutoScroll = false
+            AutoScroll = false,
+            FlowDirection = FlowDirection.LeftToRight
         };
         Controls.Add(_panel);
 
@@ -147,7 +149,11 @@ public class VirtualKeyWindow : Form
         clearTarget.Click += (_, _) => ClearTargetWindow();
         m.Items.Add(clearTarget);
 
-        m.Items.Add(_singleLine ? "✓ 单排" : "单排/多排", null, (_, _) => ToggleLayoutMode());
+        m.Items.Add("-");
+        _orientMenuItem = new ToolStripMenuItem("竖向模式");
+        _orientMenuItem.Checked = _vertical;
+        _orientMenuItem.Click += (_, _) => ToggleOrientation();
+        m.Items.Add(_orientMenuItem);
 
         var scaleMenu = new ToolStripMenuItem("缩放");
         foreach (var pct in new[] { 50, 75, 100, 150, 200 })
@@ -175,9 +181,7 @@ public class VirtualKeyWindow : Form
             var display = _targetTitle ?? _targetProc;
             clearTarget.Text = string.IsNullOrEmpty(display) ? "清除目标窗口" : $"清除目标窗口 ({display})";
             clearTarget.Visible = !string.IsNullOrEmpty(_targetProc);
-            var layoutIdx = m.Items.IndexOf(clearTarget) + 1;
-            if (layoutIdx < m.Items.Count)
-                m.Items[layoutIdx].Text = _singleLine ? "✓ 单排" : "单排/多排";
+            if (_orientMenuItem != null) _orientMenuItem.Checked = _vertical;
             lockItem.Text = _winLocked ? "✓ 窗口已锁定" : "窗口锁定/解锁";
         };
         return m;
@@ -196,11 +200,6 @@ public class VirtualKeyWindow : Form
             if (!string.IsNullOrWhiteSpace(input) && input.Trim() != vbtn.Name)
                 { vbtn.Name = input.Trim(); widget.UpdateButton(vbtn); SaveLayout(); }
         });
-        var bindItem = new ToolStripMenuItem("绑定快捷键");
-        bindItem.DropDownItems.Add("设置绑定", null, (_, _) => ShowBindingDialog(widget));
-        if (!string.IsNullOrEmpty(vbtn.BindActionId))
-            bindItem.DropDownItems.Add("清除绑定", null, (_, _) => { _bindingManager.Unbind(vbtn); widget.UpdateButton(vbtn); SaveLayout(); });
-        menu.Items.Add(bindItem);
         if (vbtn.StyleType == VirtualButtonStyle.LoopIcon)
         {
             var intvMenu = new ToolStripMenuItem("按钮循环延迟");
@@ -242,25 +241,6 @@ public class VirtualKeyWindow : Form
         widget.UpdateButton(vbtn); SaveLayout();
     }
 
-    private void ShowBindingDialog(VirtualButtonWidget widget)
-    {
-        var vbtn = widget.VirtualButton;
-        var avail = _sequences.Where(s => !string.IsNullOrEmpty(s.Name)).ToList();
-        if (avail.Count == 0) { MessageBox.Show("没有可绑定的快捷动作，请先在主窗口创建序列。", "提示"); return; }
-        using var menu = new ContextMenuStrip();
-        foreach (var seq in avail)
-        {
-            var item = menu.Items.Add(seq.Name);
-            item.Click += (_, _) =>
-            {
-                if (!_bindingManager.TryBind(vbtn, seq.Id))
-                    { MessageBox.Show("该动作已被其他虚拟按钮绑定。", "冲突", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-                widget.UpdateButton(vbtn); SaveLayout();
-            };
-        }
-        menu.Show(widget, new Point(0, 0));
-    }
-
     // ── Op / Lock ──
 
     private void SetOpacity(double val) { _opacityValue = val; Opacity = val; }
@@ -284,14 +264,17 @@ public class VirtualKeyWindow : Form
 
     public bool HasBoundButtons() => _btnManager.Buttons.Any(b => !string.IsNullOrEmpty(b.BindActionId));
 
-    // ── Layout mode ──
+    // ── Orientation ──
 
-    private void ToggleLayoutMode()
+    private void ToggleOrientation()
     {
-        _singleLine = !_singleLine;
-        if (_singleLine) { _panel.WrapContents = false; _panel.AutoScroll = false; }
-        else { _panel.WrapContents = true; _panel.AutoScroll = true; }
-        RecalculateSize(); SaveLayout();
+        _vertical = !_vertical;
+        _panel.FlowDirection = _vertical ? FlowDirection.TopDown : FlowDirection.LeftToRight;
+        _panel.AutoScroll = _vertical;
+        foreach (var w in _widgets.Values)
+            w.VerticalMode = _vertical;
+        RecalculateSize();
+        SaveLayout();
     }
 
     // ── Scale ──
@@ -408,9 +391,10 @@ public class VirtualKeyWindow : Form
             w.IsFirstInRow = i == 0; w.IsLastInRow = i == buttons.Count - 1;
             w.Clicked += OnButtonClicked;
             w.Dragged += OnButtonDragged;
-            w.DragEnded += OnButtonDragEnded;
+            w.DragEnded += (ww, dx, dy) => OnButtonDragEnded(ww, dx, dy);
             w.ContextMenuRequested += OnWidgetContextMenu;
             w.LoopCountEdited += OnLoopCountEdited;
+            w.VerticalMode = _vertical;
             _panel.Controls.Add(w);
             _widgets[buttons[i].Id] = w;
         }
@@ -445,22 +429,46 @@ public class VirtualKeyWindow : Form
             return;
         }
 
-        // Window width  = margin + sum(按钮宽 + ExtraGap) + (N-1)×gap + margin
-        // Window height = titleBar + margin + btnH + margin
-        int totalW = margin + _widgets.Values.Sum(w =>
+        if (_vertical)
         {
-            var bw = Math.Max(1, (int)(BaseBtnWidth(w.VirtualButton.StyleType) * S));
-            return bw + (int)(w.VirtualButton.ExtraGap * S);
-        }) + (n - 1) * gap + margin;
-        int totalH = barH + margin + btnH + margin;
-        Size = new Size(totalW + ncW, totalH + ncH);
+            // Vertical: width = margin + max(button width + ExtraGap) + margin
+            //           height = barH + margin + Σ(btnH + ExtraGap) + (N-1)×gap + margin
+            int maxW = _widgets.Values.Max(w =>
+            {
+                var bw = Math.Max(1, (int)(BaseBtnWidth(w.VirtualButton.StyleType) * S));
+                return bw + (int)(w.VirtualButton.ExtraGap * S);
+            });
+            int totalH = barH + margin + _widgets.Values.Sum(w =>
+            {
+                return btnH + (int)(w.VirtualButton.ExtraGap * S);
+            }) + (n - 1) * gap + margin;
+            Size = new Size(margin + maxW + margin + ncW, totalH + ncH);
 
-        // Update widget margins with consistent gaps + per-button ExtraGap
-        int halfGap = gap / 2;
-        foreach (var w in _widgets.Values)
+            int halfGap = gap / 2;
+            foreach (var w in _widgets.Values)
+            {
+                int eg = (int)(w.VirtualButton.ExtraGap * S);
+                w.Margin = new Padding(0, halfGap, 0, halfGap + eg);
+            }
+        }
+        else
         {
-            int eg = (int)(w.VirtualButton.ExtraGap * S);
-            w.Margin = new Padding(halfGap, 0, halfGap + eg, 0);
+            // Horizontal: width = margin + Σ(button width + ExtraGap) + (N-1)×gap + margin
+            //             height = titleBar + margin + btnH + margin
+            int totalW = margin + _widgets.Values.Sum(w =>
+            {
+                var bw = Math.Max(1, (int)(BaseBtnWidth(w.VirtualButton.StyleType) * S));
+                return bw + (int)(w.VirtualButton.ExtraGap * S);
+            }) + (n - 1) * gap + margin;
+            int totalH = barH + margin + btnH + margin;
+            Size = new Size(totalW + ncW, totalH + ncH);
+
+            int halfGap = gap / 2;
+            foreach (var w in _widgets.Values)
+            {
+                int eg = (int)(w.VirtualButton.ExtraGap * S);
+                w.Margin = new Padding(halfGap, 0, halfGap + eg, 0);
+            }
         }
     }
 
@@ -523,18 +531,20 @@ public class VirtualKeyWindow : Form
         // Drag tracked for reorder on mouse-up via DragEnded
     }
 
-    private void OnButtonDragEnded(VirtualButtonWidget widget, int dx)
+    private void OnButtonDragEnded(VirtualButtonWidget widget, int dx, int dy)
     {
         var vbtn = widget.VirtualButton;
         float effScale = GetEffectiveScale();
-        if (Math.Abs(dx) < 30 * effScale) return;
+
+        int delta = _vertical ? dy : dx;
+        if (Math.Abs(delta) < 30 * effScale) return;
 
         var buttons = _btnManager.Buttons.ToList();
         var idx = buttons.FindIndex(b => b.Id == vbtn.Id);
         if (idx < 0) return;
 
-        var steps = Math.Max(1, Math.Abs(dx) / (int)(60 * effScale));
-        int newIdx = dx > 0
+        var steps = Math.Max(1, Math.Abs(delta) / (int)(60 * effScale));
+        int newIdx = delta > 0
             ? Math.Min(buttons.Count - 1, idx + steps)
             : Math.Max(0, idx - steps);
 
@@ -596,7 +606,7 @@ public class VirtualKeyWindow : Form
             WindowX = Left, WindowY = Top, WindowWidth = Width, WindowHeight = Height,
             TopMost = _topMostState, PositionLocked = _posLocked, WindowLocked = _winLocked,
             TargetProcessName = _targetProc, TargetWindowTitle = _targetTitle,
-            SingleLineMode = _singleLine, ScaleFactor = _scaleFactor,
+            VerticalMode = _vertical, ScaleFactor = _scaleFactor,
             Buttons = [.. _btnManager.Buttons]
         });
     }
@@ -605,7 +615,7 @@ public class VirtualKeyWindow : Form
     {
         _targetProc = data.TargetProcessName;
         _targetTitle = data.TargetWindowTitle;
-        _singleLine = data.SingleLineMode;
+        _vertical = data.VerticalMode;
         _scaleFactor = data.ScaleFactor > 0 ? data.ScaleFactor : 1.0f;
         int margin = Math.Max(1, (int)(BASE_MARGIN * GetEffectiveScale()));
         _panel.Padding = new Padding(margin);
@@ -621,8 +631,8 @@ public class VirtualKeyWindow : Form
             _topMostState = data.TopMost; TopMost = _topMostState;
             _posLocked = data.PositionLocked; _winLocked = data.WindowLocked;
             foreach (var w in _widgets.Values) w.AllowDragging = !_posLocked;
-            if (_singleLine) { _panel.WrapContents = false; _panel.AutoScroll = false; }
-            else { _panel.WrapContents = true; _panel.AutoScroll = true; }
+            _panel.WrapContents = false;
+            _panel.FlowDirection = _vertical ? FlowDirection.TopDown : FlowDirection.LeftToRight;
             if (_winLocked) { FormBorderStyle = FormBorderStyle.None; ControlBox = false; Text = ""; }
             else { FormBorderStyle = FormBorderStyle.FixedSingle; ControlBox = true; }
             UpdateScale();
@@ -644,14 +654,14 @@ public class VirtualKeyWindow : Form
         int margin = Math.Max(1, (int)(BASE_MARGIN * GetEffectiveScale()));
         _panel.Padding = new Padding(margin);
         _btnManager.LoadFrom(data.Buttons);
-        _singleLine = data.SingleLineMode;
+        _vertical = data.VerticalMode;
         _topMostState = data.TopMost; TopMost = _topMostState;
         _posLocked = data.PositionLocked; _winLocked = data.WindowLocked;
         _targetProc = data.TargetProcessName;
         _targetTitle = data.TargetWindowTitle;
         foreach (var w in _widgets.Values) w.AllowDragging = !_posLocked;
-        if (_singleLine) { _panel.WrapContents = false; _panel.AutoScroll = false; }
-        else { _panel.WrapContents = true; _panel.AutoScroll = true; }
+        _panel.WrapContents = false;
+        _panel.FlowDirection = _vertical ? FlowDirection.TopDown : FlowDirection.LeftToRight;
         if (_winLocked) { FormBorderStyle = FormBorderStyle.None; ControlBox = false; Text = ""; }
         else { FormBorderStyle = FormBorderStyle.FixedSingle; ControlBox = true; UpdateTitle(); }
         UpdateScale();
