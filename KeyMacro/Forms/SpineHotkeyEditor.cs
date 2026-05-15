@@ -4,6 +4,8 @@ namespace KeyMacro.Forms;
 
 public class SpineHotkeyEditor : Form
 {
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public static List<SpineHotkeyEntry>? LastLoadedEntries { get; private set; }
     private SpineHotkeyService _service;
     private List<SpineHotkeyEntry> _entries = [];
     private string _searchFilter = "";
@@ -17,6 +19,12 @@ public class SpineHotkeyEditor : Form
     private readonly Button _btnRecord;
 
     public SpineHotkeyEditor(string filePath)
+        : this(filePath, null)
+    {
+    }
+
+    /// <summary>Construct with pre-loaded data (used by import).</summary>
+    public SpineHotkeyEditor(string filePath, List<SpineHotkeyEntry>? entries)
     {
         _service = new SpineHotkeyService(filePath);
 
@@ -130,20 +138,36 @@ public class SpineHotkeyEditor : Form
         Controls.Add(toolbar);
         Controls.Add(topPanel);
 
-        LoadEntries();
+        // Keep LastLoadedEntries after close for other forms (SequenceEditor autocomplete).
+        // Only clear on explicit file close (BtnLoad_Click will overwrite with new data).
+
+        if (entries != null)
+        {
+            _entries = entries;
+            LastLoadedEntries = entries;
+            RefreshGrid();
+        }
+        else
+        {
+            LoadEntries();
+        }
     }
+
+    public List<SpineHotkeyEntry>? GetCurrentEntries() => _entries.Count > 0 ? [.. _entries] : null;
 
     private void LoadEntries()
     {
         try
         {
             _entries = _service.Load();
+            LastLoadedEntries = _entries;
         }
         catch (Exception ex)
         {
             MessageBox.Show($"载入文件失败: {ex.Message}", "错误",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
             _entries = [];
+            LastLoadedEntries = null;
         }
         RefreshGrid();
     }

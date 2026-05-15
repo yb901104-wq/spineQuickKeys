@@ -13,25 +13,27 @@
 KeyMacro/
 ├── Program.cs               # 入口
 ├── Models/
+│   ├── DataBundle.cs        # 统一导入导出数据模型
 │   ├── MacroSequence.cs     # 数据模型 (序列 + 步骤)
-│   └── VirtualButton.cs     # 虚拟按键数据模型
+│   └── VirtualButton.cs     # 虚拟按键数据模型（含 IsSpacer）
 ├── Services/
 │   ├── ConfigService.cs     # JSON 配置读写 (%APPDATA%\KeyMacro\config.json)
+│   ├── DataBundleService.cs # 统一导入导出服务
 │   ├── HotkeyService.cs     # Win32 全局热键注册/监听
 │   ├── MacroPlayer.cs       # SendKeys 按键序列播放引擎
 │   ├── OperationLogger.cs   # 文件日志系统 (%APPDATA%\KeyMacro\logs\)
 │   ├── SpineHotkeyService.cs # Spine TXT 文件解析/保存 + 按键名格式转换 + 中文注解
-│   ├── VirtualButtonManager.cs # 虚拟按键列表管理
+│   ├── VirtualButtonManager.cs # 虚拟按键列表管理（排序/间隔）
 │   ├── VirtualKeyBindingManager.cs # 虚拟按键 ↔ 序列绑定
 │   ├── VirtualLayoutSerializer.cs # 虚拟按键窗口布局持久化
 │   ├── VirtualLoopExecutor.cs # 循环按钮执行器
 │   └── VkSkinLoader.cs        # 皮肤资源加载器（嵌入资源 + 磁盘双源）
 └── Forms/
-    ├── MainForm.cs          # 主窗口 + 系统托盘
+    ├── MainForm.cs          # 主窗口 + 系统托盘（导入导出）
     ├── SequenceEditor.cs    # 序列编辑器 + 热键录制对话框
-    ├── SpineHotkeyEditor.cs # Spine 热键 TXT 文件编辑窗口
-    ├── VirtualKeyWindow.cs  # 虚拟按键浮动窗口
-    └── VirtualButtonWidget.cs # 虚拟按钮自绘控件
+    ├── SpineHotkeyEditor.cs # Spine 热键 TXT 文件编辑窗口（支持数据构造）
+    ├── VirtualKeyWindow.cs  # 虚拟按键浮动窗口（拖拽排序/spacer）
+    └── VirtualButtonWidget.cs # 虚拟按钮自绘控件（spacer/新文字布局）
 ```
 
 ## 关键约定
@@ -50,9 +52,10 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 ```
 
 ## 右键菜单体系
-- **按钮右键菜单**（`OnWidgetContextMenu`）：修改按钮名称 / 绑定快捷键 / 按钮循环延迟（仅循环按钮）/ 删除当前按钮
-- **空白区域右键菜单**（`BuildBlankMenu`）：增加按钮 / 删除所有按钮 / 置顶/取消置顶 / 透明度 / 按钮位置锁定/解锁 / 捕获/清除目标窗口 / 单排/多排 / 缩放(50-200%) / 保存/重置布局 / 窗口锁定/解锁 / 关闭窗口
+- **按钮右键菜单**（`OnWidgetContextMenu`）：修改按钮名称 / 绑定快捷键 / 按钮循环延迟（仅循环按钮）/ 增加间隔 / 删除当前按钮
+- **空白区域右键菜单**（`BuildBlankMenu`）：增加按钮 / 删除所有按钮 / 置顶/取消置顶 / 透明度 / 按钮位置锁定/解锁 / 捕获/清除目标窗口 / 单排/多排 / 缩放(50-200%) / 窗口锁定/解锁 / 关闭窗口
 - 按钮循环延迟支持自定义数值（通过 InputBox）
+- **间隔**（Spacer）：通过"增加间隔"在按钮之间插入固定宽度空白分隔条，不可交互，随缩放等比变化
 
 ## 架构要点
 - `HotkeyService` 通过重写 `WndProc` 接收 `WM_HOTKEY` 消息
@@ -96,18 +99,18 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 ## 虚拟按键布局算法
 - 基于基础常量计算，不依赖控件运行时属性：
 ```
-BASE_BTN_H = 48   BASE_GAP = 4   BASE_MARGIN = 10
+BASE_BTN_H = 48   BASE_GAP = 4   BASE_MARGIN = 10   BASE_SPACER_W = 20
 BaseBtnWidth: SmallIcon=48  LargeIcon=96  LoopIcon=110
 
 窗口宽 = margin + sum(各按钮实际宽) + (N-1)×gap + margin + 边框补偿
 窗口高 = 标题栏(28) + margin + btnH + margin + 边框补偿
 ```
-- 按钮间距 `gap`、边距 `margin` 随 ScaleFactor 等比缩放
+- 按钮间距 `gap`、边距 `margin`、间隔宽度随 ScaleFactor 等比缩放
 - Panel.Padding 和 widget.Margin 同步更新，保证视觉一致性
 
 ## 虚拟按键右键菜单
-- 按钮右键菜单顶部显示 `[ 按钮名 ]` 作为标题（禁用，仅展示），下方依次为修改名称/绑定快捷键/循环延迟/删除
-- 空白区域右键菜单顶部为增加按钮选项，下方为窗口控制（置顶/透明度/锁定/目标窗口/单排多排/缩放/保存重置布局/关闭）
+- 按钮右键菜单顶部显示 `[ 按钮名 ]` 作为标题（禁用，仅展示），下方依次为修改名称/绑定快捷键/循环延迟/增加间隔/删除
+- 空白区域右键菜单顶部为增加按钮选项，下方为窗口控制（置顶/透明度/锁定/目标窗口/单排多排/缩放/窗口锁定/关闭）
 
 ## 日志系统
 - `OperationLogger` 是静态类，日志路径 `%APPDATA%\KeyMacro\logs\yyyy-MM-dd.log`
@@ -122,6 +125,19 @@ BaseBtnWidth: SmallIcon=48  LargeIcon=96  LoopIcon=110
 - 资源放在 `KeyMacro/skins/<名称>/` 目录，通过 `virtual_layout.json` 的 `SkinPath` 字段指定
 - `skin.json` 可配置颜色字段（可选），缺失时使用硬编码默认值
 - `ConfigService`/`VirtualLayoutSerializer`/`SpineHotkeyService` 均采用双路径策略：先加载项目目录（CWD），再 APPDATA，最后回退嵌入式默认值
+
+## 统一导入导出
+- 主工具栏"导入"/"导出"按钮，使用 `.kmp` 格式（JSON）
+- 导出包含：Spine 热键编辑（如有打开）、序列设置、VK 布局、VK 设置
+- 导入时分 4 部分逐项确认（Spine 热键/序列/VK 布局/VK 设置）
+- [DataBundle.cs](KeyMacro/Models/DataBundle.cs) 定义数据模型
+- [DataBundleService.cs](KeyMacro/Services/DataBundleService.cs) 负责序列化/反序列化
+
+## 透明与渲染
+- 不再使用 `TransparencyKey = #FF00FF` 方案（避免粉色边缘残留）
+- 按钮 Widget 使用 `g.Clear(Color.Transparent)` + PNG 原生 Alpha
+- 窗口背景 9-slice 直接绘制到 panel
+- 皮肤背景图时使用 `skin.json` 中 `window_bg` 颜色作为 Panel 底色
 
 ## 版本管理与发布流程（必遵）
 

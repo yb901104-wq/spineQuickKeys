@@ -18,6 +18,7 @@ public partial class MainForm : Form
     private Button _btnTest = null!, _btnPause = null!;
     private Button _btnSpine = null!, _btnDeleteAll = null!;
     private Button _btnVkOpen = null!, _btnVkClose = null!;
+    private Button _btnImport = null!, _btnExport = null!;
     private ToolStripMenuItem? _pauseTrayItem;
 
     private readonly VirtualButtonManager _vkBtnManager = new();
@@ -27,7 +28,7 @@ public partial class MainForm : Form
 
     public MainForm()
     {
-        Text = "快捷键助手 V1.98";
+        Text = "快捷键助手 V2.0";
         Size = new Size(900, 600);
         MinimumSize = new Size(600, 400);
         StartPosition = FormStartPosition.CenterScreen;
@@ -60,6 +61,8 @@ public partial class MainForm : Form
         _btnDeleteAll = CreateButton("删除全部", Color.FromArgb(0xD9, 0x5C, 0x5C), Color.White);
         _btnVkOpen = CreateButton("开启虚拟按键", Color.FromArgb(0x00, 0xC8, 0x53), Color.White);
         _btnVkClose = CreateButton("关闭虚拟按键", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
+        _btnImport = CreateButton("导入", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
+        _btnExport = CreateButton("导出", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
 
         _btnAdd.Click += (_, _) => AddSequence();
         _btnEdit.Click += (_, _) => EditSequence();
@@ -70,8 +73,10 @@ public partial class MainForm : Form
         _btnDeleteAll.Click += (_, _) => DeleteAllSequences();
         _btnVkOpen.Click += (_, _) => OpenVirtualKeys();
         _btnVkClose.Click += (_, _) => CloseVirtualKeys();
+        _btnImport.Click += (_, _) => ImportDataBundle();
+        _btnExport.Click += (_, _) => ExportDataBundle();
 
-        toolStrip.Controls.AddRange([_btnAdd, _btnEdit, _btnDelete, _btnTest, _btnPause, _btnSpine, _btnDeleteAll, _btnVkOpen, _btnVkClose]);
+        toolStrip.Controls.AddRange([_btnAdd, _btnEdit, _btnDelete, _btnTest, _btnPause, _btnSpine, _btnDeleteAll, _btnVkOpen, _btnVkClose, _btnImport, _btnExport]);
         Controls.Add(toolStrip);
 
         var dgvPanel = new Panel
@@ -424,6 +429,117 @@ public partial class MainForm : Form
         main?.OpenVirtualKeys();
     }
 
+    private void ExportDataBundle()
+    {
+        using var dialog = new SaveFileDialog
+        {
+            Title = "导出数据",
+            Filter = "KeyMacro 数据包 (*.kmp)|*.kmp",
+            DefaultExt = "kmp"
+        };
+        if (dialog.ShowDialog() != DialogResult.OK) return;
+
+        var bundle = new DataBundle();
+        bundle.Sequences = [.. _sequences];
+        bundle.VkData = _vkSerializer.Load();
+
+        var editor = Application.OpenForms.OfType<SpineHotkeyEditor>().FirstOrDefault();
+        bundle.SpineHotkeys = editor?.GetCurrentEntries();
+
+        new DataBundleService().Export(dialog.FileName, bundle);
+        MessageBox.Show($"数据已导出到：\n{dialog.FileName}", "导出完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
+    }
+
+    private void ImportDataBundle()
+    {
+        using var dialog = new OpenFileDialog
+        {
+            Title = "导入数据",
+            Filter = "KeyMacro 数据包 (*.kmp)|*.kmp",
+            DefaultExt = "kmp"
+        };
+        if (dialog.ShowDialog() != DialogResult.OK) return;
+
+        var bundle = new DataBundleService().Import(dialog.FileName);
+        if (bundle == null)
+        {
+            MessageBox.Show("文件格式无效或读取失败。", "导入失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return;
+        }
+
+        MessageBox.Show("导入操作将分项确认，包含以下 4 部分：\n\n" +
+            "1. Spine 热键编辑\n" +
+            "2. 序列设置\n" +
+            "3. 虚拟按键布局\n" +
+            "4. 虚拟按键设置",
+            "导入确认", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+        // 1. Spine hotkeys
+        if (bundle.SpineHotkeys?.Count > 0)
+        {
+            if (MessageBox.Show("是否导入 Spine 热键编辑？", "导入", MessageBoxButtons.YesNo) == DialogResult.Yes)
+            {
+                var editor = new SpineHotkeyEditor(dialog.FileName, bundle.SpineHotkeys);
+                editor.Show();
+            }
+        }
+        else
+        {
+            MessageBox.Show("Spine 热键编辑：文件中无相关数据，跳过。", "导入", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        // 2. Sequences
+        if (bundle.Sequences?.Count > 0)
+        {
+            if (MessageBox.Show($"是否导入序列设置？（共 {bundle.Sequences.Count} 个序列）", "导入", MessageBoxButtons.YesNo) == DialogResult.Yes)
+            {
+                _sequences = [.. bundle.Sequences];
+                _config.Save(_sequences);
+                _failedHotkeys = [.. _hotkeyService.RegisterAll(_sequences)];
+                SyncVkButtonBindings();
+                RefreshGrid();
+            }
+        }
+        else
+        {
+            MessageBox.Show("序列设置：文件中无相关数据，跳过。", "导入", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        // 3. VK layout (buttons)
+        if (bundle.VkData?.Buttons?.Count > 0)
+        {
+            if (MessageBox.Show($"是否导入虚拟按键布局？（共 {bundle.VkData.Buttons.Count} 个按钮）", "导入", MessageBoxButtons.YesNo) == DialogResult.Yes)
+            {
+                _vkBtnManager.LoadFrom(bundle.VkData.Buttons);
+                bundle.VkData.Buttons = [.. _vkBtnManager.Buttons];
+                _vkSerializer.Save(bundle.VkData);
+                if (_vkWindow != null && !_vkWindow.IsDisposed)
+                    _vkWindow.ReloadLayout();
+            }
+        }
+        else
+        {
+            MessageBox.Show("虚拟按键布局：文件中无相关数据，跳过。", "导入", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        // 4. VK settings
+        if (bundle.VkData != null)
+        {
+            if (MessageBox.Show("是否导入虚拟按键设置？（缩放/布局模式/置顶/透明度/目标窗口）", "导入", MessageBoxButtons.YesNo) == DialogResult.Yes)
+            {
+                var current = _vkSerializer.Load();
+                bundle.VkData.Buttons = [.. current.Buttons];
+                _vkSerializer.Save(bundle.VkData);
+                if (_vkWindow != null && !_vkWindow.IsDisposed)
+                    _vkWindow.ReloadLayout();
+            }
+        }
+        else
+        {
+            MessageBox.Show("虚拟按键设置：文件中无相关数据，跳过。", "导入", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+    }
+
     private void ExitApp()
     {
         OperationLogger.Info("Application exiting via tray menu");
@@ -524,7 +640,7 @@ public partial class MainForm : Form
             Text = "✕",
             UseColumnTextForButtonValue = true,
             Width = 50,
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
             ReadOnly = true
         });
 
@@ -551,7 +667,10 @@ public partial class MainForm : Form
     private void OnHotkeyTriggered(string sequenceId)
     {
         var seq = _sequences.Find(s => s.Id == sequenceId);
-        if (seq != null && seq.Enabled && !_player.IsPlaying)
+        if (seq == null || !seq.Enabled) return;
+        if (_player.IsPlaying)
+            _player.Stop();
+        else
             _ = _player.Play(seq);
     }
 

@@ -22,6 +22,9 @@ public partial class SequenceEditor : Form
     private Panel _statusPanel = null!;
     private Label _lblStatus = null!;
     private Button _btnCancelPick = null!;
+    private ToolStripDropDown _suggestionDropDown = null!;
+    private ToolStripControlHost _suggestionHost = null!;
+    private ListBox _suggestionListBox = null!;
 
     public MacroSequence Sequence => _sequence;
 
@@ -133,6 +136,42 @@ public partial class SequenceEditor : Form
         };
         _dgvSteps.CellValueChanged += DgvSteps_CellValueChanged;
         _dgvSteps.CellBeginEdit += DgvSteps_CellBeginEdit;
+        _dgvSteps.CellEndEdit += (_, _) => { OperationLogger.Info("Suggest: CellEndEdit"); BeginInvoke(HideSuggestion); };
+        _dgvSteps.EditingControlShowing += DgvSteps_EditingControlShowing;
+
+        // ── Autocomplete suggestion dropdown (ToolStripDropDown, no focus steal) ──
+        _suggestionListBox = new ListBox
+        {
+            BorderStyle = BorderStyle.None,
+            Font = new Font("Microsoft YaHei", 9),
+            IntegralHeight = false,
+            DrawMode = DrawMode.OwnerDrawFixed,
+            ItemHeight = 20,
+            Width = 300,
+            Height = 200
+        };
+        _suggestionListBox.DrawItem += SuggestionList_DrawItem;
+        _suggestionListBox.MouseDoubleClick += (_, _) => { OperationLogger.Info("Suggest: MouseDoubleClick"); ApplySuggestion(); };
+        _suggestionListBox.KeyDown += (_, e) =>
+        {
+            if (e.KeyCode == Keys.Enter) { OperationLogger.Info("Suggest: ListBox Enter"); ApplySuggestion(); e.SuppressKeyPress = true; }
+            if (e.KeyCode == Keys.Escape) { HideSuggestion(); e.SuppressKeyPress = true; }
+        };
+        _suggestionHost = new ToolStripControlHost(_suggestionListBox)
+        {
+            Margin = Padding.Empty,
+            Padding = Padding.Empty,
+            AutoSize = false,
+            Width = 300,
+            Height = 200
+        };
+        _suggestionDropDown = new ToolStripDropDown
+        {
+            Padding = Padding.Empty,
+            Margin = Padding.Empty,
+            AutoClose = false
+        };
+        _suggestionDropDown.Items.Add(_suggestionHost);
 
         // ── VkPickMode Status Bar ──
         _statusPanel = new Panel
@@ -321,6 +360,205 @@ public partial class SequenceEditor : Form
     {
         _dgvSteps.EndEdit();
         _dgvSteps.CommitEdit(DataGridViewDataErrorContexts.Commit);
+    }
+
+    // ── Autocomplete suggestion ──
+
+    private void DgvSteps_EditingControlShowing(object? sender, DataGridViewEditingControlShowingEventArgs e)
+    {
+        if (_dgvSteps.CurrentCell?.ColumnIndex != 1)
+        {
+            HideSuggestion();
+            return;
+        }
+        if (e.Control is TextBox tb)
+        {
+            tb.TextChanged -= EditingControl_TextChanged;
+            tb.TextChanged += EditingControl_TextChanged;
+            tb.KeyDown -= SuggestionList_KeyDown;
+            tb.KeyDown += SuggestionList_KeyDown;
+            OperationLogger.Info("Suggest: hooks attached");
+        }
+    }
+
+    private void EditingControl_TextChanged(object? sender, EventArgs e)
+    {
+        if (SpineHotkeyEditor.LastLoadedEntries == null || _dgvSteps.CurrentCell == null)
+        { HideSuggestion(); return; }
+
+        if (sender is not TextBox tb || string.IsNullOrEmpty(tb.Text))
+        { HideSuggestion(); return; }
+
+        var input = tb.Text;
+        OperationLogger.Info($"Suggest: input=\"{input}\" entries={SpineHotkeyEditor.LastLoadedEntries.Count}");
+        var field = DetectSearchField(input);
+        var results = SpineHotkeyEditor.LastLoadedEntries
+            .Where(entry => !entry.Name.StartsWith("---")) // exclude section headers (no Keys)
+            .Where(entry => MatchesField(entry, field, input))
+            .Take(50)
+            .ToList();
+
+        OperationLogger.Info($"Suggest: field={field} results={results.Count}");
+        if (results.Count == 0)
+        { HideSuggestion(); return; }
+
+        _suggestionListBox.Items.Clear();
+        foreach (var r in results)
+            _suggestionListBox.Items.Add(r);
+        _suggestionListBox.SelectedIndex = 0;
+        ShowSuggestionPopup();
+    }
+
+    private static string DetectSearchField(string input)
+    {
+        if (input.Any(c => c >= 0x4E00 && c <= 0x9FFF))
+            return "ChineseNote";
+        if (input.Contains('+'))
+            return "Keys";
+        return "Name";
+    }
+
+    private static bool MatchesField(SpineHotkeyEntry entry, string field, string input)
+    {
+        var searchVal = input.Replace(" ", "");
+        var val = field switch
+        {
+            "ChineseNote" => entry.ChineseNote ?? "",
+            "Keys" => entry.Keys.Replace(" ", ""),
+            _ => entry.Name
+        };
+        return val.StartsWith(searchVal, StringComparison.OrdinalIgnoreCase)
+            || val.Contains(searchVal, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void ShowSuggestionPopup()
+    {
+        if (_dgvSteps.CurrentCell == null || _suggestionListBox.Items.Count == 0) return;
+
+        var cellRect = _dgvSteps.GetCellDisplayRectangle(
+            _dgvSteps.CurrentCell.ColumnIndex, _dgvSteps.CurrentCell.RowIndex, true);
+        var cellScreen = _dgvSteps.RectangleToScreen(cellRect);
+
+        int listH = Math.Min(_suggestionListBox.Items.Count * _suggestionListBox.ItemHeight + 4, 200);
+        int listW = Math.Max(cellRect.Width, 300);
+
+        _suggestionHost.Width = listW;
+        _suggestionHost.Height = listH;
+        _suggestionListBox.Height = listH;
+        _suggestionListBox.Width = listW;
+        _suggestionDropDown.Width = listW;
+
+        var screen = Screen.FromPoint(new Point(cellScreen.Left, cellScreen.Top));
+        int posX = cellScreen.Left;
+        int posY = cellScreen.Bottom;
+        if (posY + listH > screen.WorkingArea.Bottom)
+            posY = cellScreen.Top - listH;
+
+        _suggestionDropDown.Show(new Point(posX, posY));
+        OperationLogger.Info("Suggest: dropdown shown");
+    }
+
+    private void HideSuggestion()
+    {
+        if (_suggestionDropDown.Visible)
+        {
+            _suggestionDropDown.Close();
+            OperationLogger.Info("Suggest: dropdown closed");
+        }
+    }
+
+    private void SuggestionList_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (!_suggestionDropDown.Visible) return;
+
+        switch (e.KeyCode)
+        {
+            case Keys.Down:
+                if (_suggestionListBox.SelectedIndex < _suggestionListBox.Items.Count - 1)
+                    _suggestionListBox.SelectedIndex++;
+                e.SuppressKeyPress = true;
+                break;
+            case Keys.Up:
+                if (_suggestionListBox.SelectedIndex > 0)
+                    _suggestionListBox.SelectedIndex--;
+                e.SuppressKeyPress = true;
+                break;
+            case Keys.Enter:
+                OperationLogger.Info("Suggest: KeyDown Enter");
+                ApplySuggestion();
+                e.SuppressKeyPress = true;
+                break;
+            case Keys.Escape:
+                HideSuggestion();
+                e.SuppressKeyPress = true;
+                break;
+        }
+    }
+
+    private void SuggestionList_DrawItem(object? sender, DrawItemEventArgs e)
+    {
+        if (e.Index < 0 || e.Index >= _suggestionListBox.Items.Count) return;
+        var entry = (SpineHotkeyEntry)_suggestionListBox.Items[e.Index];
+        var name = entry.Name;
+        var note = entry.ChineseNote;
+        var keys = entry.Keys;
+        var text = string.IsNullOrEmpty(note) ? $"{name}" : $"{name}    ({note})";
+        if (!string.IsNullOrEmpty(keys))
+            text += $"\t{keys}";
+
+        e.DrawBackground();
+        TextRenderer.DrawText(e.Graphics, text, _suggestionListBox.Font, e.Bounds,
+            (e.State & DrawItemState.Selected) != 0 ? SystemColors.HighlightText : _suggestionListBox.ForeColor);
+        e.DrawFocusRectangle();
+    }
+
+    private void ApplySuggestion()
+    {
+        OperationLogger.Info($"Suggest: ApplySuggestion start");
+        if (_suggestionListBox.SelectedItem is not SpineHotkeyEntry entry)
+        { OperationLogger.Info("Suggest: no SelectedItem"); HideSuggestion(); return; }
+        if (_dgvSteps.CurrentCell == null)
+        { OperationLogger.Info("Suggest: CurrentCell null"); HideSuggestion(); return; }
+        if (_dgvSteps.CurrentRow == null)
+        { OperationLogger.Info("Suggest: CurrentRow null"); HideSuggestion(); return; }
+
+        var keys = entry.Keys;
+        OperationLogger.Info($"Suggest: entry=\"{entry.Name}\" keys=\"{keys}\"");
+        if (string.IsNullOrEmpty(keys))
+        { OperationLogger.Info("Suggest: empty keys"); HideSuggestion(); return; }
+
+        var row = _dgvSteps.CurrentRow;
+        var cell = _dgvSteps.CurrentCell;
+
+        // Use the editing control directly if available
+        if (_dgvSteps.EditingControl is TextBox tb)
+        {
+            OperationLogger.Info($"Suggest: setting EditingControl text=\"{keys}\"");
+            tb.Text = keys;
+            CommitGridEdit();
+        }
+        else
+        {
+            OperationLogger.Info($"Suggest: no EditingControl, setting cell.Value");
+            cell.Value = keys;
+            CommitGridEdit();
+        }
+
+        // Sync type
+        if (keys.Contains('+'))
+            row.Cells[0].Value = "组合键";
+        else
+        {
+            var currentType = row.Cells[0].Value?.ToString();
+            if (string.IsNullOrEmpty(currentType) || currentType == "文本")
+                row.Cells[0].Value = "单键";
+        }
+
+        HideSuggestion();
+        // Re-focus and re-enter edit mode on the cell
+        _dgvSteps.CurrentCell = cell;
+        _dgvSteps.BeginEdit(true);
+        OperationLogger.Info($"Suggest: applied \"{keys}\"");
     }
 
     private void DgvSteps_CellValueChanged(object? sender, DataGridViewCellEventArgs e)

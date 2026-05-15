@@ -50,6 +50,7 @@ public class VirtualButtonWidget : UserControl
     public VirtualButton VirtualButton => _vbtn;
     public event Action<VirtualButtonWidget>? Clicked;
     public event Action<VirtualButtonWidget, int, int>? Dragged;
+    public event Action<VirtualButtonWidget, int>? DragEnded;
     public event Action<VirtualButtonWidget, Point>? ContextMenuRequested;
     public event Action<VirtualButtonWidget, int>? LoopCountEdited;
 
@@ -92,31 +93,31 @@ public class VirtualButtonWidget : UserControl
         _txtLoopCount = new TextBox
         {
             Text = vbtn.LoopCount.ToString(),
-            BackColor = Color.FromArgb(0x0D, 0x0D, 0x0D),
+            BackColor = ColorBarTop,
             ForeColor = Color.FromArgb(0xE0, 0xE0, 0xE0),
             BorderStyle = BorderStyle.None,
             TextAlign = HorizontalAlignment.Center,
             Font = new Font("Microsoft YaHei", 8, FontStyle.Bold),
             Visible = vbtn.StyleType == VirtualButtonStyle.LoopIcon
         };
-        _txtLoopCount.KeyDown += (_, e) =>
-        {
-            if (e.KeyCode == Keys.Enter)
+            _txtLoopCount.KeyDown += (_, e) =>
             {
-                CommitLoopCount();
-                e.SuppressKeyPress = true;
-            }
-        };
-        _txtLoopCount.LostFocus += (_, _) => CommitLoopCount();
-        Controls.Add(_txtLoopCount);
+                if (e.KeyCode == Keys.Enter)
+                {
+                    CommitLoopCount();
+                    e.SuppressKeyPress = true;
+                }
+            };
+            _txtLoopCount.LostFocus += (_, _) => CommitLoopCount();
+            Controls.Add(_txtLoopCount);
+
+            MouseDown += OnMouseDown;
+            MouseMove += OnMouseMove;
+            MouseUp += OnMouseUp;
+            MouseClick += OnMouseClick;
 
         // Block parent panel's ContextMenuStrip from appearing on right-click
         ContextMenuStrip = new ContextMenuStrip();
-
-        MouseDown += OnMouseDown;
-        MouseMove += OnMouseMove;
-        MouseUp += OnMouseUp;
-        MouseClick += OnMouseClick;
     }
 
     private void CommitLoopCount()
@@ -157,6 +158,8 @@ public class VirtualButtonWidget : UserControl
         _imgNormal = loader.GetButtonImage($"{style}_normal") ?? loader.GetButtonImage("normal");
         _imgPressed = loader.GetButtonImage($"{style}_pressed") ?? loader.GetButtonImage("pressed");
         _imgActive = loader.GetButtonImage($"{style}_active") ?? loader.GetButtonImage("active");
+        if (_txtLoopCount != null)
+            _txtLoopCount.BackColor = _colorBarTop;
         Invalidate();
     }
 
@@ -188,10 +191,10 @@ public class VirtualButtonWidget : UserControl
             _txtLoopCount.Visible = isLoop;
             if (isLoop)
             {
-                int sw = Scaled(44);
+                int sw = Scaled(40);
                 int margin = Scaled(2);
                 _txtLoopCount.Location = new Point(Width - sw + margin, Scaled(12));
-                _txtLoopCount.Size = new Size(sw - margin * 2, Scaled(24));
+                _txtLoopCount.Size = new Size(sw - margin * 2, Scaled(40));
                 _txtLoopCount.Font = new Font("Microsoft YaHei", Scaled(8), FontStyle.Bold);
                 _txtLoopCount.Text = _vbtn.LoopCount.ToString();
             }
@@ -226,6 +229,12 @@ public class VirtualButtonWidget : UserControl
     private void OnMouseUp(object? sender, MouseEventArgs e)
     {
         OperationLogger.Info($"VBWidget.OnMouseUp: name=\"{_vbtn.Name}\", btn={e.Button}");
+        if (_isDragging)
+        {
+            var dx = e.X - _dragStart.X;
+            if (Math.Abs(dx) > 3)
+                DragEnded?.Invoke(this, dx);
+        }
         _isDragging = false;
         if (_isPressed)
         {
@@ -253,7 +262,7 @@ public class VirtualButtonWidget : UserControl
         var g = e.Graphics;
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
-        g.Clear(Color.Transparent);
+        g.Clear(Parent?.BackColor ?? Color.FromArgb(0x0D, 0x0E, 0x0D));
 
         var rect = new Rectangle(0, 0, Width, Height);
         var radius = 2;
@@ -267,7 +276,6 @@ public class VirtualButtonWidget : UserControl
         }
         else if (_isActive && _imgActive != null)
         {
-            // Active PNG fully replaces normal when glowing
             g.DrawImage(_imgActive, rect);
         }
         else
@@ -340,47 +348,28 @@ public class VirtualButtonWidget : UserControl
         using var textBrush = new SolidBrush(_isActive ? _colorActiveGlow : _colorText);
         using var dimBrush = new SolidBrush(_colorDimText);
 
-        var iconChar = _vbtn.Name.Length > 0 ? _vbtn.Name[0].ToString() : "☐";
-
         switch (_vbtn.StyleType)
         {
             case VirtualButtonStyle.SmallIcon:
             {
-                using var iconFont = new Font("Segoe UI", Scaled(14), FontStyle.Bold);
-                using var nameFont = new Font("Microsoft YaHei", Scaled(7), FontStyle.Regular);
-                var iconR = new RectangleF(0, Scaled(4), Width, Scaled(24));
-                g.DrawString(iconChar, iconFont, textBrush, iconR, sf);
-                var nameR = new RectangleF(2, Scaled(30), Width - 4, Scaled(16));
-                g.DrawString(_vbtn.Name, nameFont, dimBrush, nameR, sf);
+                using var nameFont = new Font("Microsoft YaHei", Scaled(9), FontStyle.Bold);
+                var nameR = new RectangleF(2, 0, Width - 4, Height);
+                g.DrawString(_vbtn.Name, nameFont, textBrush, nameR, sf);
                 break;
             }
             case VirtualButtonStyle.LargeIcon:
             {
-                int halfW = Width / 2;
-                // Icon left
-                using var iconFont = new Font("Segoe UI", Scaled(18), FontStyle.Bold);
-                var iconR = new RectangleF(0, Scaled(4), halfW, Height);
-                g.DrawString(iconChar, iconFont, textBrush, iconR, sf);
-                // Name + status right
-                using var nameFont = new Font("Microsoft YaHei", Scaled(8), FontStyle.Regular);
-                var nameR = new RectangleF(halfW, Scaled(6), halfW - 4, Scaled(18));
-                g.DrawString(_vbtn.Name, nameFont, dimBrush, nameR, sf);
-                var status = string.IsNullOrEmpty(_vbtn.BindActionId) ? "未绑定" : "已绑定";
-                var statusR = new RectangleF(halfW, Scaled(26), halfW - 4, Scaled(14));
-                using var tinyFont = new Font("Microsoft YaHei", Scaled(6), FontStyle.Regular);
-                g.DrawString(status, tinyFont, dimBrush, statusR, sf);
+                using var nameFont = new Font("Microsoft YaHei", Scaled(10), FontStyle.Bold);
+                var nameR = new RectangleF(2, 0, Width - 4, Height);
+                g.DrawString(_vbtn.Name, nameFont, textBrush, nameR, sf);
                 break;
             }
             case VirtualButtonStyle.LoopIcon:
             {
                 int leftW = Width - Scaled(44);
-                // Icon + Name on the left
-                using var iconFont = new Font("Segoe UI", Scaled(14), FontStyle.Bold);
-                var iconR = new RectangleF(0, Scaled(4), leftW, Scaled(22));
-                g.DrawString(iconChar, iconFont, textBrush, iconR, sf);
-                using var nameFont = new Font("Microsoft YaHei", Scaled(7), FontStyle.Regular);
-                var nameR = new RectangleF(2, Scaled(28), leftW - 4, Scaled(16));
-                g.DrawString(_vbtn.Name, nameFont, dimBrush, nameR, sf);
+                using var nameFont = new Font("Microsoft YaHei", Scaled(9), FontStyle.Bold);
+                var nameR = new RectangleF(2, 0, leftW - 4, Height);
+                g.DrawString(_vbtn.Name, nameFont, textBrush, nameR, sf);
                 break;
             }
         }

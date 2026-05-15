@@ -23,6 +23,7 @@ public class VirtualKeyWindow : Form
     private readonly VirtualKeyBindingManager _bindingManager;
     private readonly VirtualLoopExecutor _loopExecutor;
     private readonly VirtualLayoutSerializer _serializer;
+    private readonly MacroPlayer _player = new();
     private readonly List<MacroSequence> _sequences;
     private readonly Action? _sequencesChangedCallback;
     private readonly FlowLayoutPanel _panel;
@@ -96,6 +97,8 @@ public class VirtualKeyWindow : Form
         ApplyWindowSkin();
         LoadLayoutData(layoutData);
 
+        Shown += (_, _) => { if (_widgets.Count > 0) RecalculateSize(); };
+
         FormClosing += (_, e) =>
         {
             if (e.CloseReason == CloseReason.UserClosing)
@@ -161,8 +164,6 @@ public class VirtualKeyWindow : Form
         m.Items.Add(scaleMenu);
 
         m.Items.Add("-");
-        m.Items.Add("保存布局", null, (_, _) => SaveLayout());
-        m.Items.Add("重置布局", null, (_, _) => ResetLayout());
         var lockItem = m.Items.Add(_winLocked ? "✓ 窗口已锁定" : "窗口锁定/解锁", null, (_, _) => ToggleWindowLock());
         m.Items.Add("-");
         m.Items.Add("关闭窗口", null, (_, _) => { _loopExecutor.StopAll(); SaveLayout(); Hide(); });
@@ -212,6 +213,17 @@ public class VirtualKeyWindow : Form
             });
             menu.Items.Add(intvMenu);
         }
+        var gapMenu = new ToolStripMenuItem("按钮间距");
+        gapMenu.DropDownItems.Add("增加间距 (+10)", null, (_, _) => { vbtn.ExtraGap += 10; SaveLayout(); RecalculateSize(); });
+        gapMenu.DropDownItems.Add("减少间距 (-10)", null, (_, _) => { vbtn.ExtraGap = Math.Max(0, vbtn.ExtraGap - 10); SaveLayout(); RecalculateSize(); });
+        gapMenu.DropDownItems.Add("-");
+        gapMenu.DropDownItems.Add("自定义间距...", null, (_, _) =>
+        {
+            var input = Microsoft.VisualBasic.Interaction.InputBox("当前按钮后的额外间距 (像素):", "设置间距", vbtn.ExtraGap.ToString());
+            if (int.TryParse(input, out var val) && val >= 0) { vbtn.ExtraGap = val; SaveLayout(); RecalculateSize(); }
+        });
+        menu.Items.Add(gapMenu);
+        menu.Items.Add("强制停止", null, (_, _) => _player.ForceStop());
         menu.Items.Add("-");
         menu.Items.Add("删除当前按钮", null, (_, _) =>
         {
@@ -385,6 +397,7 @@ public class VirtualKeyWindow : Form
             w.IsFirstInRow = i == 0; w.IsLastInRow = i == buttons.Count - 1;
             w.Clicked += OnButtonClicked;
             w.Dragged += OnButtonDragged;
+            w.DragEnded += OnButtonDragEnded;
             w.ContextMenuRequested += OnWidgetContextMenu;
             w.LoopCountEdited += OnLoopCountEdited;
             _panel.Controls.Add(w);
@@ -393,6 +406,7 @@ public class VirtualKeyWindow : Form
         UpdateScale();
         RecalculateSize();
         _panel.ResumeLayout();
+        _panel.Invalidate();
         UpdateTitle();
         OperationLogger.Info($"VKWindow.Rebuild: {_widgets.Count} widgets");
     }
@@ -419,16 +433,23 @@ public class VirtualKeyWindow : Form
             return;
         }
 
-        // Window width  = margin + sum(各按钮宽) + (N-1)×gap + margin
+        // Window width  = margin + sum(按钮宽 + ExtraGap) + (N-1)×gap + margin
         // Window height = titleBar + margin + btnH + margin
-        int totalW = margin + _widgets.Values.Sum(w => Math.Max(1, (int)(BaseBtnWidth(w.VirtualButton.StyleType) * S))) + (n - 1) * gap + margin;
+        int totalW = margin + _widgets.Values.Sum(w =>
+        {
+            var bw = Math.Max(1, (int)(BaseBtnWidth(w.VirtualButton.StyleType) * S));
+            return bw + (int)(w.VirtualButton.ExtraGap * S);
+        }) + (n - 1) * gap + margin;
         int totalH = barH + margin + btnH + margin;
         Size = new Size(totalW + ncW, totalH + ncH);
 
-        // Update widget margins for consistent gaps
+        // Update widget margins with consistent gaps + per-button ExtraGap
         int halfGap = gap / 2;
         foreach (var w in _widgets.Values)
-            w.Margin = new Padding(halfGap);
+        {
+            int eg = (int)(w.VirtualButton.ExtraGap * S);
+            w.Margin = new Padding(halfGap, 0, halfGap + eg, 0);
+        }
     }
 
     // ── Button events ──
@@ -447,10 +468,15 @@ public class VirtualKeyWindow : Form
 
         if (vbtn.StyleType == VirtualButtonStyle.LoopIcon && vbtn.LoopEnabled)
         {
+            // LoopIcon: toggle stop
+            if (_player.IsPlaying) { _player.Stop(); return; }
             var seq = _bindingManager.ResolveBinding(vbtn, _sequences);
             if (seq != null) { _loopExecutor.StartLoop(vbtn, seq); widget.IsActive = true; }
             return;
         }
+
+        // Toggle: if already playing this button, stop (after current round)
+        if (_player.IsPlaying) { _player.Stop(); return; }
 
         var sequence = _bindingManager.ResolveBinding(vbtn, _sequences);
         if (sequence == null) { OperationLogger.Warn($"VKWindow.Click: no binding"); return; }
@@ -458,18 +484,17 @@ public class VirtualKeyWindow : Form
         var hwnd = ResolveTargetWindow();
         if (hwnd == IntPtr.Zero)
         {
-            _ = new MacroPlayer().Play(sequence);
+            _ = _player.Play(sequence);
             return;
         }
 
         if (GetForegroundWindow() == hwnd)
         {
-            _ = new MacroPlayer().Play(sequence);
+            _ = _player.Play(sequence);
         }
         else if (!_schemeAFailed)
         {
-            var player = new MacroPlayer();
-            await player.PlayToWindow(sequence, hwnd);
+            await _player.PlayToWindow(sequence, hwnd);
             await Task.Delay(100);
             if (GetForegroundWindow() != hwnd) { _schemeAFailed = true; }
         }
@@ -477,14 +502,33 @@ public class VirtualKeyWindow : Form
         {
             SetForegroundWindow(hwnd);
             await Task.Delay(200);
-            _ = new MacroPlayer().Play(sequence);
+            _ = _player.Play(sequence);
         }
     }
 
     private void OnButtonDragged(VirtualButtonWidget widget, int dx, int dy)
     {
+        // Drag tracked for reorder on mouse-up via DragEnded
+    }
+
+    private void OnButtonDragEnded(VirtualButtonWidget widget, int dx)
+    {
         var vbtn = widget.VirtualButton;
-        _btnManager.UpdatePosition(vbtn.Id, widget.Location.X + dx, widget.Location.Y + dy);
+        if (Math.Abs(dx) < 30 * _scaleFactor) return;
+
+        var buttons = _btnManager.Buttons.ToList();
+        var idx = buttons.FindIndex(b => b.Id == vbtn.Id);
+        if (idx < 0) return;
+
+        var steps = Math.Max(1, Math.Abs(dx) / (int)(60 * _scaleFactor));
+        int newIdx = dx > 0
+            ? Math.Min(buttons.Count - 1, idx + steps)
+            : Math.Max(0, idx - steps);
+
+        if (newIdx != idx)
+        {
+            _btnManager.MoveButton(vbtn.Id, newIdx);
+        }
     }
 
     private void OnLoopCountEdited(VirtualButtonWidget widget, int count)
@@ -498,13 +542,15 @@ public class VirtualKeyWindow : Form
     // ── Skin ──
 
     private Image? _bgImage;
-    private static readonly Color ChromaKey = Color.FromArgb(0xFF, 0x00, 0xFF); // Fuchsia
+    private static readonly Color ChromaKey = Color.FromArgb(0x0D, 0x0E, 0x0D); // Near-black chroma key (no visible fringe)
 
     private void ApplyWindowSkin()
     {
         _bgImage = _skinLoader.GetWindowBackground();
         if (_bgImage != null)
         {
+            // Use dark chroma key for OS-level transparency (see-through to desktop)
+            // Dark color avoids visible fringe from anti-aliased edges
             BackColor = ChromaKey;
             TransparencyKey = ChromaKey;
             _panel.BackColor = ChromaKey;
@@ -517,9 +563,9 @@ public class VirtualKeyWindow : Form
         _panel.Paint -= Panel_PaintBg;
         TransparencyKey = Color.Empty;
         _panel.BackgroundImage = null;
-        var bg = _skinLoader.GetColor("window_bg", Color.FromArgb(0x0D, 0x0D, 0x0D));
-        BackColor = bg;
-        _panel.BackColor = bg;
+        var fallback = _skinLoader.GetColor("window_bg", Color.FromArgb(0x0D, 0x0D, 0x0D));
+        BackColor = fallback;
+        _panel.BackColor = fallback;
     }
 
     private void Panel_PaintBg(object? sender, PaintEventArgs e)
@@ -578,6 +624,26 @@ public class VirtualKeyWindow : Form
         UpdateTitle();
     }
 
+    public void ReloadLayout()
+    {
+        var data = _serializer.Load();
+        _scaleFactor = data.ScaleFactor > 0 ? data.ScaleFactor : 1.0f;
+        int margin = Math.Max(1, (int)(BASE_MARGIN * _scaleFactor));
+        _panel.Padding = new Padding(margin);
+        _btnManager.LoadFrom(data.Buttons);
+        _singleLine = data.SingleLineMode;
+        _topMostState = data.TopMost; TopMost = _topMostState;
+        _posLocked = data.PositionLocked; _winLocked = data.WindowLocked;
+        _targetProc = data.TargetProcessName;
+        _targetTitle = data.TargetWindowTitle;
+        foreach (var w in _widgets.Values) w.AllowDragging = !_posLocked;
+        if (_singleLine) { _panel.WrapContents = false; _panel.AutoScroll = false; }
+        else { _panel.WrapContents = true; _panel.AutoScroll = true; }
+        if (_winLocked) { FormBorderStyle = FormBorderStyle.None; ControlBox = false; Text = ""; }
+        else { FormBorderStyle = FormBorderStyle.FixedSingle; ControlBox = true; UpdateTitle(); }
+        UpdateScale();
+        RecalculateSize();
+    }
+
     private void LoadLayout() => LoadLayoutData(_serializer.Load());
-    private void ResetLayout() { _btnManager.Clear(); SaveLayout(); }
 }

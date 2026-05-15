@@ -86,7 +86,21 @@
       "Bash(mkdir -p \"openspec/changes/archive/2026-05-14-vk-window-all\")",
       "Bash(mv \"openspec/changes/vk-window-rewrite\" \"openspec/changes/archive/2026-05-14-vk-window-all/\")",
       "Bash(mv \"openspec/changes/vk-window-simplify\" \"openspec/changes/archive/2026-05-14-vk-window-all/\")",
-      "Bash(mv \"openspec/changes/vk-window-size-fix\" \"openspec/changes/archive/2026-05-14-vk-window-all/\")"
+      "Bash(mv \"openspec/changes/vk-window-size-fix\" \"openspec/changes/archive/2026-05-14-vk-window-all/\")",
+      "Bash(powershell -Command \"Get-Process KeyMacro -ErrorAction SilentlyContinue | Stop-Process -Force\")",
+      "Bash(powershell -Command \"Get-Process KeyMacro -ErrorAction SilentlyContinue | Stop-Process -Force; Remove-Item 'd:\\\\AI_cc\\\\spineQuickKeys\\\\KeyMacro\\\\bin\\\\Release\\\\publish\\\\KeyMacro.exe' -ErrorAction SilentlyContinue\")",
+      "Bash(powershell -Command ' *)",
+      "Bash(powershell -Command \"Remove-Item 'd:\\\\AI_cc\\\\spineQuickKeys\\\\KeyMacro\\\\bin\\\\Release\\\\publish\\\\KeyMacro.exe' -ErrorAction SilentlyContinue\")",
+      "Bash(powershell -Command 'Get-Process | Where-Object { $_.ProcessName -eq '\\\\''KeyMacro'\\\\'' } | Stop-Process -Force; Start-Sleep 1; Remove-Item '\\\\''d:\\\\AI_cc\\\\spineQuickKeys\\\\KeyMacro\\\\bin\\\\Release\\\\publish\\\\KeyMacro.exe'\\\\'' -ErrorAction SilentlyContinue; if \\(Test-Path '\\\\''d:\\\\AI_cc\\\\spineQuickKeys\\\\KeyMacro\\\\bin\\\\Release\\\\publish\\\\KeyMacro.exe'\\\\''\\) { Write-Host '\\\\''still exists'\\\\'' } else { Write-Host '\\\\''removed'\\\\'' }')",
+      "Bash(powershell -Command \"Get-Process KeyMacro -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 1; Remove-Item 'd:\\\\AI_cc\\\\spineQuickKeys\\\\KeyMacro\\\\bin\\\\Release\\\\publish\\\\KeyMacro.exe' -ErrorAction SilentlyContinue\")",
+      "Bash(powershell -Command 'Get-Process | Where-Object { $_.ProcessName -eq '\\\\''KeyMacro'\\\\'' } | Stop-Process -Force; Start-Sleep 2; Remove-Item '\\\\''d:\\\\AI_cc\\\\spineQuickKeys\\\\KeyMacro\\\\bin\\\\Release\\\\publish\\\\KeyMacro.exe'\\\\'' -ErrorAction SilentlyContinue')",
+      "Bash(powershell -Command '\"Write-Host' '$env:APPDATA\"')",
+      "Bash(ls -lt /c/Users/Administrator/AppData/Roaming/KeyMacro/logs/ 2>/dev/null | head -5)",
+      "Read(//c/Users/Administrator/AppData/Roaming/KeyMacro/logs//**)",
+      "Bash(powershell -Command 'Get-Process -Name KeyMacro -ErrorAction SilentlyContinue | Stop-Process -Force -PassThru | ForEach-Object { Write-Host '\\\\''Killed PID:'\\\\'' $_.Id }; Start-Sleep 2; Remove-Item '\\\\''d:\\\\AI_cc\\\\spineQuickKeys\\\\KeyMacro\\\\bin\\\\Release\\\\publish\\\\KeyMacro.exe'\\\\'' -ErrorAction SilentlyContinue')",
+      "Bash(powershell -Command \"Get-Process -Name KeyMacro -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 1\")",
+      "Bash(powershell -Command \"Get-Process -Name KeyMacro -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 2\")",
+      "Bash(powershell -Command 'Get-Process -Name KeyMacro -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 3; Get-Process -Name KeyMacro -ErrorAction SilentlyContinue | ForEach-Object { Write-Host '\\\\''Still running:'\\\\'' $_.Id; $_.Kill\\(\\) }')"
     ],
     "additionalDirectories": [
       "d:\\AI_cc\\spineQuickKeys\\openspec\\changes\\virtual-key-window-target"

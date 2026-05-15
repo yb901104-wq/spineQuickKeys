@@ -23,6 +23,7 @@ public class MacroPlayer
     private const uint MAPVK_VK_TO_VSC = 0;
 
     private volatile bool _isPlaying;
+    private volatile int _completedLoops;
     private CancellationTokenSource? _cts;
 
     public bool IsPlaying => _isPlaying;
@@ -36,6 +37,7 @@ public class MacroPlayer
         var ct = _cts.Token;
 
         _isPlaying = true;
+        _completedLoops = 0;
         try
         {
             await Task.Delay(500, ct);
@@ -72,6 +74,7 @@ public class MacroPlayer
                         await Task.Delay(step.DelayMs, ct);
                 }
 
+                _completedLoops = loopCounter;
                 if (sequence.LoopCount != 1 && !ct.IsCancellationRequested)
                 {
                     if (sequence.LoopCount > 0 && loopCounter >= sequence.LoopCount)
@@ -99,7 +102,20 @@ public class MacroPlayer
 
     public void Stop()
     {
-        OperationLogger.Info("MacroPlayer.Stop: stop requested");
+        if (_completedLoops >= 1)
+        {
+            OperationLogger.Info("MacroPlayer.Stop: stopping after completed round");
+            _cts?.Cancel();
+        }
+        else
+        {
+            OperationLogger.Info("MacroPlayer.Stop: ignored (no completed round yet)");
+        }
+    }
+
+    public void ForceStop()
+    {
+        OperationLogger.Info("MacroPlayer.ForceStop: force stopping");
         _cts?.Cancel();
     }
 
@@ -137,6 +153,7 @@ public class MacroPlayer
         var ct = _cts.Token;
 
         _isPlaying = true;
+        _completedLoops = 0;
         try
         {
             var loopCounter = 0;
@@ -171,6 +188,7 @@ public class MacroPlayer
                         await Task.Delay(step.DelayMs, ct);
                 }
 
+                _completedLoops = loopCounter;
                 if (sequence.LoopCount != 1 && !ct.IsCancellationRequested)
                 {
                     if (sequence.LoopCount > 0 && loopCounter >= sequence.LoopCount)

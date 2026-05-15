@@ -9,6 +9,7 @@ public class VirtualButton
     public bool LoopEnabled { get; set; }
     public int LoopInterval { get; set; } = 100;
     public int LoopCount { get; set; } = 1;
+    public int ExtraGap { get; set; }    // Extra spacing after this button (pixels at 100% scale)
     public string? IconPath { get; set; }
     public int PositionX { get; set; }
     public int PositionY { get; set; }

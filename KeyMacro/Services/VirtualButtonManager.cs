@@ -29,6 +29,18 @@ public class VirtualButtonManager
         ButtonsChanged?.Invoke();
     }
 
+    public void MoveButton(string id, int newIndex)
+    {
+        var btn = Find(id);
+        if (btn == null) return;
+        newIndex = Math.Clamp(newIndex, 0, _buttons.Count - 1);
+        var oldIndex = _buttons.IndexOf(btn);
+        if (oldIndex == newIndex) return;
+        _buttons.RemoveAt(oldIndex);
+        _buttons.Insert(newIndex, btn);
+        ButtonsChanged?.Invoke();
+    }
+
     public void RemoveLast()
     {
         if (_buttons.Count > 0)
