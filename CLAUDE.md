@@ -126,6 +126,14 @@ BaseBtnWidth: SmallIcon=48  LargeIcon=96  LoopIcon=110
 - `skin.json` 可配置颜色字段（可选），缺失时使用硬编码默认值
 - `ConfigService`/`VirtualLayoutSerializer`/`SpineHotkeyService` 均采用双路径策略：先加载项目目录（CWD），再 APPDATA，最后回退嵌入式默认值
 
+## DPI 缩放
+- `HighDpiMode.PerMonitorV2` 已在 `Program.cs` 中设置
+- **VirtualKeyWindow**：`GetEffectiveScale()` = `_scaleFactor * (DeviceDpi / 96f)` 合并系统 DPI 和用户缩放
+- **VirtualButtonWidget**：`ScaleFactor` 接收 VKWindow 传入的有效缩放值，`Scaled(val)` 自动用于尺寸和字号
+- **MainForm**：DataGridView 列宽在 `RefreshGrid()` 中乘以 `DeviceDpi / 96f`
+- **SequenceEditor**：`OnLoad` 中对 `_topPanel` 行高/列宽应用 DPI 系数
+- 所有窗口覆盖 `OnDpiChanged` 以支持跨显示器 DPI 切换
+
 ## 统一导入导出
 - 主工具栏"导入"/"导出"按钮，使用 `.kmp` 格式（JSON）
 - 导出包含：Spine 热键编辑（如有打开）、序列设置、VK 布局、VK 设置

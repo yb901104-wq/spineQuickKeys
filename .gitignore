@@ -13,3 +13,4 @@ obj/
 **/publish*/
 **/publish*/**
 **/*publish*/**
+.claude/settings.local.json

@@ -28,7 +28,7 @@ public partial class MainForm : Form
 
     public MainForm()
     {
-        Text = "快捷键助手 V2.0";
+        Text = "快捷键助手 V2.01";
         Size = new Size(900, 600);
         MinimumSize = new Size(600, 400);
         StartPosition = FormStartPosition.CenterScreen;
@@ -82,7 +82,7 @@ public partial class MainForm : Form
         var dgvPanel = new Panel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(0, 48, 0, 0)
+            Padding = new Padding(0, (int)(48 * DeviceDpi / 96f), 0, 0)
         };
 
         _dgv = new DataGridView
@@ -173,6 +173,14 @@ public partial class MainForm : Form
         WindowState = FormWindowState.Normal;
         BringToFront();
         Activate();
+    }
+
+    protected override void OnDpiChanged(DpiChangedEventArgs e)
+    {
+        base.OnDpiChanged(e);
+        if (_dgv.Parent is Panel p)
+            p.Padding = new Padding(0, (int)(48 * DeviceDpi / 96f), 0, 0);
+        RefreshGrid();
     }
 
     private void Dgv_CellFormatting(object? sender, DataGridViewCellFormattingEventArgs e)
@@ -584,45 +592,46 @@ public partial class MainForm : Form
     private void RefreshGrid()
     {
         _dgv.Columns.Clear();
+        float ds = DeviceDpi / 96f;
 
         _dgv.Columns.Add(new DataGridViewCheckBoxColumn
         {
             HeaderText = "启用",
-            Width = 50,
+            Width = (int)(50 * ds),
             AutoSizeMode = DataGridViewAutoSizeColumnMode.None
         });
         _dgv.Columns.Add(new DataGridViewTextBoxColumn
         {
             HeaderText = "序列名称",
             ReadOnly = true,
-            Width = 200,
+            Width = (int)(200 * ds),
             AutoSizeMode = DataGridViewAutoSizeColumnMode.None
         });
         _dgv.Columns.Add(new DataGridViewTextBoxColumn
         {
             HeaderText = "触发快捷键",
             ReadOnly = true,
-            Width = 150,
+            Width = (int)(150 * ds),
             AutoSizeMode = DataGridViewAutoSizeColumnMode.None
         });
         _dgv.Columns.Add(new DataGridViewTextBoxColumn
         {
             HeaderText = "目标软件",
             ReadOnly = true,
-            Width = 150,
+            Width = (int)(150 * ds),
             AutoSizeMode = DataGridViewAutoSizeColumnMode.None
         });
-        _dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "步骤数", ReadOnly = true, Width = 55, AutoSizeMode = DataGridViewAutoSizeColumnMode.None });
+        _dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "步骤数", ReadOnly = true, Width = (int)(55 * ds), AutoSizeMode = DataGridViewAutoSizeColumnMode.None });
         _dgv.Columns.Add(new DataGridViewTextBoxColumn
         {
             HeaderText = "间隔(ms)",
-            Width = 70,
+            Width = (int)(70 * ds),
             AutoSizeMode = DataGridViewAutoSizeColumnMode.None
         });
         _dgv.Columns.Add(new DataGridViewTextBoxColumn
         {
             HeaderText = "循环(次)",
-            Width = 70,
+            Width = (int)(70 * ds),
             AutoSizeMode = DataGridViewAutoSizeColumnMode.None
         });
         _dgv.Columns.Add(new DataGridViewButtonColumn
@@ -630,7 +639,7 @@ public partial class MainForm : Form
             HeaderText = "选择",
             Text = "...",
             UseColumnTextForButtonValue = true,
-            Width = 50,
+            Width = (int)(50 * ds),
             AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
             ReadOnly = true
         });
@@ -639,7 +648,6 @@ public partial class MainForm : Form
             HeaderText = "清除",
             Text = "✕",
             UseColumnTextForButtonValue = true,
-            Width = 50,
             AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
             ReadOnly = true
         });

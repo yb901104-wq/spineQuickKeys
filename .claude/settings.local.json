@@ -100,7 +100,11 @@
       "Bash(powershell -Command 'Get-Process -Name KeyMacro -ErrorAction SilentlyContinue | Stop-Process -Force -PassThru | ForEach-Object { Write-Host '\\\\''Killed PID:'\\\\'' $_.Id }; Start-Sleep 2; Remove-Item '\\\\''d:\\\\AI_cc\\\\spineQuickKeys\\\\KeyMacro\\\\bin\\\\Release\\\\publish\\\\KeyMacro.exe'\\\\'' -ErrorAction SilentlyContinue')",
       "Bash(powershell -Command \"Get-Process -Name KeyMacro -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 1\")",
       "Bash(powershell -Command \"Get-Process -Name KeyMacro -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 2\")",
-      "Bash(powershell -Command 'Get-Process -Name KeyMacro -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 3; Get-Process -Name KeyMacro -ErrorAction SilentlyContinue | ForEach-Object { Write-Host '\\\\''Still running:'\\\\'' $_.Id; $_.Kill\\(\\) }')"
+      "Bash(powershell -Command 'Get-Process -Name KeyMacro -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 3; Get-Process -Name KeyMacro -ErrorAction SilentlyContinue | ForEach-Object { Write-Host '\\\\''Still running:'\\\\'' $_.Id; $_.Kill\\(\\) }')",
+      "Bash(dir /b d:\\\\AIAGENT\\\\spineQuickKeys\\\\openspec\\\\changes)",
+      "Skill(opsx:propose)",
+      "Skill(opsx:propose:*)",
+      "Bash(git restore *)"
     ],
     "additionalDirectories": [
       "d:\\AI_cc\\spineQuickKeys\\openspec\\changes\\virtual-key-window-target"

@@ -25,6 +25,7 @@ public partial class SequenceEditor : Form
     private ToolStripDropDown _suggestionDropDown = null!;
     private ToolStripControlHost _suggestionHost = null!;
     private ListBox _suggestionListBox = null!;
+    private TableLayoutPanel _topPanel = null!;
 
     public MacroSequence Sequence => _sequence;
 
@@ -50,7 +51,7 @@ public partial class SequenceEditor : Form
         MinimizeBox = true;
 
         // ── Top: Name + Hotkey + VK Bind ──
-        var topPanel = new TableLayoutPanel
+        _topPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Top,
             Height = 130,
@@ -58,18 +59,18 @@ public partial class SequenceEditor : Form
             RowCount = 3,
             Padding = new Padding(12, 12, 12, 0)
         };
-        topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
-        topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
-        topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
-        topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+        _topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
+        _topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        _topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
+        _topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+        _topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
 
-        topPanel.Controls.Add(new Label { Text = "序列名称:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 0);
-        topPanel.Controls.Add(new Label { Text = "触发快捷键:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 1);
-        topPanel.Controls.Add(new Label { Text = "关联虚拟按键:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 2);
+        _topPanel.Controls.Add(new Label { Text = "序列名称:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 0);
+        _topPanel.Controls.Add(new Label { Text = "触发快捷键:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 1);
+        _topPanel.Controls.Add(new Label { Text = "关联虚拟按键:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 2);
 
         _txtName = new TextBox { Dock = DockStyle.Fill, Font = new Font("Microsoft YaHei", 10) };
-        topPanel.Controls.Add(_txtName, 1, 0);
+        _topPanel.Controls.Add(_txtName, 1, 0);
 
         var hotkeyPanel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1 };
         hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -90,7 +91,7 @@ public partial class SequenceEditor : Form
         hotkeyPanel.Controls.Add(_txtHotkey);
         hotkeyPanel.Controls.Add(_btnKeyboardRecord);
         hotkeyPanel.Controls.Add(_btnVkPick);
-        topPanel.Controls.Add(hotkeyPanel, 1, 1);
+        _topPanel.Controls.Add(hotkeyPanel, 1, 1);
 
         _txtVkBind = new TextBox
         {
@@ -98,7 +99,7 @@ public partial class SequenceEditor : Form
             Font = new Font("Microsoft YaHei", 10),
             PlaceholderText = "输入虚拟按键名称（如: 按钮1）"
         };
-        topPanel.Controls.Add(_txtVkBind, 1, 2);
+        _topPanel.Controls.Add(_txtVkBind, 1, 2);
 
         // ── Steps Toolbar ──
         var stepsToolbar = new FlowLayoutPanel
@@ -236,7 +237,7 @@ public partial class SequenceEditor : Form
         Controls.Add(_statusPanel); // Dock=Bottom (above bottomPanel)
         Controls.Add(_dgvSteps);    // Dock=Fill
         Controls.Add(stepsToolbar); // Dock=Top (higher priority)
-        Controls.Add(topPanel);     // Dock=Top (highest Z = allocated last = wins top spot)
+        Controls.Add(_topPanel);     // Dock=Top (highest Z = allocated last = wins top spot)
 
         // ── Form-level KeyPreview for Esc handling ──
         KeyPreview = true;
@@ -244,6 +245,29 @@ public partial class SequenceEditor : Form
 
         // ── FormClosed cleanup ──
         FormClosed += (_, _) => IsVkPickMode = false;
+    }
+
+    private void ApplyDpiScale()
+    {
+        float ds = DeviceDpi / 96f;
+        if (ds == 1.0f) return;
+        _topPanel.Height = (int)(130 * ds);
+        _topPanel.RowStyles[0].Height = (int)(28 * ds);
+        _topPanel.RowStyles[1].Height = (int)(42 * ds);
+        _topPanel.RowStyles[2].Height = (int)(32 * ds);
+        _topPanel.ColumnStyles[0].Width = (int)(130 * ds);
+    }
+
+    protected override void OnLoad(EventArgs e)
+    {
+        base.OnLoad(e);
+        ApplyDpiScale();
+    }
+
+    protected override void OnDpiChanged(DpiChangedEventArgs e)
+    {
+        base.OnDpiChanged(e);
+        ApplyDpiScale();
     }
 
     private static Button MakeStepButton(string text)

@@ -51,6 +51,8 @@ public class VirtualKeyWindow : Form
     };
     private VkSkinLoader _skinLoader = new(null);
 
+    private float GetEffectiveScale() => _scaleFactor * (DeviceDpi / 96f);
+
     public VirtualKeyWindow(
         VirtualButtonManager btnManager,
         VirtualKeyBindingManager bindingManager,
@@ -297,9 +299,18 @@ public class VirtualKeyWindow : Form
     private void SetScale(float factor)
     {
         _scaleFactor = Math.Clamp(factor, 0.1f, 2.0f);
-        int margin = Math.Max(1, (int)(BASE_MARGIN * _scaleFactor));
+        int margin = Math.Max(1, (int)(BASE_MARGIN * GetEffectiveScale()));
         _panel.Padding = new Padding(margin);
         UpdateScale(); RecalculateSize(); SaveLayout();
+    }
+
+    protected override void OnDpiChanged(DpiChangedEventArgs e)
+    {
+        base.OnDpiChanged(e);
+        int margin = Math.Max(1, (int)(BASE_MARGIN * GetEffectiveScale()));
+        _panel.Padding = new Padding(margin);
+        UpdateScale();
+        RecalculateSize();
     }
 
     // ── Title ──
@@ -413,14 +424,15 @@ public class VirtualKeyWindow : Form
 
     private void UpdateScale()
     {
-        foreach (var w in _widgets.Values) { w.ScaleFactor = _scaleFactor; w.UpdateSize(); }
+        float eff = GetEffectiveScale();
+        foreach (var w in _widgets.Values) { w.ScaleFactor = eff; w.UpdateSize(); }
     }
 
     private void RecalculateSize()
     {
         int ncW = Width - ClientSize.Width;
         int ncH = Height - ClientSize.Height;
-        float S = _scaleFactor;
+        float S = GetEffectiveScale();
         int btnH = Math.Max(1, (int)(BASE_BTN_H * S));
         int gap = Math.Max(1, (int)(BASE_GAP * S));
         int margin = Math.Max(1, (int)(BASE_MARGIN * S));
@@ -514,13 +526,14 @@ public class VirtualKeyWindow : Form
     private void OnButtonDragEnded(VirtualButtonWidget widget, int dx)
     {
         var vbtn = widget.VirtualButton;
-        if (Math.Abs(dx) < 30 * _scaleFactor) return;
+        float effScale = GetEffectiveScale();
+        if (Math.Abs(dx) < 30 * effScale) return;
 
         var buttons = _btnManager.Buttons.ToList();
         var idx = buttons.FindIndex(b => b.Id == vbtn.Id);
         if (idx < 0) return;
 
-        var steps = Math.Max(1, Math.Abs(dx) / (int)(60 * _scaleFactor));
+        var steps = Math.Max(1, Math.Abs(dx) / (int)(60 * effScale));
         int newIdx = dx > 0
             ? Math.Min(buttons.Count - 1, idx + steps)
             : Math.Max(0, idx - steps);
@@ -594,7 +607,7 @@ public class VirtualKeyWindow : Form
         _targetTitle = data.TargetWindowTitle;
         _singleLine = data.SingleLineMode;
         _scaleFactor = data.ScaleFactor > 0 ? data.ScaleFactor : 1.0f;
-        int margin = Math.Max(1, (int)(BASE_MARGIN * _scaleFactor));
+        int margin = Math.Max(1, (int)(BASE_MARGIN * GetEffectiveScale()));
         _panel.Padding = new Padding(margin);
 
         if (data.Buttons.Count > 0)
@@ -628,7 +641,7 @@ public class VirtualKeyWindow : Form
     {
         var data = _serializer.Load();
         _scaleFactor = data.ScaleFactor > 0 ? data.ScaleFactor : 1.0f;
-        int margin = Math.Max(1, (int)(BASE_MARGIN * _scaleFactor));
+        int margin = Math.Max(1, (int)(BASE_MARGIN * GetEffectiveScale()));
         _panel.Padding = new Padding(margin);
         _btnManager.LoadFrom(data.Buttons);
         _singleLine = data.SingleLineMode;
