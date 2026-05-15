@@ -17,18 +17,18 @@ public partial class MainForm : Form
     private Button _btnAdd = null!, _btnEdit = null!, _btnDelete = null!;
     private Button _btnTest = null!, _btnPause = null!;
     private Button _btnSpine = null!, _btnSpineRelease = null!, _btnDeleteAll = null!;
-    private Button _btnVkOpen = null!, _btnVkClose = null!;
+    private Button _btnVkOpen = null!, _btnVkClose = null!, _btnVkManage = null!;
     private Button _btnImport = null!, _btnExport = null!;
     private ToolStripMenuItem? _pauseTrayItem;
 
-    private readonly VirtualButtonManager _vkBtnManager = new();
     private readonly VirtualLayoutSerializer _vkSerializer = new();
-    private VirtualKeyWindow? _vkWindow;
+    private List<VirtualKeyWindow> _vkWindows = [];
+    private VkWindowManager? _vkManagerWindow;
     private SequenceEditor? _openEditor;
 
     public MainForm()
     {
-        Text = "快捷键助手 V2.03";
+        Text = "快捷键助手 V2.1";
         Size = new Size(900, 600);
         MinimumSize = new Size(600, 400);
         StartPosition = FormStartPosition.CenterScreen;
@@ -63,6 +63,7 @@ public partial class MainForm : Form
         _btnDeleteAll = CreateButton("删除全部", Color.FromArgb(0xD9, 0x5C, 0x5C), Color.White);
         _btnVkOpen = CreateButton("开启虚拟按键", Color.FromArgb(0x00, 0xC8, 0x53), Color.White);
         _btnVkClose = CreateButton("关闭虚拟按键", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
+        _btnVkManage = CreateButton("管理虚拟按键", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
         _btnImport = CreateButton("导入", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
         _btnExport = CreateButton("导出", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
 
@@ -76,10 +77,11 @@ public partial class MainForm : Form
         _btnDeleteAll.Click += (_, _) => DeleteAllSequences();
         _btnVkOpen.Click += (_, _) => OpenVirtualKeys();
         _btnVkClose.Click += (_, _) => CloseVirtualKeys();
+        _btnVkManage.Click += (_, _) => OpenVkManager();
         _btnImport.Click += (_, _) => ImportDataBundle();
         _btnExport.Click += (_, _) => ExportDataBundle();
 
-        toolStrip.Controls.AddRange([_btnAdd, _btnEdit, _btnDelete, _btnTest, _btnPause, _btnSpine, _btnSpineRelease, _btnDeleteAll, _btnVkOpen, _btnVkClose, _btnImport, _btnExport]);
+        toolStrip.Controls.AddRange([_btnAdd, _btnEdit, _btnDelete, _btnTest, _btnPause, _btnSpine, _btnSpineRelease, _btnDeleteAll, _btnVkOpen, _btnVkClose, _btnVkManage, _btnImport, _btnExport]);
         Controls.Add(toolStrip);
 
         var dgvPanel = new Panel
@@ -450,31 +452,125 @@ public partial class MainForm : Form
 
     internal void OpenVirtualKeys()
     {
-        if (_vkWindow != null && !_vkWindow.IsDisposed)
+        var global = _vkSerializer.LoadAll();
+        OperationLogger.Info($"MainForm.OpenVirtualKeys: total={global.Windows.Count} enabled={global.Windows.Count(w => w.Enabled)}");
+        foreach (var data in global.Windows)
         {
-            _vkWindow.Show();
-            _vkWindow.BringToFront();
-            return;
+            OperationLogger.Info($"MainForm.OpenVirtualKeys: window={data.Name} enabled={data.Enabled}");
+            if (!data.Enabled) continue;
+            var existing = FindVkWindow(data.Name);
+            if (existing != null)
+            {
+                OperationLogger.Info($"MainForm.OpenVirtualKeys: found existing window {data.Name}, showing");
+                existing.Show();
+                existing.BringToFront();
+            }
+            else
+            {
+                OperationLogger.Info($"MainForm.OpenVirtualKeys: creating new window {data.Name}");
+                CreateVkWindow(data);
+            }
         }
-
-        OperationLogger.Info("MainForm: opening virtual key window");
-        var bindingManager = new VirtualKeyBindingManager(_hotkeyService, _vkBtnManager);
-        var loopExecutor = new VirtualLoopExecutor(_player);
-
-        _vkWindow = new VirtualKeyWindow(_vkBtnManager, bindingManager, loopExecutor,
-            _vkSerializer, _sequences, SaveAndRefresh);
-        _vkWindow.Show();
     }
 
     private void CloseVirtualKeys()
     {
-        if (_vkWindow != null && !_vkWindow.IsDisposed)
+        OperationLogger.Info("MainForm: hiding all VK windows");
+        foreach (var w in _vkWindows)
         {
-            OperationLogger.Info("MainForm: closing virtual key window");
-            _vkWindow.Close();
-            _vkWindow.Dispose();
-            _vkWindow = null;
+            if (!w.IsDisposed)
+                w.Hide();
         }
+    }
+
+    private VirtualKeyWindow CreateVkWindow(VirtualLayoutSerializer.WindowLayoutData data)
+    {
+        var win = new VirtualKeyWindow(_vkSerializer, data, _sequences, SaveAndRefresh);
+        win.DeleteRequested += OnVkWindowDeleted;
+        _vkWindows.Add(win);
+        win.Show();
+        return win;
+    }
+
+    private void OnVkWindowDeleted(VirtualKeyWindow win)
+    {
+        var name = win.WindowData.Name;
+        OperationLogger.Info($"MainForm.OnVkWindowDeleted: name={name}");
+        _vkWindows.Remove(win);
+        var global = _vkSerializer.LoadAll();
+        int beforeCount = global.Windows.Count;
+        global.Windows.RemoveAll(w => w.Name == name);
+        OperationLogger.Info($"MainForm.OnVkWindowDeleted: before={beforeCount} after={global.Windows.Count}");
+        _vkSerializer.SaveAll(global);
+    }
+
+    internal void OpenVkManager()
+    {
+        if (_vkManagerWindow != null && !_vkManagerWindow.IsDisposed)
+        {
+            _vkManagerWindow.BringToFront();
+            return;
+        }
+
+        int nextNum = 1;
+        var global = _vkSerializer.LoadAll();
+        foreach (var w in global.Windows)
+        {
+            if (w.Name.StartsWith("窗口") && int.TryParse(w.Name[2..], out var n))
+                nextNum = Math.Max(nextNum, n + 1);
+        }
+
+        _vkManagerWindow = new VkWindowManager(_vkSerializer, nextNum);
+        _vkManagerWindow.ToggleWindowVisibility += (data, show) =>
+        {
+            OperationLogger.Info($"MainForm.ToggleWindowVisibility: name={data.Name} show={show}");
+            var existing = FindVkWindow(data.Name);
+            if (existing != null)
+            {
+                if (show) { existing.Show(); existing.BringToFront(); }
+                else existing.Hide();
+                OperationLogger.Info($"MainForm.ToggleWindowVisibility: {(show ? "shown" : "hidden")} existing window");
+            }
+            else if (show)
+            {
+                OperationLogger.Info($"MainForm.ToggleWindowVisibility: creating new window");
+                CreateVkWindow(data);
+            }
+        };
+        _vkManagerWindow.DeleteWindowRequested += name =>
+        {
+            OperationLogger.Info($"MainForm.DeleteWindowRequested: name={name}");
+            var win = FindVkWindow(name);
+            if (win != null)
+            {
+                win.Close();
+                win.Dispose();
+                _vkWindows.Remove(win);
+                OperationLogger.Info($"MainForm.DeleteWindowRequested: closed and disposed window instance");
+            }
+            var g = _vkSerializer.LoadAll();
+            int beforeCount = g.Windows.Count;
+            g.Windows.RemoveAll(w => w.Name == name);
+            OperationLogger.Info($"MainForm.DeleteWindowRequested: removed from global data, before={beforeCount} after={g.Windows.Count}");
+            _vkSerializer.SaveAll(g);
+        };
+        _vkManagerWindow.FormClosed += (_, _) => _vkManagerWindow = null;
+        _vkManagerWindow.Show(this);
+    }
+
+    private VirtualKeyWindow? FindVkWindow(string name)
+    {
+        return _vkWindows.FirstOrDefault(w =>
+        {
+            if (w.IsDisposed) return false;
+            var title = w.Text;
+            // Match by name in title: "名称 (N)" or "[target] 名称 (N)"
+            var parenIdx = title.LastIndexOf('(');
+            var titleName = parenIdx > 0 ? title[..parenIdx].TrimEnd() : title;
+            if (titleName.Contains(']'))
+                titleName = titleName[(titleName.LastIndexOf(']') + 1)..].Trim();
+            return titleName == name;
+        });
     }
 
     internal static void RequestOpenVirtualKeys()
@@ -495,7 +591,7 @@ public partial class MainForm : Form
 
         var bundle = new DataBundle();
         bundle.Sequences = [.. _sequences];
-        bundle.VkData = _vkSerializer.Load();
+        bundle.VkData = _vkSerializer.LoadAll().Windows.FirstOrDefault();
 
         var editor = Application.OpenForms.OfType<SpineHotkeyEditor>().FirstOrDefault();
         bundle.SpineHotkeys = editor?.GetCurrentEntries();
@@ -564,11 +660,11 @@ public partial class MainForm : Form
         {
             if (MessageBox.Show($"是否导入虚拟按键布局？（共 {bundle.VkData.Buttons.Count} 个按钮）", "导入", MessageBoxButtons.YesNo) == DialogResult.Yes)
             {
-                _vkBtnManager.LoadFrom(bundle.VkData.Buttons);
-                bundle.VkData.Buttons = [.. _vkBtnManager.Buttons];
-                _vkSerializer.Save(bundle.VkData);
-                if (_vkWindow != null && !_vkWindow.IsDisposed)
-                    _vkWindow.ReloadLayout();
+                var global = _vkSerializer.LoadAll();
+                bundle.VkData.Name = $"导入_{global.Windows.Count + 1}";
+                bundle.VkData.Enabled = true;
+                global.Windows.Add(bundle.VkData);
+                _vkSerializer.SaveAll(global);
             }
         }
         else
@@ -576,22 +672,7 @@ public partial class MainForm : Form
             MessageBox.Show("虚拟按键布局：文件中无相关数据，跳过。", "导入", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
-        // 4. VK settings
-        if (bundle.VkData != null)
-        {
-            if (MessageBox.Show("是否导入虚拟按键设置？（缩放/布局模式/置顶/透明度/目标窗口）", "导入", MessageBoxButtons.YesNo) == DialogResult.Yes)
-            {
-                var current = _vkSerializer.Load();
-                bundle.VkData.Buttons = [.. current.Buttons];
-                _vkSerializer.Save(bundle.VkData);
-                if (_vkWindow != null && !_vkWindow.IsDisposed)
-                    _vkWindow.ReloadLayout();
-            }
-        }
-        else
-        {
-            MessageBox.Show("虚拟按键设置：文件中无相关数据，跳过。", "导入", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
+        // 4. VK settings (merged into multi-window, skip as separate section)
     }
 
     private void ExitApp()
@@ -622,17 +703,18 @@ public partial class MainForm : Form
 
     private void SyncVkButtonBindings()
     {
-        // Match buttons to sequences by TriggerVkButtonName. Only update when a match is found.
-        foreach (var vbtn in _vkBtnManager.Buttons)
+        // Match buttons to sequences by TriggerVkButtonName across all windows.
+        var global = _vkSerializer.LoadAll();
+        foreach (var winData in global.Windows)
         {
-            var seq = _sequences.FirstOrDefault(s => s.TriggerVkButtonName?.Trim() == vbtn.Name);
-            if (seq != null)
-                vbtn.BindActionId = seq.Id;
+            foreach (var vbtn in winData.Buttons)
+            {
+                var seq = _sequences.FirstOrDefault(s => s.TriggerVkButtonName?.Trim() == vbtn.Name);
+                if (seq != null)
+                    vbtn.BindActionId = seq.Id;
+            }
         }
-
-        var layout = _vkSerializer.Load();
-        layout.Buttons = [.. _vkBtnManager.Buttons];
-        _vkSerializer.Save(layout);
+        _vkSerializer.SaveAll(global);
     }
 
     private void RefreshGrid()

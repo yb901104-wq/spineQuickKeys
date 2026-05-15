@@ -32,7 +32,8 @@ KeyMacro/
     ├── MainForm.cs          # 主窗口 + 系统托盘（导入导出）
     ├── SequenceEditor.cs    # 序列编辑器 + 热键录制对话框
     ├── SpineHotkeyEditor.cs # Spine 热键 TXT 文件编辑窗口（支持数据构造）
-    ├── VirtualKeyWindow.cs  # 虚拟按键浮动窗口（拖拽排序/spacer）
+    ├── VirtualKeyWindow.cs  # 虚拟按键浮动窗口（拖拽排序/spacer/横竖切换/自管理）
+    ├── VkWindowManager.cs   # 多虚拟按键窗口管理器（增删/显示/隐藏）
     └── VirtualButtonWidget.cs # 虚拟按钮自绘控件（spacer/新文字布局）
 ```
 
@@ -78,7 +79,7 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 
 ## 主窗口序列列表
 - "触发快捷键"列：绑定键盘热键时显示快捷键，绑定虚拟按键时显示"虚拟按键(按钮名)"
-- 所有列均为固定宽度（`AutoSizeMode = None`），拖动分隔线时行为一致
+- 列宽使用 Fill 模式等比分配（`AutoSizeMode = Fill` + `FillWeight`），随窗口缩放自动调整
 
 ## VkPickMode 绑定流程
 - SequenceEditor 有两颗按钮录入触发快捷键：**键盘录入**（始终打开键盘录制窗口）和 **虚拟按键**（始终进入 VkPickMode）
@@ -111,6 +112,13 @@ BaseBtnWidth: SmallIcon=48  LargeIcon=96  LoopIcon=110
 ```
 - 按钮间距 `gap`、边距 `margin`、间隔宽度随 ScaleFactor 等比缩放
 - Panel.Padding 和 widget.Margin 同步更新，保证视觉一致性
+
+## VkWindowManager 多窗口管理
+- 主界面三按钮：「开启虚拟按键」（显示所有 enabled 窗口）「关闭虚拟按键」（隐藏所有窗口）「管理虚拟按键」（打开管理器）
+- VkWindowManager 以 DataGridView 列出所有窗口：名称、目标进程、按钮数、允许显示(checkbox)、显示/隐藏、删除
+- 每个窗口独立运行：独立按钮列表、目标进程、缩放/方向/皮肤、位置尺寸
+- VK 窗口自身右键菜单含「删除当前窗口」彻底删除，「关闭窗口」仅隐藏
+- 布局文件 `virtual_layout.json` 使用多窗口格式 `{"Windows": [...]}`，旧单窗口格式自动迁移
 
 ## 虚拟按键右键菜单
 - 按钮右键菜单顶部显示 `[ 按钮名 ]` 作为标题（禁用，仅展示），下方依次为修改名称/循环延迟（仅循环按钮）/按钮间距/强制停止/删除

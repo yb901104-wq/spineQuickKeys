@@ -19,15 +19,20 @@ public class VirtualKeyWindow : Form
     [DllImport("user32.dll")]
     private static extern bool IsWindow(IntPtr hWnd);
 
-    private readonly VirtualButtonManager _btnManager;
+    private readonly VirtualButtonManager _btnManager = new();
     private readonly VirtualKeyBindingManager _bindingManager;
     private readonly VirtualLoopExecutor _loopExecutor;
     private readonly VirtualLayoutSerializer _serializer;
+    private VirtualLayoutSerializer.WindowLayoutData _data;
     private readonly MacroPlayer _player = new();
     private readonly List<MacroSequence> _sequences;
     private readonly Action? _sequencesChangedCallback;
     private readonly FlowLayoutPanel _panel;
     private readonly Dictionary<string, VirtualButtonWidget> _widgets = [];
+
+    public Action<VirtualKeyWindow>? DeleteRequested;
+
+    public VirtualLayoutSerializer.WindowLayoutData WindowData => _data;
 
     private bool _topMostState = true;
     private double _opacityValue = 1.0;
@@ -36,6 +41,7 @@ public class VirtualKeyWindow : Form
     private string? _targetProc;
     private string? _targetTitle;
     private bool _vertical;
+    private bool _isBeingDeleted;
     private ToolStripMenuItem? _orientMenuItem;
     private float _scaleFactor = 1.0f;
     private bool _schemeAFailed;
@@ -55,19 +61,17 @@ public class VirtualKeyWindow : Form
     private float GetEffectiveScale() => _scaleFactor * (DeviceDpi / 96f);
 
     public VirtualKeyWindow(
-        VirtualButtonManager btnManager,
-        VirtualKeyBindingManager bindingManager,
-        VirtualLoopExecutor loopExecutor,
         VirtualLayoutSerializer serializer,
+        VirtualLayoutSerializer.WindowLayoutData data,
         List<MacroSequence> sequences,
         Action? sequencesChangedCallback = null)
     {
-        _btnManager = btnManager;
-        _bindingManager = bindingManager;
-        _loopExecutor = loopExecutor;
         _serializer = serializer;
+        _data = data;
         _sequences = sequences;
         _sequencesChangedCallback = sequencesChangedCallback;
+        _bindingManager = new VirtualKeyBindingManager(new HotkeyService(IntPtr.Zero), _btnManager);
+        _loopExecutor = new VirtualLoopExecutor(_player);
 
         Text = "虚拟按键";
         BackColor = Color.FromArgb(0x0D, 0x0D, 0x0D);
@@ -95,20 +99,27 @@ public class VirtualKeyWindow : Form
         _panel.ContextMenuStrip = menu;
 
         _btnManager.ButtonsChanged += RebuildWidgets;
-        var layoutData = _serializer.Load();
-        _skinLoader = new VkSkinLoader(layoutData.SkinPath);
+        _btnManager.LoadFrom(_data.Buttons);
+        _skinLoader = new VkSkinLoader(_data.SkinPath);
         _skinLoader.Load();
         ApplyWindowSkin();
-        LoadLayoutData(layoutData);
+        ApplyLayoutData();
 
         Shown += (_, _) => { if (_widgets.Count > 0) RecalculateSize(); };
 
         FormClosing += (_, e) =>
         {
+            if (_isBeingDeleted) return;
             if (e.CloseReason == CloseReason.UserClosing)
             {
                 _loopExecutor.StopAll(); SaveLayout(); e.Cancel = true; Hide();
             }
+        };
+
+        FormClosed += (_, _) =>
+        {
+            if (_isBeingDeleted)
+                _loopExecutor.StopAll();
         };
     }
 
@@ -175,6 +186,18 @@ public class VirtualKeyWindow : Form
         var lockItem = m.Items.Add(_winLocked ? "✓ 窗口已锁定" : "窗口锁定/解锁", null, (_, _) => ToggleWindowLock());
         m.Items.Add("-");
         m.Items.Add("关闭窗口", null, (_, _) => { _loopExecutor.StopAll(); SaveLayout(); Hide(); });
+        m.Items.Add("删除当前窗口", null, (_, _) =>
+        {
+            if (MessageBox.Show(this, $"确定删除窗口\"{_data.Name}\"及其所有按钮？", "删除确认",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
+            {
+                OperationLogger.Info($"VKWindow.RightClickDelete: name={_data.Name}");
+                _isBeingDeleted = true;
+                _loopExecutor.StopAll();
+                DeleteRequested?.Invoke(this);
+                Close();
+            }
+        });
 
         m.Opened += (_, _) =>
         {
@@ -300,7 +323,7 @@ public class VirtualKeyWindow : Form
 
     private void UpdateTitle()
     {
-        Text = (_targetProc != null ? $"[{_targetTitle ?? _targetProc}] " : "") + $"虚拟按键 ({_widgets.Count})";
+        Text = (_targetProc != null ? $"[{_targetTitle ?? _targetProc}] " : "") + $"{_data.Name} ({_widgets.Count})";
     }
 
     // ── Target window capture ──
@@ -601,35 +624,42 @@ public class VirtualKeyWindow : Form
 
     private void SaveLayout()
     {
-        _serializer.Save(new VirtualLayoutSerializer.LayoutData
-        {
-            WindowX = Left, WindowY = Top, WindowWidth = Width, WindowHeight = Height,
-            TopMost = _topMostState, PositionLocked = _posLocked, WindowLocked = _winLocked,
-            TargetProcessName = _targetProc, TargetWindowTitle = _targetTitle,
-            VerticalMode = _vertical, ScaleFactor = _scaleFactor,
-            Buttons = [.. _btnManager.Buttons]
-        });
+        FlushToData();
+        var global = _serializer.LoadAll();
+        var idx = global.Windows.FindIndex(w => w.Name == _data.Name);
+        if (idx >= 0)
+            global.Windows[idx] = _data;
+        _serializer.SaveAll(global);
     }
 
-    private void LoadLayoutData(VirtualLayoutSerializer.LayoutData data)
+    private void FlushToData()
     {
-        _targetProc = data.TargetProcessName;
-        _targetTitle = data.TargetWindowTitle;
-        _vertical = data.VerticalMode;
-        _scaleFactor = data.ScaleFactor > 0 ? data.ScaleFactor : 1.0f;
+        _data.WindowX = Left; _data.WindowY = Top;
+        _data.WindowWidth = Width; _data.WindowHeight = Height;
+        _data.TopMost = _topMostState; _data.PositionLocked = _posLocked; _data.WindowLocked = _winLocked;
+        _data.TargetProcessName = _targetProc; _data.TargetWindowTitle = _targetTitle;
+        _data.VerticalMode = _vertical; _data.ScaleFactor = _scaleFactor;
+        _data.Buttons = [.. _btnManager.Buttons];
+    }
+
+    private void ApplyLayoutData()
+    {
+        _targetProc = _data.TargetProcessName;
+        _targetTitle = _data.TargetWindowTitle;
+        _vertical = _data.VerticalMode;
+        _scaleFactor = _data.ScaleFactor > 0 ? _data.ScaleFactor : 1.0f;
         int margin = Math.Max(1, (int)(BASE_MARGIN * GetEffectiveScale()));
         _panel.Padding = new Padding(margin);
 
-        if (data.Buttons.Count > 0)
+        if (_data.Buttons.Count > 0)
         {
-            _btnManager.LoadFrom(data.Buttons);
-            var savedLoc = new Point(data.WindowX, data.WindowY);
-            var testRect = new Rectangle(savedLoc, new Size(Math.Max(data.WindowWidth, 100), Math.Max(data.WindowHeight, 100)));
+            var savedLoc = new Point(_data.WindowX, _data.WindowY);
+            var testRect = new Rectangle(savedLoc, new Size(Math.Max(_data.WindowWidth, 100), Math.Max(_data.WindowHeight, 100)));
             Location = Screen.AllScreens.Any(s => s.WorkingArea.IntersectsWith(testRect))
                 ? savedLoc : new Point(Screen.PrimaryScreen!.WorkingArea.Width / 2 - Width / 2,
                     Screen.PrimaryScreen!.WorkingArea.Height / 2 - Height / 2);
-            _topMostState = data.TopMost; TopMost = _topMostState;
-            _posLocked = data.PositionLocked; _winLocked = data.WindowLocked;
+            _topMostState = _data.TopMost; TopMost = _topMostState;
+            _posLocked = _data.PositionLocked; _winLocked = _data.WindowLocked;
             foreach (var w in _widgets.Values) w.AllowDragging = !_posLocked;
             _panel.WrapContents = false;
             _panel.FlowDirection = _vertical ? FlowDirection.TopDown : FlowDirection.LeftToRight;
@@ -647,18 +677,17 @@ public class VirtualKeyWindow : Form
         UpdateTitle();
     }
 
-    public void ReloadLayout()
+    public void ReloadFromData()
     {
-        var data = _serializer.Load();
-        _scaleFactor = data.ScaleFactor > 0 ? data.ScaleFactor : 1.0f;
+        _scaleFactor = _data.ScaleFactor > 0 ? _data.ScaleFactor : 1.0f;
         int margin = Math.Max(1, (int)(BASE_MARGIN * GetEffectiveScale()));
         _panel.Padding = new Padding(margin);
-        _btnManager.LoadFrom(data.Buttons);
-        _vertical = data.VerticalMode;
-        _topMostState = data.TopMost; TopMost = _topMostState;
-        _posLocked = data.PositionLocked; _winLocked = data.WindowLocked;
-        _targetProc = data.TargetProcessName;
-        _targetTitle = data.TargetWindowTitle;
+        _btnManager.LoadFrom(_data.Buttons);
+        _vertical = _data.VerticalMode;
+        _topMostState = _data.TopMost; TopMost = _topMostState;
+        _posLocked = _data.PositionLocked; _winLocked = _data.WindowLocked;
+        _targetProc = _data.TargetProcessName;
+        _targetTitle = _data.TargetWindowTitle;
         foreach (var w in _widgets.Values) w.AllowDragging = !_posLocked;
         _panel.WrapContents = false;
         _panel.FlowDirection = _vertical ? FlowDirection.TopDown : FlowDirection.LeftToRight;
@@ -667,6 +696,4 @@ public class VirtualKeyWindow : Form
         UpdateScale();
         RecalculateSize();
     }
-
-    private void LoadLayout() => LoadLayoutData(_serializer.Load());
 }

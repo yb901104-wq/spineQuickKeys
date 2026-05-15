@@ -8,5 +8,5 @@ public class DataBundle
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public List<SpineHotkeyEntry>? SpineHotkeys { get; set; }
     public List<MacroSequence>? Sequences { get; set; }
-    public VirtualLayoutSerializer.LayoutData? VkData { get; set; }
+    public VirtualLayoutSerializer.WindowLayoutData? VkData { get; set; }
 }
