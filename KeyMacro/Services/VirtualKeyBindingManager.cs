@@ -30,7 +30,16 @@ public class VirtualKeyBindingManager
 
     public MacroSequence? ResolveBinding(VirtualButton vbtn, List<MacroSequence> sequences)
     {
-        if (string.IsNullOrEmpty(vbtn.BindActionId)) return null;
-        return sequences.Find(s => s.Id == vbtn.BindActionId);
+        if (string.IsNullOrEmpty(vbtn.BindActionId))
+        {
+            OperationLogger.Info($"[DIAG] VKBinding: button=\"{vbtn.Name}\" bindActionId=null -> NOT_FOUND");
+            return null;
+        }
+        var result = sequences.Find(s => s.Id == vbtn.BindActionId);
+        if (result == null)
+            OperationLogger.Warn($"[DIAG] VKBinding: button=\"{vbtn.Name}\" bindActionId=\"{vbtn.BindActionId}\" -> NOT_FOUND (sequences={sequences.Count})");
+        else
+            OperationLogger.Info($"[DIAG] VKBinding: button=\"{vbtn.Name}\" bindActionId=\"{vbtn.BindActionId}\" -> seq=\"{result.Name}\" ({result.Id})");
+        return result;
     }
 }

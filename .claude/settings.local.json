@@ -104,7 +104,14 @@
       "Bash(dir /b d:\\\\AIAGENT\\\\spineQuickKeys\\\\openspec\\\\changes)",
       "Skill(opsx:propose)",
       "Skill(opsx:propose:*)",
-      "Bash(git restore *)"
+      "Bash(git restore *)",
+      "Bash(grep -n \"VkWindowManager\\\\|MainForm.OpenVirtualKeys\\\\|MainForm.Toggle\\\\|MainForm.Delete\\\\|VirtualLayoutSerializer.Save\\\\|VirtualLayoutSerializer.Load\" \"/c/Users/34378/AppData/Roaming/KeyMacro/logs/2026-05-16.log\" 2>/dev/null | tail -60)",
+      "Read(//c/Users/34378/AppData/Roaming/KeyMacro/logs/**)",
+      "Bash(dotnet script *)",
+      "Bash(powershell -Command \"[System.Reflection.Assembly]::LoadFrom\\('KeyMacro/bin/Debug/net9.0-windows/win-x64/KeyMacro.dll'\\).GetManifestResourceNames\\(\\) | Select-String 'skin'\")",
+      "Bash(powershell -Command \"[System.Reflection.Assembly]::LoadFrom\\('KeyMacro/bin/Debug/net9.0-windows/win-x64/KeyMacro.dll'\\).GetManifestResourceNames\\(\\) | Select-String 'SpineSkin'\")",
+      "Bash(powershell -Command \"[System.Reflection.Assembly]::LoadFrom\\('KeyMacro/bin/Debug/net9.0-windows/win-x64/KeyMacro.dll'\\).GetManifestResourceNames\\(\\) | Select-String 'virtual_layout'\")",
+      "Bash(taskkill /f /im dotnet.exe)"
     ],
     "additionalDirectories": [
       "d:\\AI_cc\\spineQuickKeys\\openspec\\changes\\virtual-key-window-target"

@@ -12,6 +12,7 @@ public class VkWindowManager : Form
 
     public event Action<VirtualLayoutSerializer.WindowLayoutData, bool>? ToggleWindowVisibility;
     public event Action<string>? DeleteWindowRequested;
+    public event Action<string, string>? WindowRenamed; // oldName, newName
 
     public VkWindowManager(VirtualLayoutSerializer serializer, int nextNumber)
     {
@@ -79,7 +80,7 @@ public class VkWindowManager : Form
         _dgv.Columns.Add(new DataGridViewTextBoxColumn
         {
             HeaderText = "窗口名称",
-            ReadOnly = true,
+            ReadOnly = false,
             AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
             FillWeight = 40
         });
@@ -134,15 +135,33 @@ public class VkWindowManager : Form
 
     private void Dgv_CellValueChanged(object? sender, DataGridViewCellEventArgs e)
     {
-        if (e.RowIndex < 0 || e.ColumnIndex != 3) return;
-        var name = _dgv.Rows[e.RowIndex].Tag?.ToString();
-        if (name == null) return;
-        var enabled = _dgv.Rows[e.RowIndex].Cells[3].Value is true;
+        if (e.RowIndex < 0) return;
+        var oldName = _dgv.Rows[e.RowIndex].Tag?.ToString();
+        if (oldName == null) return;
         var global = _serializer.LoadAll();
-        var w = global.Windows.Find(x => x.Name == name);
-        if (w != null)
+
+        if (e.ColumnIndex == 0)
         {
-            w.Enabled = enabled;
+            var newName = _dgv.Rows[e.RowIndex].Cells[0].Value?.ToString()?.Trim();
+            if (string.IsNullOrEmpty(newName) || newName == oldName) return;
+
+            var w = global.Windows.Find(x => x.Name == oldName);
+            if (w != null)
+            {
+                w.Name = newName;
+                _serializer.SaveAll(global);
+                _dgv.Rows[e.RowIndex].Tag = newName;
+                WindowRenamed?.Invoke(oldName, newName);
+            }
+            return;
+        }
+
+        if (e.ColumnIndex != 3) return;
+        var enabled = _dgv.Rows[e.RowIndex].Cells[3].Value is true;
+        var w2 = global.Windows.Find(x => x.Name == oldName);
+        if (w2 != null)
+        {
+            w2.Enabled = enabled;
             _serializer.SaveAll(global);
         }
     }

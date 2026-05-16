@@ -137,7 +137,7 @@ public class VirtualKeyWindow : Form
             if (_btnManager.Buttons.Count == 0) return;
             if (MessageBox.Show("确定删除所有虚拟按钮？此操作不可撤销。", "确认",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
-                { _btnManager.Clear(); RebuildWidgets(); }
+                { _btnManager.Clear(); RebuildWidgets(); SaveLayout(); }
         });
         m.Items.Add("-");
         m.Items.Add("置顶/取消置顶", null, (_, _) => { _topMostState = !_topMostState; TopMost = _topMostState; });
@@ -321,6 +321,27 @@ public class VirtualKeyWindow : Form
 
     // ── Title ──
 
+    public void UpdateWindowTitle() => UpdateTitle();
+
+    /// <summary>Reload BindActionId from saved layout data after SyncVkButtonBindings.</summary>
+    public void RefreshBindingsFromSerializer()
+    {
+        var global = _serializer.LoadAll();
+        var winData = global.Windows.Find(w => w.Name == _data.Name);
+        if (winData == null) return;
+        int updated = 0;
+        foreach (var liveBtn in _btnManager.Buttons)
+        {
+            var savedBtn = winData.Buttons.Find(b => b.Id == liveBtn.Id);
+            if (savedBtn != null && savedBtn.BindActionId != liveBtn.BindActionId)
+            {
+                liveBtn.BindActionId = savedBtn.BindActionId;
+                updated++;
+            }
+        }
+        OperationLogger.Info($"[DIAG] VKWindow.RefreshBindings: updated {updated} buttons for \"{_data.Name}\"");
+    }
+
     private void UpdateTitle()
     {
         Text = (_targetProc != null ? $"[{_targetTitle ?? _targetProc}] " : "") + $"{_data.Name} ({_widgets.Count})";
@@ -375,8 +396,13 @@ public class VirtualKeyWindow : Form
 
     private IntPtr ResolveTargetWindow()
     {
-        if (string.IsNullOrEmpty(_targetProc)) return IntPtr.Zero;
+        if (string.IsNullOrEmpty(_targetProc))
+        {
+            OperationLogger.Info($"[DIAG] VKTarget: no target configured");
+            return IntPtr.Zero;
+        }
         var procs = System.Diagnostics.Process.GetProcessesByName(_targetProc);
+        OperationLogger.Info($"[DIAG] VKTarget: proc=\"{_targetProc}\" title=\"{_targetTitle ?? ""}\" found={procs.Length} processes");
         foreach (var proc in procs)
         {
             var hwnd = proc.MainWindowHandle;
@@ -392,14 +418,16 @@ public class VirtualKeyWindow : Form
                 }
                 continue;
             }
+            OperationLogger.Info($"[DIAG] VKTarget: matched hwnd=0x{hwnd:X8} proc=\"{_targetProc}\"");
             return hwnd;
         }
+        OperationLogger.Warn($"[DIAG] VKTarget: no valid hwnd found for \"{_targetProc}\" (found {procs.Length} processes, none had matching window)");
         return IntPtr.Zero;
     }
 
     // ── Button mgmt ──
 
-    private void AddButton(VirtualButtonStyle style) { _btnManager.AddButton(style); RebuildWidgets(); }
+    private void AddButton(VirtualButtonStyle style) { _btnManager.AddButton(style); RebuildWidgets(); SaveLayout(); }
 
     private void RebuildWidgets()
     {
@@ -500,7 +528,7 @@ public class VirtualKeyWindow : Form
     private async void OnButtonClicked(VirtualButtonWidget widget)
     {
         var vbtn = widget.VirtualButton;
-        OperationLogger.Info($"VKWindow.Click: \"{vbtn.Name}\" VkPick={SequenceEditor.IsVkPickMode}");
+        OperationLogger.Info($"[DIAG] VKClick: button=\"{vbtn.Name}\" bindActionId=\"{vbtn.BindActionId}\" style={vbtn.StyleType} isPlaying={_player.IsPlaying}");
 
         if (SequenceEditor.IsVkPickMode)
         {
@@ -522,27 +550,36 @@ public class VirtualKeyWindow : Form
         if (_player.IsPlaying) { _player.Stop(); return; }
 
         var sequence = _bindingManager.ResolveBinding(vbtn, _sequences);
-        if (sequence == null) { OperationLogger.Warn($"VKWindow.Click: no binding"); return; }
+        if (sequence == null) { OperationLogger.Warn($"[DIAG] VKClick: no binding for \"{vbtn.Name}\" bindActionId=\"{vbtn.BindActionId}\""); return; }
+        OperationLogger.Info($"[DIAG] VKBinding: button=\"{vbtn.Name}\" bindActionId=\"{vbtn.BindActionId}\" -> seq=\"{sequence.Name}\" ({sequence.Id})");
 
         var hwnd = ResolveTargetWindow();
         if (hwnd == IntPtr.Zero)
         {
+            OperationLogger.Info($"[DIAG] VKPlay: scheme=DirectPlay target=null seq=\"{sequence.Name}\"");
             _ = _player.Play(sequence);
             return;
         }
 
         if (GetForegroundWindow() == hwnd)
         {
+            OperationLogger.Info($"[DIAG] VKPlay: scheme=DirectPlay target=foreground hwnd=0x{hwnd:X8} seq=\"{sequence.Name}\"");
             _ = _player.Play(sequence);
         }
         else if (!_schemeAFailed)
         {
+            OperationLogger.Info($"[DIAG] VKPlay: scheme=PostMessage hwnd=0x{hwnd:X8} seq=\"{sequence.Name}\"");
             await _player.PlayToWindow(sequence, hwnd);
             await Task.Delay(100);
-            if (GetForegroundWindow() != hwnd) { _schemeAFailed = true; }
+            if (GetForegroundWindow() != hwnd)
+            {
+                _schemeAFailed = true;
+                OperationLogger.Warn($"[DIAG] VKPlay: PostMessage scheme A failed, will fall back to ActivateWindow next time");
+            }
         }
         else
         {
+            OperationLogger.Info($"[DIAG] VKPlay: scheme=ActivateWindow hwnd=0x{hwnd:X8} seq=\"{sequence.Name}\"");
             SetForegroundWindow(hwnd);
             await Task.Delay(200);
             _ = _player.Play(sequence);

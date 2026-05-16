@@ -28,7 +28,7 @@ public partial class MainForm : Form
 
     public MainForm()
     {
-        Text = "快捷键助手 V2.1";
+        Text = "快捷键助手 V2.11";
         Size = new Size(900, 600);
         MinimumSize = new Size(600, 400);
         StartPosition = FormStartPosition.CenterScreen;
@@ -554,6 +554,16 @@ public partial class MainForm : Form
             OperationLogger.Info($"MainForm.DeleteWindowRequested: removed from global data, before={beforeCount} after={g.Windows.Count}");
             _vkSerializer.SaveAll(g);
         };
+        _vkManagerWindow.WindowRenamed += (oldName, newName) =>
+        {
+            OperationLogger.Info($"MainForm.WindowRenamed: \"{oldName}\" -> \"{newName}\"");
+            var win = FindVkWindow(oldName);
+            if (win != null)
+            {
+                win.WindowData.Name = newName;
+                win.UpdateWindowTitle();
+            }
+        };
         _vkManagerWindow.FormClosed += (_, _) => _vkManagerWindow = null;
         _vkManagerWindow.Show(this);
     }
@@ -705,16 +715,25 @@ public partial class MainForm : Form
     {
         // Match buttons to sequences by TriggerVkButtonName across all windows.
         var global = _vkSerializer.LoadAll();
+        int matchedCount = 0;
+        int totalButtons = 0;
         foreach (var winData in global.Windows)
         {
             foreach (var vbtn in winData.Buttons)
             {
+                totalButtons++;
                 var seq = _sequences.FirstOrDefault(s => s.TriggerVkButtonName?.Trim() == vbtn.Name);
                 if (seq != null)
+                {
                     vbtn.BindActionId = seq.Id;
+                    matchedCount++;
+                }
             }
         }
         _vkSerializer.SaveAll(global);
+        OperationLogger.Info($"[DIAG] VKSync: matched {matchedCount}/{totalButtons} buttons across {global.Windows.Count} windows, sequences={_sequences.Count}");
+        foreach (var win in _vkWindows)
+            win.RefreshBindingsFromSerializer();
     }
 
     private void RefreshGrid()

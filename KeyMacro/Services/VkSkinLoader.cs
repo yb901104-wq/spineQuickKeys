@@ -21,11 +21,19 @@ public class VkSkinLoader
         // Disk path for development fallback
         if (!string.IsNullOrEmpty(skinPath))
         {
+            // 1. Solution root: dotnet run --project KeyMacro when CWD is solution root
+            var projDir = Path.Combine(Directory.GetCurrentDirectory(), "KeyMacro", "skins", skinPath);
+            OperationLogger.Info($"VkSkinLoader: trying project path \"{projDir}\" exists={Directory.Exists(projDir)}");
+            if (Directory.Exists(projDir))
+            { _skinDir = projDir; OperationLogger.Info($"VkSkinLoader: using project path \"{_skinDir}\""); return; }
+
+            // 2. CWD/skins/{name} (legacy, e.g. when CWD is already inside KeyMacro/)
             var cwdDir = Path.Combine(Directory.GetCurrentDirectory(), "skins", skinPath);
             OperationLogger.Info($"VkSkinLoader: trying CWD path \"{cwdDir}\" exists={Directory.Exists(cwdDir)}");
             if (Directory.Exists(cwdDir))
             { _skinDir = cwdDir; OperationLogger.Info($"VkSkinLoader: using CWD path \"{_skinDir}\""); return; }
 
+            // 3. AppContext.BaseDirectory/skins/{name} (published exe directory)
             var exeDir = Path.Combine(AppContext.BaseDirectory, "skins", skinPath);
             OperationLogger.Info($"VkSkinLoader: trying BaseDir path \"{exeDir}\" exists={Directory.Exists(exeDir)}");
             _skinDir = Directory.Exists(exeDir) ? exeDir : "";
