@@ -43,6 +43,7 @@ public partial class SequenceEditor : Form
     private void InitializeComponent()
     {
         Text = "编辑序列";
+        Icon = IconService.AppIcon;
         Size = new Size(1100, 850);
         MinimumSize = new Size(600, 400);
         StartPosition = FormStartPosition.CenterParent;
@@ -72,10 +73,11 @@ public partial class SequenceEditor : Form
         _txtName = new TextBox { Dock = DockStyle.Fill, Font = new Font("Microsoft YaHei", 10) };
         _topPanel.Controls.Add(_txtName, 1, 0);
 
-        var hotkeyPanel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1 };
+        var hotkeyPanel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 1 };
         hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
         hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+        hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 60));
 
         _txtHotkey = new TextBox
         {
@@ -88,9 +90,12 @@ public partial class SequenceEditor : Form
         _btnKeyboardRecord.Click += BtnKeyboardRecord_Click;
         _btnVkPick = new Button { Text = "虚拟按键", Dock = DockStyle.Fill, FlatStyle = FlatStyle.Flat };
         _btnVkPick.Click += BtnVkPick_Click;
+        var btnClearHotkey = new Button { Text = "清除", Dock = DockStyle.Fill, FlatStyle = FlatStyle.Flat };
+        btnClearHotkey.Click += (_, _) => { _txtHotkey.Text = ""; };
         hotkeyPanel.Controls.Add(_txtHotkey);
         hotkeyPanel.Controls.Add(_btnKeyboardRecord);
         hotkeyPanel.Controls.Add(_btnVkPick);
+        hotkeyPanel.Controls.Add(btnClearHotkey);
         _topPanel.Controls.Add(hotkeyPanel, 1, 1);
 
         _txtVkBind = new TextBox
@@ -327,6 +332,9 @@ public partial class SequenceEditor : Form
         pressCol.Items.AddRange("点按", "长按");
         _dgvSteps.Columns.Add(pressCol);
         _dgvSteps.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "按压时长(ms)", Width = 100 });
+        _dgvSteps.Columns.Add(new DataGridViewButtonColumn { HeaderText = "操作", Text = "复制", UseColumnTextForButtonValue = true, Width = 50 });
+
+        _dgvSteps.CellClick += StepsGrid_CellClick;
 
         _dgvSteps.Rows.Clear();
         foreach (var step in _sequence.Steps)
@@ -384,6 +392,26 @@ public partial class SequenceEditor : Form
     {
         _dgvSteps.EndEdit();
         _dgvSteps.CommitEdit(DataGridViewDataErrorContexts.Commit);
+    }
+
+    // ── Step copy ──
+
+    private void StepsGrid_CellClick(object? sender, DataGridViewCellEventArgs e)
+    {
+        if (e.RowIndex < 0 || e.ColumnIndex != 5) return;
+        CommitGridEdit();
+
+        var row = _dgvSteps.Rows[e.RowIndex];
+        if (row.IsNewRow) return;
+
+        var typeStr = row.Cells[0].Value?.ToString() ?? "单键";
+        var keys = row.Cells[1].Value?.ToString() ?? "";
+        var delay = row.Cells[2].Value?.ToString() ?? "50";
+        var press = row.Cells[3].Value?.ToString() ?? "点按";
+        var hold = row.Cells[4].Value?.ToString() ?? "0";
+
+        _dgvSteps.Rows.Insert(e.RowIndex + 1, typeStr, keys, delay, press, hold, "复制");
+        SaveStepsFromGrid();
     }
 
     // ── Autocomplete suggestion ──
@@ -740,16 +768,16 @@ public partial class SequenceEditor : Form
         }
     }
 
-    internal static void ReceiveVkPick(string buttonName, string? hotkey)
+    internal static void ReceiveVkPick(string buttonName, string windowName, string? hotkey)
     {
         var editor = Application.OpenForms.OfType<SequenceEditor>().FirstOrDefault();
         if (editor != null && IsVkPickMode)
         {
-            editor._txtVkBind.Text = buttonName;
+            editor._txtVkBind.Text = $"{windowName}/{buttonName}";
             if (!string.IsNullOrEmpty(hotkey))
                 editor._txtHotkey.Text = hotkey;
             editor.ExitVkPickMode();
-            OperationLogger.Info($"SequenceEditor: received VK pick: button=\"{buttonName}\", hotkey=\"{hotkey}\"");
+            OperationLogger.Info($"SequenceEditor: received VK pick: window=\"{windowName}\" button=\"{buttonName}\", hotkey=\"{hotkey}\"");
             editor.BringToFront();
         }
     }

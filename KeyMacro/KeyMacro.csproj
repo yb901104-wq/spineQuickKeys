@@ -10,10 +10,12 @@
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <ApplicationIcon Condition="Exists('icons\app.ico')">icons\app.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="skins\**" />
+    <EmbeddedResource Include="icons\**" />
     <EmbeddedResource Include="virtual_layout.json" />
   </ItemGroup>
 

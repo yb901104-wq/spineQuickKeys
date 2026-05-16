@@ -74,6 +74,7 @@ public class VirtualKeyWindow : Form
         _loopExecutor = new VirtualLoopExecutor(_player);
 
         Text = "虚拟按键";
+        Icon = IconService.AppIcon;
         BackColor = Color.FromArgb(0x0D, 0x0D, 0x0D);
         StartPosition = FormStartPosition.Manual;
         TopMost = true;
@@ -98,10 +99,10 @@ public class VirtualKeyWindow : Form
         var menu = BuildBlankMenu();
         _panel.ContextMenuStrip = menu;
 
-        _btnManager.ButtonsChanged += RebuildWidgets;
-        _btnManager.LoadFrom(_data.Buttons);
         _skinLoader = new VkSkinLoader(_data.SkinPath);
         _skinLoader.Load();
+        _btnManager.ButtonsChanged += RebuildWidgets;
+        _btnManager.LoadFrom(_data.Buttons);
         ApplyWindowSkin();
         ApplyLayoutData();
 
@@ -323,6 +324,36 @@ public class VirtualKeyWindow : Form
 
     public void UpdateWindowTitle() => UpdateTitle();
 
+    /// <summary>Reload skin from serializer data and reapply.</summary>
+    public void ReloadSkin()
+    {
+        var global = _serializer.LoadAll();
+        OperationLogger.Info($"[DIAG] VKWindow.ReloadSkin: loaded {global.Windows.Count} windows");
+        var freshData = global.Windows.Find(w => w.Name == _data.Name);
+        if (freshData != null)
+        {
+            OperationLogger.Info($"[DIAG] VKWindow.ReloadSkin: found window name=\"{freshData.Name}\" SkinPath=\"{freshData.SkinPath}\" (current _data.SkinPath=\"{_data.SkinPath}\")");
+            if (freshData.SkinPath != _data.SkinPath)
+            {
+                _data.SkinPath = freshData.SkinPath;
+                OperationLogger.Info($"[DIAG] VKWindow.ReloadSkin: updated _data.SkinPath to \"{_data.SkinPath}\"");
+            }
+        }
+        else
+        {
+            OperationLogger.Warn($"[DIAG] VKWindow.ReloadSkin: window \"{_data.Name}\" NOT FOUND in serialized data");
+        }
+        _skinLoader = new VkSkinLoader(_data.SkinPath);
+        _skinLoader.Load();
+        OperationLogger.Info($"[DIAG] VKWindow.ReloadSkin: _skinLoader.HasSkin={_skinLoader.HasSkin}");
+        ApplyWindowSkin();
+        foreach (var w in _widgets.Values)
+            w.ApplySkin(_skinLoader);
+        var bgImg = _skinLoader.GetWindowBackground();
+        OperationLogger.Info($"[DIAG] VKWindow.ReloadSkin: bgImage={(bgImg != null ? $"loaded ({bgImg.Width}x{bgImg.Height})" : "null")}");
+        Invalidate();
+    }
+
     /// <summary>Reload BindActionId from saved layout data after SyncVkButtonBindings.</summary>
     public void RefreshBindingsFromSerializer()
     {
@@ -533,7 +564,7 @@ public class VirtualKeyWindow : Form
         if (SequenceEditor.IsVkPickMode)
         {
             var seq = _bindingManager.ResolveBinding(vbtn, _sequences);
-            SequenceEditor.ReceiveVkPick(vbtn.Name, seq?.TriggerHotkey);
+            SequenceEditor.ReceiveVkPick(vbtn.Name, _data.Name, seq?.TriggerHotkey);
             return;
         }
 

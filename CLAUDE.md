@@ -1,7 +1,7 @@
-# KeyMacro - Windows 快捷键宏工具
+# Spine助手 - 快捷键宏工具
 
 ## 概述
-后台运行的快捷键宏工具。用户可自定义按键序列，设置间隔时间，绑定触发快捷键。附带 Spine 热键文件编辑器，可直接修改 Spine 的 hotkey TXT 文件。
+快捷键宏工具，面向 Spine 动画师。可自定义按键序列、绑定触发快捷键（键盘/虚拟按键）、后台播放。附带 Spine 热键文件编辑器，可直接修改 Spine 的 hotkey TXT 文件。
 
 ## 技术栈
 - .NET 9.0 + WinForms
@@ -12,7 +12,15 @@
 ```
 KeyMacro/
 ├── Program.cs               # 入口
+├── gen_skin_images.csx      # 皮肤 PNG 状态帧生成脚本
+├── icons/                   # 应用图标资源
+│   └── app.ico
+├── skins/                   # 皮肤 PNG 资源目录
 ├── Models/
+│   ├── DataBundle.cs        # 统一导入导出数据模型
+│   ├── MacroSequence.cs     # 数据模型 (序列 + 步骤)
+│   └── VirtualButton.cs     # 虚拟按键数据模型（含 IsSpacer）
+├── Services/
 │   ├── DataBundle.cs        # 统一导入导出数据模型
 │   ├── MacroSequence.cs     # 数据模型 (序列 + 步骤)
 │   └── VirtualButton.cs     # 虚拟按键数据模型（含 IsSpacer）
@@ -20,6 +28,7 @@ KeyMacro/
 │   ├── ConfigService.cs     # JSON 配置读写 (%APPDATA%\KeyMacro\config.json)
 │   ├── DataBundleService.cs # 统一导入导出服务
 │   ├── HotkeyService.cs     # Win32 全局热键注册/监听
+│   ├── IconService.cs       # 应用图标加载（嵌入→磁盘→代码三级回退）
 │   ├── MacroPlayer.cs       # SendKeys 按键序列播放引擎
 │   ├── OperationLogger.cs   # 文件日志系统 (%APPDATA%\KeyMacro\logs\)
 │   ├── SpineHotkeyService.cs # Spine TXT 文件解析/保存 + 按键名格式转换 + 中文注解
@@ -40,10 +49,12 @@ KeyMacro/
 ## 关键约定
 - **序列（MacroSequence）**：由触发快捷键 + 多个步骤组成，`LoopCount`（1=单次 >1=循环N次 0=无限）
 - **步骤（MacroStep）**：类型（单键/组合键/文本）+ 按键值 + 延迟(ms)
+- **序列编辑器**：步骤列表每行末尾有"复制"按钮，可快速复制步骤行
 - **_suppressEvents**：SequenceEditor 使用此标志防止 DataGridView 事件递归
 - **config.json**：存储在 `%APPDATA%\KeyMacro\`，由 ConfigService 管理
 - **Spine TXT 注解文件**：`{文件名}.txt.annotations.json`，存储中文备注，不污染源 TXT
 - **Spine 按键格式**：TXT 文件使用 Spine 命名（如 `PERIOD`、`COMMA`），录制时自动转换 WinForms → Spine 格式
+- **IconService**：所有窗口图标统一加载，优先级 嵌入资源 → 磁盘文件 → 代码生成回退（蓝底 K 字）
 
 ## 构建与运行
 ```bash
@@ -78,14 +89,15 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 - 两方案共存自动降级：优先方案 A，若检测无效则自动切换到方案 B
 
 ## 主窗口序列列表
+- 工具栏按钮：添加 / 编辑 / 删除 / 测试 / **复制序列** / 暂停全部 / Spine热键编辑 / 释放 / 删除全部 / VK 开/关/管理 / 导入/导出
 - "触发快捷键"列：绑定键盘热键时显示快捷键，绑定虚拟按键时显示"虚拟按键(按钮名)"
 - 列宽使用 Fill 模式等比分配（`AutoSizeMode = Fill` + `FillWeight`），随窗口缩放自动调整
 
 ## VkPickMode 绑定流程
-- SequenceEditor 有两颗按钮录入触发快捷键：**键盘录入**（始终打开键盘录制窗口）和 **虚拟按键**（始终进入 VkPickMode）
+- SequenceEditor 有三颗按钮管理触发快捷键：**键盘录入**（打开键盘录制窗口）、**虚拟按键**（进入 VkPickMode）、**清除**（清空热键）
 - VkPickMode 带有黄色状态栏提示，支持 Esc 取消和"取消拾取"按钮
-- 点击任意虚拟按钮 → 自动拾取关联虚拟按键名称（_txtVkBind）和触发快捷键（_txtHotkey，如有）
-- `MainForm.SyncVkButtonBindings` 是唯一绑定机制：通过 `TriggerVkButtonName ↔ vbtn.Name` 匹配自动同步 `BindActionId`，不支持按钮级别的单独绑定
+- 点击任意虚拟按钮 → 自动拾取复合键 `"窗口名/按钮名"`（_txtVkBind）和触发快捷键（_txtHotkey，如有）
+- `MainForm.SyncVkButtonBindings` 通过复合键 `"窗口名/按钮名"` 匹配，再回退到纯按钮名匹配；自动同步 `BindActionId`
 - `MainForm.RequestOpenVirtualKeys()` 可供 SequenceEditor 在 VK 窗口未打开时自动创建
 
 ## 虚拟按键窗口
@@ -161,12 +173,11 @@ BaseBtnWidth: SmallIcon=48  LargeIcon=96  LoopIcon=110
 
 ## 版本管理与发布流程（必遵）
 
-1. 修改完成后确认本次更新级别：问题修复 / 小功能更新 / 大版本更新 / 未修复
-2. 修改后在 [MainForm.cs](KeyMacro/Forms/MainForm.cs#L24) 标题中迭代版本号：
+1. 修改完成后确认本次更新级别：问题修复 / 小功能更新 / 大版本更新 
+2. 修改后在 [MainForm.cs](KeyMacro/Forms/MainForm.cs#L31) 标题中迭代版本号：
    - 问题修复 → +0.01（如 1.2 → 1.21）并且抹去更更低位的数字
    - 小功能更新 → +0.1（如 1.2 → 1.3）并且抹去更更低位的数字
    - 大版本更新 → +1（如 1.2 → 2.0）并且抹去更更低位的数字
-   - 未修复问题，暂不更改版本号
 3. 总结并修改 CLAUDE.md   
 4. 总结修改内容，询问是否提交 git（以当前版本号作为提交名称，并写明修改摘要）
 5. 修改完成后导出一个单独的.exe应用供测试，如遇应用已开启导致无法修改就强行终止应用再尝试导出

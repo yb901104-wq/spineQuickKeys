@@ -13,6 +13,7 @@ public class VkWindowManager : Form
     public event Action<VirtualLayoutSerializer.WindowLayoutData, bool>? ToggleWindowVisibility;
     public event Action<string>? DeleteWindowRequested;
     public event Action<string, string>? WindowRenamed; // oldName, newName
+    public event Func<string, bool>? QueryWindowVisible; // returns true if window is currently shown
 
     public VkWindowManager(VirtualLayoutSerializer serializer, int nextNumber)
     {
@@ -20,6 +21,7 @@ public class VkWindowManager : Form
         _nameCounter = nextNumber;
 
         Text = "虚拟按键管理";
+        Icon = IconService.AppIcon;
         Size = new Size(600, 400);
         MinimumSize = new Size(400, 250);
         StartPosition = FormStartPosition.CenterParent;
@@ -126,7 +128,8 @@ public class VkWindowManager : Form
         foreach (var w in global.Windows)
         {
             var target = w.TargetProcessName ?? "";
-            var idx = _dgv.Rows.Add(w.Name, target, w.Buttons.Count, w.Enabled, "显示/隐藏", "×");
+            bool visible = QueryWindowVisible?.Invoke(w.Name) ?? false;
+            var idx = _dgv.Rows.Add(w.Name, target, w.Buttons.Count, w.Enabled, visible ? "隐藏" : "显示", "×");
             _dgv.Rows[idx].Tag = w.Name;
             OperationLogger.Info($"VkWindowManager.RefreshList: row added name={w.Name} buttons={w.Buttons.Count} enabled={w.Enabled}");
         }
@@ -209,6 +212,8 @@ public class VkWindowManager : Form
         };
         if (global.Windows.Count > 0)
             newWin.SkinPath = global.Windows[0].SkinPath;
+        if (string.IsNullOrEmpty(newWin.SkinPath))
+            newWin.SkinPath = VirtualLayoutSerializer.LoadEmbeddedSkinPath() ?? "SpineSkin";
 
         global.Windows.Add(newWin);
         _serializer.SaveAll(global);

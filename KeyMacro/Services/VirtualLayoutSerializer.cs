@@ -60,7 +60,7 @@ public class VirtualLayoutSerializer
         return null;
     }
 
-    private static string? LoadEmbeddedSkinPath()
+    internal static string? LoadEmbeddedSkinPath()
     {
         try
         {
@@ -153,15 +153,24 @@ public class VirtualLayoutSerializer
 
     private void ApplyDefaultSkin(GlobalLayoutData global)
     {
+        bool changed = false;
         foreach (var w in global.Windows)
         {
+            OperationLogger.Info($"[DIAG] ApplyDefaultSkin: window=\"{w.Name}\" SkinPath=\"{w.SkinPath}\"");
             if (string.IsNullOrEmpty(w.SkinPath))
             {
                 var embeddedSkin = LoadEmbeddedSkinPath();
+                OperationLogger.Info($"[DIAG] ApplyDefaultSkin: embeddedSkin=\"{embeddedSkin}\"");
                 if (!string.IsNullOrEmpty(embeddedSkin))
+                {
                     w.SkinPath = embeddedSkin;
+                    changed = true;
+                }
             }
+            OperationLogger.Info($"[DIAG] ApplyDefaultSkin: result SkinPath=\"{w.SkinPath}\"");
         }
+        if (changed)
+            SaveAll(global);
     }
 
     // ── Legacy compatibility methods ──

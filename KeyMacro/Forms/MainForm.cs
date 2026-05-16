@@ -15,7 +15,7 @@ public partial class MainForm : Form
 
     private DataGridView _dgv = null!;
     private Button _btnAdd = null!, _btnEdit = null!, _btnDelete = null!;
-    private Button _btnTest = null!, _btnPause = null!;
+    private Button _btnTest = null!, _btnPause = null!, _btnDuplicate = null!;
     private Button _btnSpine = null!, _btnSpineRelease = null!, _btnDeleteAll = null!;
     private Button _btnVkOpen = null!, _btnVkClose = null!, _btnVkManage = null!;
     private Button _btnImport = null!, _btnExport = null!;
@@ -28,7 +28,8 @@ public partial class MainForm : Form
 
     public MainForm()
     {
-        Text = "快捷键助手 V2.11";
+        Text = "Spine助手 V2.12";
+        Icon = IconService.AppIcon;
         Size = new Size(900, 600);
         MinimumSize = new Size(600, 400);
         StartPosition = FormStartPosition.CenterScreen;
@@ -56,6 +57,7 @@ public partial class MainForm : Form
         _btnEdit = CreateButton("编辑", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
         _btnDelete = CreateButton("删除", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
         _btnTest = CreateButton("测试", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
+        _btnDuplicate = CreateButton("复制序列", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
         _btnPause = CreateButton("暂停全部", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
         _btnSpine = CreateButton("Spine热键编辑", Color.FromArgb(0x6B, 0x46, 0xC3), Color.White);
         _btnSpineRelease = CreateButton("释放", Color.FromArgb(0x80, 0x80, 0x80), Color.White);
@@ -71,6 +73,7 @@ public partial class MainForm : Form
         _btnEdit.Click += (_, _) => EditSequence();
         _btnDelete.Click += (_, _) => DeleteSequence();
         _btnTest.Click += (_, _) => TestSequence();
+        _btnDuplicate.Click += (_, _) => DuplicateSequence();
         _btnPause.Click += (_, _) => TogglePause();
         _btnSpine.Click += (_, _) => OpenSpineEditor();
         _btnSpineRelease.Click += (_, _) => ReleaseSpineData();
@@ -81,7 +84,7 @@ public partial class MainForm : Form
         _btnImport.Click += (_, _) => ImportDataBundle();
         _btnExport.Click += (_, _) => ExportDataBundle();
 
-        toolStrip.Controls.AddRange([_btnAdd, _btnEdit, _btnDelete, _btnTest, _btnPause, _btnSpine, _btnSpineRelease, _btnDeleteAll, _btnVkOpen, _btnVkClose, _btnVkManage, _btnImport, _btnExport]);
+        toolStrip.Controls.AddRange([_btnAdd, _btnEdit, _btnDelete, _btnTest, _btnDuplicate, _btnPause, _btnSpine, _btnSpineRelease, _btnDeleteAll, _btnVkOpen, _btnVkClose, _btnVkManage, _btnImport, _btnExport]);
         Controls.Add(toolStrip);
 
         var dgvPanel = new Panel
@@ -137,8 +140,8 @@ public partial class MainForm : Form
 
         _trayIcon = new NotifyIcon
         {
-            Icon = CreateAppIcon(),
-            Text = "快捷键助手",
+            Icon = IconService.AppIcon,
+            Text = "Spine助手",
             ContextMenuStrip = _trayMenu,
             Visible = true
         };
@@ -164,6 +167,7 @@ public partial class MainForm : Form
         OperationLogger.Info("Application shutting down");
         _hotkeyService.Dispose();
         _trayIcon.Dispose();
+        IconService.Dispose();
     }
 
     private void MainForm_Shown(object? sender, EventArgs e)
@@ -439,6 +443,34 @@ public partial class MainForm : Form
             ? Color.FromArgb(0xD9, 0x5C, 0x5C) : Color.FromArgb(0x80, 0x80, 0x80);
     }
 
+    private void DuplicateSequence()
+    {
+        if (_dgv.SelectedRows.Count == 0) return;
+        if (_dgv.SelectedRows[0].Tag is not string id) return;
+        var src = _sequences.Find(s => s.Id == id);
+        if (src == null) return;
+
+        var clone = new MacroSequence
+        {
+            Name = $"{src.Name}_副本",
+            TriggerHotkey = "",
+            Enabled = src.Enabled,
+            LoopIntervalMs = src.LoopIntervalMs,
+            LoopCount = src.LoopCount,
+            TargetAppPath = src.TargetAppPath,
+            TriggerVkButtonName = src.TriggerVkButtonName,
+            Steps = src.Steps.Select(s => new MacroStep
+            {
+                Type = s.Type, Keys = s.Keys, DelayMs = s.DelayMs,
+                PressMode = s.PressMode, HoldDurationMs = s.HoldDurationMs
+            }).ToList()
+        };
+        _sequences.Add(clone);
+        SaveAndRefresh();
+        SyncVkButtonBindings();
+        OperationLogger.Info($"MainForm.DuplicateSequence: \"{src.Name}\" -> \"{clone.Name}\"");
+    }
+
     private void DeleteAllSequences()
     {
         if (_sequences.Count == 0) return;
@@ -527,7 +559,7 @@ public partial class MainForm : Form
             var existing = FindVkWindow(data.Name);
             if (existing != null)
             {
-                if (show) { existing.Show(); existing.BringToFront(); }
+                if (show) { existing.ReloadSkin(); existing.Show(); existing.BringToFront(); }
                 else existing.Hide();
                 OperationLogger.Info($"MainForm.ToggleWindowVisibility: {(show ? "shown" : "hidden")} existing window");
             }
@@ -536,6 +568,11 @@ public partial class MainForm : Form
                 OperationLogger.Info($"MainForm.ToggleWindowVisibility: creating new window");
                 CreateVkWindow(data);
             }
+        };
+        _vkManagerWindow.QueryWindowVisible += name =>
+        {
+            var win = _vkWindows.FirstOrDefault(w => !w.IsDisposed && w.Text.Contains(name));
+            return win != null && win.Visible;
         };
         _vkManagerWindow.DeleteWindowRequested += name =>
         {
@@ -713,16 +750,29 @@ public partial class MainForm : Form
 
     private void SyncVkButtonBindings()
     {
-        // Match buttons to sequences by TriggerVkButtonName across all windows.
+        // Match buttons to sequences by composite key "窗口名/按钮名" or plain name.
         var global = _vkSerializer.LoadAll();
         int matchedCount = 0;
         int totalButtons = 0;
+
+        // First pass: clear BindActionId for buttons whose sequence no longer has TriggerVkButtonName
+        foreach (var winData in global.Windows)
+            foreach (var vbtn in winData.Buttons)
+            {
+                var seq = _sequences.FirstOrDefault(s => s.Id == vbtn.BindActionId);
+                if (seq != null && string.IsNullOrWhiteSpace(seq.TriggerVkButtonName))
+                    vbtn.BindActionId = null;
+            }
+
+        // Second pass: match by composite key "窗口名/按钮名" then fallback to plain name
         foreach (var winData in global.Windows)
         {
             foreach (var vbtn in winData.Buttons)
             {
                 totalButtons++;
-                var seq = _sequences.FirstOrDefault(s => s.TriggerVkButtonName?.Trim() == vbtn.Name);
+                var composite = $"{winData.Name}/{vbtn.Name}";
+                var seq = _sequences.FirstOrDefault(s => s.TriggerVkButtonName?.Trim() == composite)
+                    ?? _sequences.FirstOrDefault(s => s.TriggerVkButtonName?.Trim() == vbtn.Name);
                 if (seq != null)
                 {
                     vbtn.BindActionId = seq.Id;
@@ -842,14 +892,4 @@ public partial class MainForm : Form
             _ = _player.Play(seq);
     }
 
-    private static Icon CreateAppIcon()
-    {
-        using var bmp = new System.Drawing.Bitmap(16, 16);
-        using var g = System.Drawing.Graphics.FromImage(bmp);
-        g.Clear(Color.Transparent);
-        using var brush = new SolidBrush(Color.FromArgb(0, 120, 215));
-        g.FillRectangle(brush, 0, 0, 16, 16);
-        g.DrawString("K", new Font("Segoe UI", 9, FontStyle.Bold), Brushes.White, 3, 2);
-        return Icon.FromHandle(bmp.GetHicon());
-    }
 }

@@ -6,7 +6,7 @@ public class MacroSequence
     public string Name { get; set; } = "新序列";
     public string TriggerHotkey { get; set; } = "";
     public bool Enabled { get; set; } = true;
-    public int LoopIntervalMs { get; set; } = 200;
+    public int LoopIntervalMs { get; set; } = 100;
     public int LoopCount { get; set; } = 1;
     public string TargetAppPath { get; set; } = "";
     public string TriggerVkButtonName { get; set; } = "";

@@ -31,6 +31,7 @@ public class SpineHotkeyEditor : Form
         _service = new SpineHotkeyService(filePath);
 
         Text = "Spine 快捷键编辑";
+        Icon = IconService.AppIcon;
         Size = new Size(1000, 700);
         MinimumSize = new Size(700, 400);
         StartPosition = FormStartPosition.CenterParent;
