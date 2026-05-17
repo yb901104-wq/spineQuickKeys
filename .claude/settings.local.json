@@ -111,7 +111,12 @@
       "Bash(powershell -Command \"[System.Reflection.Assembly]::LoadFrom\\('KeyMacro/bin/Debug/net9.0-windows/win-x64/KeyMacro.dll'\\).GetManifestResourceNames\\(\\) | Select-String 'skin'\")",
       "Bash(powershell -Command \"[System.Reflection.Assembly]::LoadFrom\\('KeyMacro/bin/Debug/net9.0-windows/win-x64/KeyMacro.dll'\\).GetManifestResourceNames\\(\\) | Select-String 'SpineSkin'\")",
       "Bash(powershell -Command \"[System.Reflection.Assembly]::LoadFrom\\('KeyMacro/bin/Debug/net9.0-windows/win-x64/KeyMacro.dll'\\).GetManifestResourceNames\\(\\) | Select-String 'virtual_layout'\")",
-      "Bash(taskkill /f /im dotnet.exe)"
+      "Bash(taskkill /f /im dotnet.exe)",
+      "Bash(awk '/private void DeleteAllSequences/ { print \"    private void DuplicateSequence\\(\\)\"; print \"    {\"; print \"        if \\(_dgv.SelectedRows.Count == 0\\) return;\"; print \"        if \\(_dgv.SelectedRows[0].Tag is not string id\\) return;\"; print \"        var src = _sequences.Find\\(s => s.Id == id\\);\"; print \"        if \\(src == null\\) return;\"; print \"\"; print \"        var clone = new MacroSequence\"; print \"        {\"; print \"            Name = $\\\\\"{src.Name}_副本\\\\\",\"; print \"            TriggerHotkey = \\\\\"\\\\\",\"; print \"            Enabled = src.Enabled,\"; print \"            LoopIntervalMs = src.LoopIntervalMs,\"; print \"            LoopCount = src.LoopCount,\"; print \"            TargetAppPath = src.TargetAppPath,\"; print \"            TriggerVkButtonName = src.TriggerVkButtonName,\"; print \"            Steps = src.Steps.Select\\(s => new MacroStep\"; print \"            {\"; print \"                Type = s.Type, Keys = s.Keys, DelayMs = s.DelayMs,\"; print \"                PressMode = s.PressMode, HoldDurationMs = s.HoldDurationMs\"; print \"            }\\).ToList\\(\\)\"; print \"        };\"; print \"        _sequences.Add\\(clone\\);\"; print \"        SaveAndRefresh\\(\\);\"; print \"        SyncVkButtonBindings\\(\\);\"; print \"        OperationLogger.Info\\($\\\\\"MainForm.DuplicateSequence: \\\\\\\\\\\\\"{src.Name}\\\\\\\\\\\\\" -> \\\\\\\\\\\\\"{clone.Name}\\\\\\\\\\\\\"\\\\\"\\);\"; print \"    }\"; print \"\" } 1' KeyMacro/Forms/MainForm.cs)",
+      "Bash(mv /tmp/mainform_new.cs KeyMacro/Forms/MainForm.cs)",
+      "Bash(python3)",
+      "Bash(python3 -c ' *)",
+      "Bash(powershell -Command \"[System.Reflection.Assembly]::LoadFrom\\('d:/AIAGENT/spineQuickKeys/KeyMacro/bin/Debug/net9.0-windows/win-x64/KeyMacro.dll'\\).GetManifestResourceNames\\(\\) | Select-String 'icons'\")"
     ],
     "additionalDirectories": [
       "d:\\AI_cc\\spineQuickKeys\\openspec\\changes\\virtual-key-window-target"
