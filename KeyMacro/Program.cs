@@ -16,7 +16,7 @@ static class Program
         using var mutex = new Mutex(true, @"Global\KeyMacro_SingleInstance", out bool createdNew);
         if (!createdNew)
         {
-            var hWnd = FindWindow(null, "Spine助手 V2.12");
+            var hWnd = FindWindow(null, "spine宏助手（TANRY） V2.13");
             if (hWnd != IntPtr.Zero)
                 SetForegroundWindow(hWnd);
             return;

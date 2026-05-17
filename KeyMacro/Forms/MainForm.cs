@@ -28,7 +28,7 @@ public partial class MainForm : Form
 
     public MainForm()
     {
-        Text = "Spine助手 V2.12";
+        Text = "spine宏助手（TANRY） V2.13";
         Icon = IconService.AppIcon;
         Size = new Size(900, 600);
         MinimumSize = new Size(600, 400);
@@ -141,7 +141,7 @@ public partial class MainForm : Form
         _trayIcon = new NotifyIcon
         {
             Icon = IconService.AppIcon,
-            Text = "Spine助手",
+            Text = "spine宏助手（TANRY）",
             ContextMenuStrip = _trayMenu,
             Visible = true
         };

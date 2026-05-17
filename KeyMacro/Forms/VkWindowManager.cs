@@ -182,9 +182,14 @@ public class VkWindowManager : Form
             bool show = !currentlyVisible;
             OperationLogger.Info($"VkWindowManager.CellClick: toggle name={name} show={show}");
             btnCell.Value = show ? "隐藏" : "显示";
-            ToggleWindowVisibility?.Invoke(
-                new VirtualLayoutSerializer.WindowLayoutData { Name = name },
-                show);
+            var global = _serializer.LoadAll();
+            var fullData = global.Windows.Find(w => w.Name == name);
+            if (fullData == null)
+            {
+                OperationLogger.Error($"VkWindowManager.CellClick: window '{name}' not found in layout");
+                return;
+            }
+            ToggleWindowVisibility?.Invoke(fullData, show);
         }
         else if (e.ColumnIndex == 5)
         {

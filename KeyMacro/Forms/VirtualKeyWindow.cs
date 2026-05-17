@@ -222,7 +222,29 @@ public class VirtualKeyWindow : Form
         {
             var input = Microsoft.VisualBasic.Interaction.InputBox("输入新的按钮名称:", "修改按钮名称", vbtn.Name);
             if (!string.IsNullOrWhiteSpace(input) && input.Trim() != vbtn.Name)
-                { vbtn.Name = input.Trim(); widget.UpdateButton(vbtn); SaveLayout(); }
+            {
+                var oldName = vbtn.Name;
+                vbtn.Name = input.Trim();
+                widget.UpdateButton(vbtn);
+                // Sync sequences that were bound to this button
+                var compositeOld = $"{_data.Name}/{oldName}";
+                var compositeNew = $"{_data.Name}/{vbtn.Name}";
+                bool seqChanged = false;
+                foreach (var seq in _sequences)
+                {
+                    if (seq.TriggerVkButtonName?.Trim() == compositeOld)
+                    {
+                        seq.TriggerVkButtonName = compositeNew; seqChanged = true;
+                    }
+                    else if (seq.TriggerVkButtonName?.Trim() == oldName)
+                    {
+                        seq.TriggerVkButtonName = vbtn.Name; seqChanged = true;
+                    }
+                }
+                SaveLayout();
+                if (seqChanged)
+                    _sequencesChangedCallback?.Invoke();
+            }
         });
         if (vbtn.StyleType == VirtualButtonStyle.LoopIcon)
         {
