@@ -28,7 +28,7 @@ public partial class MainForm : Form
 
     public MainForm()
     {
-        Text = "spine宏助手（TANRY） V2.13";
+        Text = "spine宏助手（TANRY） V2.14";
         Icon = IconService.AppIcon;
         Size = new Size(900, 600);
         MinimumSize = new Size(600, 400);
@@ -172,7 +172,7 @@ public partial class MainForm : Form
 
     private void MainForm_Shown(object? sender, EventArgs e)
     {
-        OperationLogger.Info($"Application started, version 1.98");
+        OperationLogger.Info($"Application started, version 2.14");
         LoadSequences();
 
         // Auto-load spine entries if saved path exists and file is valid
@@ -410,6 +410,7 @@ public partial class MainForm : Form
         {
             using var editor = new SpineHotkeyEditor(lastPath);
             editor.ShowDialog();
+            UpdateSpineReleaseButton();
             return;
         }
 
@@ -426,6 +427,7 @@ public partial class MainForm : Form
         ConfigService.SaveSpinePath(dialog.FileName);
         using var editorFromDlg = new SpineHotkeyEditor(dialog.FileName);
         editorFromDlg.ShowDialog();
+        UpdateSpineReleaseButton();
     }
 
     private void ReleaseSpineData()

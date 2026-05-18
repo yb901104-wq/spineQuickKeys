@@ -10,6 +10,8 @@ public class SpineHotkeyEntry
     public string? ChineseNote { get; set; }
 }
 
+public record AnnotationEntry(string Name, string? Note);
+
 public class SpineHotkeyService
 {
     public string FilePath { get; }
@@ -81,8 +83,9 @@ public class SpineHotkeyService
         var annotations = LoadAnnotations();
         foreach (var entry in entries)
         {
-            if (annotations.TryGetValue(entry.Name, out var note))
-                entry.ChineseNote = note;
+            var ann = annotations.FirstOrDefault(a => a.Name == entry.Name);
+            if (ann != null)
+                entry.ChineseNote = ann.Note;
         }
 
         return entries;
@@ -90,7 +93,7 @@ public class SpineHotkeyService
 
     public void Save(List<SpineHotkeyEntry> entries)
     {
-        var annotations = new Dictionary<string, string>();
+        var annotations = new List<AnnotationEntry>();
 
         using var writer = new StreamWriter(FilePath, false);
         foreach (var entry in entries)
@@ -99,26 +102,38 @@ public class SpineHotkeyService
             {
                 writer.WriteLine(entry.Name);
                 if (!string.IsNullOrEmpty(entry.ChineseNote))
-                    annotations[entry.Name] = entry.ChineseNote;
+                    annotations.Add(new AnnotationEntry(entry.Name, entry.ChineseNote));
             }
             else
             {
                 writer.WriteLine($"{entry.Name}: {entry.Keys}");
                 if (!string.IsNullOrEmpty(entry.ChineseNote))
-                    annotations[entry.Name] = entry.ChineseNote;
+                    annotations.Add(new AnnotationEntry(entry.Name, entry.ChineseNote));
             }
         }
 
         SaveAnnotations(annotations);
     }
 
-    private Dictionary<string, string> LoadAnnotations()
+    private List<AnnotationEntry> LoadAnnotations()
     {
         try
         {
             if (!File.Exists(_annotationPath)) return [];
             var json = File.ReadAllText(_annotationPath);
-            return JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? [];
+
+            // Try new array format first
+            try
+            {
+                var arr = JsonSerializer.Deserialize<List<AnnotationEntry>>(json,
+                    new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+                if (arr != null) return arr;
+            }
+            catch { }
+
+            // Fallback: legacy dict format
+            var dict = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+            return dict?.Select(kv => new AnnotationEntry(kv.Key, kv.Value)).ToList() ?? [];
         }
         catch
         {
@@ -605,11 +620,16 @@ Ghosting - Selection Only=幻影-仅选中
 Ghosting - Selection Only=幻影-仅选中
 """;
 
-    private void SaveAnnotations(Dictionary<string, string> annotations)
+    private void SaveAnnotations(List<AnnotationEntry> annotations)
     {
         try
         {
-            var json = JsonSerializer.Serialize(annotations, new JsonSerializerOptions { WriteIndented = true });
+            var options = new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            };
+            var json = JsonSerializer.Serialize(annotations, options);
             File.WriteAllText(_annotationPath, json);
         }
         catch { }

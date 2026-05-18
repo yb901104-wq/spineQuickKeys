@@ -234,13 +234,15 @@ public class SpineHotkeyEditor : Form
 
     private void BtnSave_Click(object? sender, EventArgs e)
     {
-        // Collect grid edits
-        for (int i = 0; i < _dgv.Rows.Count && i < _entries.Count; i++)
+        // Match grid rows to entries by Name, not by row index
+        foreach (DataGridViewRow row in _dgv.Rows)
         {
-            var entry = _entries[i];
-            if (entry.Name.StartsWith("---")) continue;
-            entry.Keys = _dgv.Rows[i].Cells[1].Value?.ToString() ?? "";
-            entry.ChineseNote = _dgv.Rows[i].Cells[2].Value?.ToString();
+            var name = row.Cells[0].Value?.ToString();
+            if (string.IsNullOrEmpty(name) || name.StartsWith("---")) continue;
+            var entry = _entries.FirstOrDefault(e => e.Name == name);
+            if (entry == null) continue;
+            entry.Keys = row.Cells[1].Value?.ToString() ?? "";
+            entry.ChineseNote = row.Cells[2].Value?.ToString();
         }
 
         try
