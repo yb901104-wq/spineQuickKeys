@@ -104,7 +104,9 @@ public class SpineHotkeyEditor : Form
             AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
             SelectionMode = DataGridViewSelectionMode.FullRowSelect,
             MultiSelect = false,
-            BorderStyle = BorderStyle.Fixed3D
+            BorderStyle = BorderStyle.Fixed3D,
+            AllowUserToOrderColumns = false,
+            ClipboardCopyMode = DataGridViewClipboardCopyMode.Disable
         };
         _dgv.CellFormatting += Dgv_CellFormatting;
         _dgv.CellBeginEdit += Dgv_CellBeginEdit;

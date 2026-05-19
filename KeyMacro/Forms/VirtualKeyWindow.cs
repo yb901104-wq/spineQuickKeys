@@ -44,8 +44,6 @@ public class VirtualKeyWindow : Form
     private bool _isBeingDeleted;
     private ToolStripMenuItem? _orientMenuItem;
     private float _scaleFactor = 1.0f;
-    private bool _schemeAFailed;
-
     // ── Layout base metrics at 100% scale ──
     private const int BASE_BTN_H = 48;
     private const int BASE_GAP = 4;
@@ -444,7 +442,7 @@ public class VirtualKeyWindow : Form
 
     private void ClearTargetWindow()
     {
-        _targetProc = null; _targetTitle = null; _schemeAFailed = false; SaveLayout(); UpdateTitle();
+        _targetProc = null; _targetTitle = null; SaveLayout(); UpdateTitle();
     }
 
     private IntPtr ResolveTargetWindow()
@@ -614,29 +612,11 @@ public class VirtualKeyWindow : Form
             return;
         }
 
-        if (GetForegroundWindow() == hwnd)
-        {
-            OperationLogger.Info($"[DIAG] VKPlay: scheme=DirectPlay target=foreground hwnd=0x{hwnd:X8} seq=\"{sequence.Name}\"");
-            _ = _player.Play(sequence);
-        }
-        else if (!_schemeAFailed)
-        {
-            OperationLogger.Info($"[DIAG] VKPlay: scheme=PostMessage hwnd=0x{hwnd:X8} seq=\"{sequence.Name}\"");
-            await _player.PlayToWindow(sequence, hwnd);
-            await Task.Delay(100);
-            if (GetForegroundWindow() != hwnd)
-            {
-                _schemeAFailed = true;
-                OperationLogger.Warn($"[DIAG] VKPlay: PostMessage scheme A failed, will fall back to ActivateWindow next time");
-            }
-        }
-        else
-        {
-            OperationLogger.Info($"[DIAG] VKPlay: scheme=ActivateWindow hwnd=0x{hwnd:X8} seq=\"{sequence.Name}\"");
-            SetForegroundWindow(hwnd);
-            await Task.Delay(200);
-            _ = _player.Play(sequence);
-        }
+        // Activate target window, wait for it to settle, then play
+        SetForegroundWindow(hwnd);
+        await Task.Delay(300);
+        OperationLogger.Info($"[DIAG] VKPlay: scheme=ActivateWindow hwnd=0x{hwnd:X8} seq=\"{sequence.Name}\"");
+        _ = _player.Play(sequence, skipInitialDelay: true);
     }
 
     private void OnButtonDragged(VirtualButtonWidget widget, int dx, int dy)

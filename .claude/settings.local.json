@@ -116,7 +116,8 @@
       "Bash(mv /tmp/mainform_new.cs KeyMacro/Forms/MainForm.cs)",
       "Bash(python3)",
       "Bash(python3 -c ' *)",
-      "Bash(powershell -Command \"[System.Reflection.Assembly]::LoadFrom\\('d:/AIAGENT/spineQuickKeys/KeyMacro/bin/Debug/net9.0-windows/win-x64/KeyMacro.dll'\\).GetManifestResourceNames\\(\\) | Select-String 'icons'\")"
+      "Bash(powershell -Command \"[System.Reflection.Assembly]::LoadFrom\\('d:/AIAGENT/spineQuickKeys/KeyMacro/bin/Debug/net9.0-windows/win-x64/KeyMacro.dll'\\).GetManifestResourceNames\\(\\) | Select-String 'icons'\")",
+      "Bash(cmd.exe /c \"taskkill /f /im KeyMacro.exe\")"
     ],
     "additionalDirectories": [
       "d:\\AI_cc\\spineQuickKeys\\openspec\\changes\\virtual-key-window-target"

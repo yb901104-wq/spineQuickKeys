@@ -28,7 +28,7 @@ public class MacroPlayer
 
     public bool IsPlaying => _isPlaying;
 
-    public async Task Play(MacroSequence sequence)
+    public async Task Play(MacroSequence sequence, bool skipInitialDelay = false)
     {
         if (_isPlaying) return;
         OperationLogger.Info($"MacroPlayer.Play: start \"{sequence.Name}\" ({sequence.Id}), steps={sequence.Steps.Count}, count={sequence.LoopCount}");
@@ -40,7 +40,8 @@ public class MacroPlayer
         _completedLoops = 0;
         try
         {
-            await Task.Delay(500, ct);
+            if (!skipInitialDelay)
+                await Task.Delay(500, ct);
 
             var loopCounter = 0;
             do

@@ -1,5 +1,3 @@
-using System.Text.Json;
-
 namespace KeyMacro.Services;
 
 public class SpineHotkeyEntry
@@ -10,12 +8,9 @@ public class SpineHotkeyEntry
     public string? ChineseNote { get; set; }
 }
 
-public record AnnotationEntry(string Name, string? Note);
-
 public class SpineHotkeyService
 {
     public string FilePath { get; }
-    private readonly string _annotationPath;
 
     private static readonly string TranslationPath =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -27,7 +22,6 @@ public class SpineHotkeyService
     public SpineHotkeyService(string filePath)
     {
         FilePath = filePath;
-        _annotationPath = filePath + ".annotations.json";
     }
 
     public List<SpineHotkeyEntry> Load()
@@ -61,8 +55,15 @@ public class SpineHotkeyService
             if (colonIdx > 0)
             {
                 var name = line[..colonIdx].TrimEnd();
-                if (!seenNames.Add(name)) continue;
                 var keys = line[(colonIdx + 1)..].TrimStart();
+                if (!seenNames.Add(name))
+                {
+                    // Duplicate: merge keys if existing entry has empty keys
+                    var existing = entries.LastOrDefault(e => e.Name == name);
+                    if (existing != null && string.IsNullOrEmpty(existing.Keys) && !string.IsNullOrEmpty(keys))
+                        existing.Keys = keys;
+                    continue;
+                }
                 entries.Add(new SpineHotkeyEntry
                 {
                     Name = name,
@@ -72,7 +73,7 @@ public class SpineHotkeyService
             }
         }
 
-        // Load translations from global dictionary
+        // Load translations from dictionary and apply to matching entries
         EnsureTranslationFile();
         var translations = LoadTranslationFile();
         foreach (var entry in entries)
@@ -81,72 +82,75 @@ public class SpineHotkeyService
                 entry.ChineseNote = trans;
         }
 
-        // Load annotations from companion file (overrides translations)
-        var annotations = LoadAnnotations();
-        foreach (var entry in entries)
-        {
-            var ann = annotations.FirstOrDefault(a => a.Name == entry.Name);
-            if (ann != null)
-                entry.ChineseNote = ann.Note;
-        }
-
         return entries;
     }
 
     public void Save(List<SpineHotkeyEntry> entries)
     {
-        var annotations = new List<AnnotationEntry>();
-
         using var writer = new StreamWriter(FilePath, false);
         foreach (var entry in entries)
         {
             if (entry.Name.StartsWith("---"))
             {
                 writer.WriteLine(entry.Name);
-                if (!string.IsNullOrEmpty(entry.ChineseNote))
-                    annotations.Add(new AnnotationEntry(entry.Name, entry.ChineseNote));
             }
             else
             {
-                if (string.IsNullOrWhiteSpace(entry.Keys))
-                {
-                    if (!string.IsNullOrEmpty(entry.ChineseNote))
-                        annotations.Add(new AnnotationEntry(entry.Name, entry.ChineseNote));
-                    continue;
-                }
                 writer.WriteLine($"{entry.Name}: {entry.Keys}");
-                if (!string.IsNullOrEmpty(entry.ChineseNote))
-                    annotations.Add(new AnnotationEntry(entry.Name, entry.ChineseNote));
             }
         }
 
-        SaveAnnotations(annotations);
+        // Persist ChineseNotes back to the translation file
+        SaveTranslations(entries);
     }
 
-    private List<AnnotationEntry> LoadAnnotations()
+    private void SaveTranslations(List<SpineHotkeyEntry> entries)
     {
         try
         {
-            if (!File.Exists(_annotationPath)) return [];
-            var json = File.ReadAllText(_annotationPath);
+            var path = File.Exists(ProjectTranslationPath) ? ProjectTranslationPath : TranslationPath;
 
-            // Try new array format first
-            try
+            // Read existing translations
+            var translations = new Dictionary<string, string>();
+            if (File.Exists(path))
             {
-                var arr = JsonSerializer.Deserialize<List<AnnotationEntry>>(json,
-                    new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
-                if (arr != null) return arr;
+                var lines = File.ReadAllLines(path, System.Text.Encoding.UTF8);
+                foreach (var line in lines)
+                {
+                    var trimmed = line.Trim();
+                    if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith('#')) continue;
+                    var eqIdx = trimmed.IndexOf('=');
+                    if (eqIdx > 0)
+                    {
+                        var name = trimmed[..eqIdx].Trim();
+                        var note = trimmed[(eqIdx + 1)..].Trim();
+                        if (name.Length > 0)
+                            translations[name] = note;
+                    }
+                }
             }
-            catch { }
 
-            // Fallback: legacy dict format
-            var dict = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
-            return dict?.Select(kv => new AnnotationEntry(kv.Key, kv.Value)).ToList() ?? [];
+            // Update with entries that have non-empty ChineseNote
+            foreach (var entry in entries)
+            {
+                if (!string.IsNullOrEmpty(entry.ChineseNote))
+                    translations[entry.Name] = entry.ChineseNote;
+            }
+
+            // Write back
+            var writePath = File.Exists(ProjectTranslationPath) ? ProjectTranslationPath : TranslationPath;
+            EnsureDirectory(writePath);
+            var outputLines = translations.Select(kv => $"{kv.Key}={kv.Value}");
+            File.WriteAllLines(writePath, outputLines, System.Text.Encoding.UTF8);
         }
-        catch
-        {
-            return [];
-        }
+        catch { }
+    }
+
+    private static void EnsureDirectory(string path)
+    {
+        var dir = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+            Directory.CreateDirectory(dir);
     }
 
     /// <summary>
@@ -216,7 +220,6 @@ public class SpineHotkeyService
 
     private static readonly Dictionary<string, string> ReverseMap = new()
     {
-        // WinForms Keys enum → Spine format (uppercase)
         ["OemPeriod"] = "PERIOD",
         ["Oemcomma"] = "COMMA",
         ["OemMinus"] = "MINUS",
@@ -625,21 +628,5 @@ Ghosting - Loop=幻影-循环
 Ghosting - Lock=幻影-锁定
 Ghosting - Refresh=幻影-刷新
 Ghosting - Selection Only=幻影-仅选中
-Ghosting - Selection Only=幻影-仅选中
 """;
-
-    private void SaveAnnotations(List<AnnotationEntry> annotations)
-    {
-        try
-        {
-            var options = new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-            };
-            var json = JsonSerializer.Serialize(annotations, options);
-            File.WriteAllText(_annotationPath, json);
-        }
-        catch { }
-    }
 }
