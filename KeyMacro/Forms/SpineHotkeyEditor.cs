@@ -234,6 +234,9 @@ public class SpineHotkeyEditor : Form
 
     private void BtnSave_Click(object? sender, EventArgs e)
     {
+        // Commit any in-progress cell edit before reading values
+        _dgv.EndEdit();
+
         // Match grid rows to entries by Name, not by row index
         foreach (DataGridViewRow row in _dgv.Rows)
         {

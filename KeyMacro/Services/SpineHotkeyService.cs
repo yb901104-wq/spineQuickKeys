@@ -34,6 +34,7 @@ public class SpineHotkeyService
     {
         var lines = File.ReadAllLines(FilePath);
         var entries = new List<SpineHotkeyEntry>();
+        var seenNames = new HashSet<string>();
         string? currentSection = null;
 
         foreach (var rawLine in lines)
@@ -60,6 +61,7 @@ public class SpineHotkeyService
             if (colonIdx > 0)
             {
                 var name = line[..colonIdx].TrimEnd();
+                if (!seenNames.Add(name)) continue;
                 var keys = line[(colonIdx + 1)..].TrimStart();
                 entries.Add(new SpineHotkeyEntry
                 {
@@ -106,6 +108,12 @@ public class SpineHotkeyService
             }
             else
             {
+                if (string.IsNullOrWhiteSpace(entry.Keys))
+                {
+                    if (!string.IsNullOrEmpty(entry.ChineseNote))
+                        annotations.Add(new AnnotationEntry(entry.Name, entry.ChineseNote));
+                    continue;
+                }
                 writer.WriteLine($"{entry.Name}: {entry.Keys}");
                 if (!string.IsNullOrEmpty(entry.ChineseNote))
                     annotations.Add(new AnnotationEntry(entry.Name, entry.ChineseNote));
