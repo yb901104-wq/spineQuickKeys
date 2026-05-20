@@ -29,7 +29,7 @@ public partial class MainForm : Form
 
     public MainForm()
     {
-        Text = "spine宏助手（TANRY） V2.5";
+        Text = "spine宏助手（TANRY） V2.6";
         Icon = IconService.AppIcon;
         Size = new Size(900, 600);
         MinimumSize = new Size(600, 400);
@@ -173,7 +173,7 @@ public partial class MainForm : Form
 
     private void MainForm_Shown(object? sender, EventArgs e)
     {
-        OperationLogger.Info($"Application started, version 2.5");
+        OperationLogger.Info($"Application started, version 2.6");
         LoadSequences();
 
         // Auto-load spine entries if saved path exists and file is valid
@@ -622,10 +622,14 @@ public partial class MainForm : Form
 
         var bundle = new DataBundle();
         bundle.Sequences = [.. _sequences];
-        bundle.VkData = _vkSerializer.LoadAll().Windows.FirstOrDefault();
+        bundle.VkDataList = [.. _vkSerializer.LoadAll().Windows];
 
-        var editor = Application.OpenForms.OfType<SpineHotkeyEditor>().FirstOrDefault();
-        bundle.SpineHotkeys = editor?.GetCurrentEntries();
+        // Read spine hotkeys from saved TXT path, not from editor window
+        var spinePath = ConfigService.LoadSpinePath();
+        if (!string.IsNullOrEmpty(spinePath) && File.Exists(spinePath))
+        {
+            bundle.SpineHotkeys = new SpineHotkeyService(spinePath).Load();
+        }
 
         new DataBundleService().Export(dialog.FileName, bundle);
         MessageBox.Show($"数据已导出到：\n{dialog.FileName}", "导出完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -648,31 +652,110 @@ public partial class MainForm : Form
             return;
         }
 
-        MessageBox.Show("导入操作将分项确认，包含以下 4 部分：\n\n" +
-            "1. Spine 热键编辑\n" +
-            "2. 序列设置\n" +
-            "3. 虚拟按键布局\n" +
-            "4. 虚拟按键设置",
-            "导入确认", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        // Backward compat: if VkDataList is null, migrate from old VkData
+        if (bundle.VkDataList == null && bundle.VkData != null)
+            bundle.VkDataList = [bundle.VkData];
 
-        // 1. Spine hotkeys
-        if (bundle.SpineHotkeys?.Count > 0)
+        // ── 1. Spine hotkey bindings (key-aligned) ──
+        var spinePath = ConfigService.LoadSpinePath();
+        if (bundle.SpineHotkeys?.Count > 0 && !string.IsNullOrEmpty(spinePath) && File.Exists(spinePath))
         {
-            if (MessageBox.Show("是否导入 Spine 热键编辑？", "导入", MessageBoxButtons.YesNo) == DialogResult.Yes)
+            if (MessageBox.Show("是否导入 Spine 快捷键绑定？（将按按键名对位替换，不增删行）",
+                "导入", MessageBoxButtons.YesNo) == DialogResult.Yes)
             {
-                var editor = new SpineHotkeyEditor(dialog.FileName, bundle.SpineHotkeys);
-                editor.Show();
+                var importMap = bundle.SpineHotkeys
+                    .Where(e => !e.Name.StartsWith("---"))
+                    .ToDictionary(e => e.Name, e => e.Keys, StringComparer.OrdinalIgnoreCase);
+
+                var lines = File.ReadAllLines(spinePath).ToList();
+                bool changed = false;
+                for (int i = 0; i < lines.Count; i++)
+                {
+                    var raw = lines[i].TrimEnd('\r', '\n');
+                    var colonIdx = raw.IndexOf(':');
+                    if (colonIdx > 0)
+                    {
+                        var name = raw[..colonIdx].TrimEnd();
+                        if (importMap.TryGetValue(name, out var newKeys))
+                        {
+                            lines[i] = $"{name}: {newKeys}";
+                            changed = true;
+                        }
+                    }
+                }
+                if (changed)
+                {
+                    File.WriteAllLines(spinePath, lines);
+                    // Reload spine entries in editor if open
+                    if (SpineHotkeyEditor.LastLoadedEntries != null)
+                    {
+                        var svc = new SpineHotkeyService(spinePath);
+                        SpineHotkeyEditor.SetLoadedEntries(svc.Load());
+                    }
+                    MessageBox.Show("Spine 快捷键绑定已导入。", "完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    MessageBox.Show("没有匹配的快捷键项可导入。", "完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
             }
         }
-        else
+        else if (bundle.SpineHotkeys?.Count > 0)
         {
-            MessageBox.Show("Spine 热键编辑：文件中无相关数据，跳过。", "导入", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show("Spine 快捷键绑定：未找到 Spine 热键文件，跳过。", "导入", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
-        // 2. Sequences
+        // ── 2. Spine key descriptions (translations, key-aligned) ──
+        if (bundle.SpineHotkeys?.Count > 0)
+        {
+            if (MessageBox.Show("是否导入按键功能说明？（将按按键名对位替换翻译内容）",
+                "导入", MessageBoxButtons.YesNo) == DialogResult.Yes)
+            {
+                var importNoteMap = bundle.SpineHotkeys
+                    .Where(e => !string.IsNullOrEmpty(e.ChineseNote) && !e.Name.StartsWith("---"))
+                    .ToDictionary(e => e.Name, e => e.ChineseNote!, StringComparer.OrdinalIgnoreCase);
+
+                var transPath = SpineHotkeyService.GetTranslationPath();
+                if (File.Exists(transPath))
+                {
+                    var lines = File.ReadAllLines(transPath, System.Text.Encoding.UTF8).ToList();
+                    bool changed = false;
+                    for (int i = 0; i < lines.Count; i++)
+                    {
+                        var trimmed = lines[i].Trim();
+                        if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith('#')) continue;
+                        var eqIdx = trimmed.IndexOf('=');
+                        if (eqIdx > 0)
+                        {
+                            var name = trimmed[..eqIdx].Trim();
+                            if (importNoteMap.TryGetValue(name, out var newNote))
+                            {
+                                lines[i] = $"{name}={newNote}";
+                                changed = true;
+                            }
+                        }
+                    }
+                    if (changed)
+                    {
+                        File.WriteAllLines(transPath, lines, System.Text.Encoding.UTF8);
+                        MessageBox.Show("按键功能说明已导入。", "完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    else
+                    {
+                        MessageBox.Show("没有匹配的功能说明项可导入。", "完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("翻译文件不存在，跳过。", "导入", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+        }
+
+        // ── 3. Sequences ──
         if (bundle.Sequences?.Count > 0)
         {
-            if (MessageBox.Show($"是否导入序列设置？（共 {bundle.Sequences.Count} 个序列）", "导入", MessageBoxButtons.YesNo) == DialogResult.Yes)
+            if (MessageBox.Show($"是否导入所有序列？（共 {bundle.Sequences.Count} 个序列）", "导入", MessageBoxButtons.YesNo) == DialogResult.Yes)
             {
                 _sequences = [.. bundle.Sequences];
                 _config.Save(_sequences);
@@ -686,24 +769,55 @@ public partial class MainForm : Form
             MessageBox.Show("序列设置：文件中无相关数据，跳过。", "导入", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
-        // 3. VK layout (buttons)
-        if (bundle.VkData?.Buttons?.Count > 0)
+        // ── 4. VK windows (per-window confirm) ──
+        if (bundle.VkDataList?.Count > 0)
         {
-            if (MessageBox.Show($"是否导入虚拟按键布局？（共 {bundle.VkData.Buttons.Count} 个按钮）", "导入", MessageBoxButtons.YesNo) == DialogResult.Yes)
+            var global = _vkSerializer.LoadAll();
+            int importedCount = 0;
+            foreach (var win in bundle.VkDataList)
             {
-                var global = _vkSerializer.LoadAll();
-                bundle.VkData.Name = $"导入_{global.Windows.Count + 1}";
-                bundle.VkData.Enabled = true;
-                global.Windows.Add(bundle.VkData);
+                var newName = win.Name;
+                // Check collision
+                var existingIdx = global.Windows.FindIndex(w =>
+                    w.Name.Equals(newName, StringComparison.OrdinalIgnoreCase));
+                string prompt;
+                if (existingIdx >= 0)
+                {
+                    prompt = $"窗口 \"{newName}\" 已存在，是否覆盖？";
+                }
+                else
+                {
+                    prompt = $"是否导入窗口 \"{newName}\"？（共 {win.Buttons.Count} 个按钮）";
+                }
+
+                if (MessageBox.Show(prompt, "导入虚拟按键", MessageBoxButtons.YesNo) == DialogResult.Yes)
+                {
+                    win.Enabled = true;
+                    if (existingIdx >= 0)
+                        global.Windows[existingIdx] = win;
+                    else
+                        global.Windows.Add(win);
+                    importedCount++;
+                }
+            }
+            if (importedCount > 0)
+            {
                 _vkSerializer.SaveAll(global);
+                // Refresh open VK windows
+                foreach (var vkw in _vkWindows)
+                {
+                    if (!vkw.IsDisposed)
+                        vkw.Close();
+                }
+                _vkWindows.Clear();
+                OpenVirtualKeys();
+                MessageBox.Show($"已导入 {importedCount} 个虚拟按键窗口。", "完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
         else
         {
             MessageBox.Show("虚拟按键布局：文件中无相关数据，跳过。", "导入", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
-
-        // 4. VK settings (merged into multi-window, skip as separate section)
     }
 
     private void ExitApp()
