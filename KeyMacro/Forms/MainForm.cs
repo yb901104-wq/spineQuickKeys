@@ -14,11 +14,12 @@ public partial class MainForm : Form
     private HashSet<string> _failedHotkeys = [];
 
     private DataGridView _dgv = null!;
-    private Button _btnAdd = null!, _btnEdit = null!, _btnDelete = null!;
-    private Button _btnTest = null!, _btnPause = null!, _btnDuplicate = null!;
-    private Button _btnSpine = null!, _btnSpineRelease = null!, _btnDeleteAll = null!;
+    private Button _btnAdd = null!, _btnEdit = null!, _btnDelete = null!, _btnDeleteAll = null!;
+    private Button _btnPause = null!, _btnDuplicate = null!;
+    private Button _btnSpine = null!, _btnSpineRelease = null!;
     private Button _btnVkOpen = null!, _btnVkClose = null!, _btnVkManage = null!;
     private Button _btnImport = null!, _btnExport = null!;
+    private Button _btnReName = null!;
     private ToolStripMenuItem? _pauseTrayItem;
 
     private readonly VirtualLayoutSerializer _vkSerializer = new();
@@ -28,7 +29,7 @@ public partial class MainForm : Form
 
     public MainForm()
     {
-        Text = "spine宏助手（TANRY） V2.18";
+        Text = "spine宏助手（TANRY） V2.19";
         Icon = IconService.AppIcon;
         Size = new Size(900, 600);
         MinimumSize = new Size(600, 400);
@@ -56,35 +57,35 @@ public partial class MainForm : Form
         _btnAdd = CreateButton("添加", Color.FromArgb(0, 120, 215), Color.White);
         _btnEdit = CreateButton("编辑", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
         _btnDelete = CreateButton("删除", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
-        _btnTest = CreateButton("测试", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
+        _btnDeleteAll = CreateButton("删除全部", Color.FromArgb(0xD9, 0x5C, 0x5C), Color.White);
         _btnDuplicate = CreateButton("复制序列", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
         _btnPause = CreateButton("暂停全部", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
         _btnSpine = CreateButton("Spine热键编辑", Color.FromArgb(0x6B, 0x46, 0xC3), Color.White);
         _btnSpineRelease = CreateButton("释放", Color.FromArgb(0x80, 0x80, 0x80), Color.White);
         _btnSpineRelease.Enabled = false;
-        _btnDeleteAll = CreateButton("删除全部", Color.FromArgb(0xD9, 0x5C, 0x5C), Color.White);
         _btnVkOpen = CreateButton("开启虚拟按键", Color.FromArgb(0x00, 0xC8, 0x53), Color.White);
         _btnVkClose = CreateButton("关闭虚拟按键", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
         _btnVkManage = CreateButton("管理虚拟按键", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
+        _btnReName = CreateButton("批量重命名/spine解包整理", Color.FromArgb(0x6B, 0x46, 0xC3), Color.White);
         _btnImport = CreateButton("导入", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
         _btnExport = CreateButton("导出", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
 
         _btnAdd.Click += (_, _) => AddSequence();
         _btnEdit.Click += (_, _) => EditSequence();
         _btnDelete.Click += (_, _) => DeleteSequence();
-        _btnTest.Click += (_, _) => TestSequence();
+        _btnDeleteAll.Click += (_, _) => DeleteAllSequences();
         _btnDuplicate.Click += (_, _) => DuplicateSequence();
         _btnPause.Click += (_, _) => TogglePause();
         _btnSpine.Click += (_, _) => OpenSpineEditor();
         _btnSpineRelease.Click += (_, _) => ReleaseSpineData();
-        _btnDeleteAll.Click += (_, _) => DeleteAllSequences();
         _btnVkOpen.Click += (_, _) => OpenVirtualKeys();
         _btnVkClose.Click += (_, _) => CloseVirtualKeys();
         _btnVkManage.Click += (_, _) => OpenVkManager();
+        _btnReName.Click += (_, _) => { using var f = new ReNameTool.Form1(); f.ShowDialog(this); };
         _btnImport.Click += (_, _) => ImportDataBundle();
         _btnExport.Click += (_, _) => ExportDataBundle();
 
-        toolStrip.Controls.AddRange([_btnAdd, _btnEdit, _btnDelete, _btnTest, _btnDuplicate, _btnPause, _btnSpine, _btnSpineRelease, _btnDeleteAll, _btnVkOpen, _btnVkClose, _btnVkManage, _btnImport, _btnExport]);
+        toolStrip.Controls.AddRange([_btnAdd, _btnEdit, _btnDelete, _btnDeleteAll, _btnDuplicate, _btnPause, _btnSpine, _btnSpineRelease, _btnVkOpen, _btnVkClose, _btnVkManage, _btnReName, _btnImport, _btnExport]);
         Controls.Add(toolStrip);
 
         var dgvPanel = new Panel
@@ -172,7 +173,7 @@ public partial class MainForm : Form
 
     private void MainForm_Shown(object? sender, EventArgs e)
     {
-        OperationLogger.Info($"Application started, version 2.18");
+        OperationLogger.Info($"Application started, version 2.19");
         LoadSequences();
 
         // Auto-load spine entries if saved path exists and file is valid
@@ -373,25 +374,6 @@ public partial class MainForm : Form
         _sequences.Remove(seq);
         OperationLogger.Info($"MainForm: deleted sequence \"{seq.Name}\" ({seq.Id})");
         SaveAndRefresh();
-    }
-
-    private void TestSequence()
-    {
-        if (GetSelectedSequence() is not { } seq) return;
-        if (_player.IsPlaying)
-        {
-            _player.Stop();
-            _btnTest.Text = "测试";
-            return;
-        }
-        OperationLogger.Info($"MainForm: testing sequence \"{seq.Name}\" ({seq.Id})");
-        Hide();
-        _ = Task.Run(async () =>
-        {
-            await _player.Play(seq);
-            BeginInvoke(() => _btnTest.Text = "测试");
-        });
-        _btnTest.Text = "停止";
     }
 
     private void TogglePause()
@@ -881,7 +863,6 @@ public partial class MainForm : Form
 
         _btnEdit.Enabled = _sequences.Count > 0;
         _btnDelete.Enabled = _sequences.Count > 0;
-        _btnTest.Enabled = _sequences.Count > 0;
     }
 
     private void OnHotkeyTriggered(string sequenceId)
