@@ -20,6 +20,7 @@ public partial class MainForm : Form
     private Button _btnVkOpen = null!, _btnVkClose = null!, _btnVkManage = null!;
     private Button _btnImport = null!, _btnExport = null!;
     private Button _btnReName = null!;
+    private Button _btnBatchCopy = null!;
     private ToolStripMenuItem? _pauseTrayItem;
 
     private readonly VirtualLayoutSerializer _vkSerializer = new();
@@ -29,7 +30,7 @@ public partial class MainForm : Form
 
     public MainForm()
     {
-        Text = "spine宏助手（TANRY） V2.6";
+        Text = "spine宏助手（TANRY） V2.7";
         Icon = IconService.AppIcon;
         Size = new Size(900, 600);
         MinimumSize = new Size(600, 400);
@@ -67,6 +68,7 @@ public partial class MainForm : Form
         _btnVkClose = CreateButton("关闭虚拟按键", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
         _btnVkManage = CreateButton("管理虚拟按键", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
         _btnReName = CreateButton("批量重命名/spine解包整理", Color.FromArgb(0x6B, 0x46, 0xC3), Color.White);
+        _btnBatchCopy = CreateButton("批量复制", Color.FromArgb(0x6B, 0x46, 0xC3), Color.White);
         _btnImport = CreateButton("导入", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
         _btnExport = CreateButton("导出", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
 
@@ -82,10 +84,11 @@ public partial class MainForm : Form
         _btnVkClose.Click += (_, _) => CloseVirtualKeys();
         _btnVkManage.Click += (_, _) => OpenVkManager();
         _btnReName.Click += (_, _) => { using var f = new ReNameTool.Form1(); f.ShowDialog(this); };
+        _btnBatchCopy.Click += (_, _) => { using var f = new BatchCopyWindow(); f.ShowDialog(this); };
         _btnImport.Click += (_, _) => ImportDataBundle();
         _btnExport.Click += (_, _) => ExportDataBundle();
 
-        toolStrip.Controls.AddRange([_btnAdd, _btnEdit, _btnDelete, _btnDeleteAll, _btnDuplicate, _btnPause, _btnSpine, _btnSpineRelease, _btnVkOpen, _btnVkClose, _btnVkManage, _btnReName, _btnImport, _btnExport]);
+        toolStrip.Controls.AddRange([_btnAdd, _btnEdit, _btnDelete, _btnDeleteAll, _btnDuplicate, _btnPause, _btnSpine, _btnSpineRelease, _btnVkOpen, _btnVkClose, _btnVkManage, _btnReName, _btnBatchCopy, _btnImport, _btnExport]);
         Controls.Add(toolStrip);
 
         var dgvPanel = new Panel

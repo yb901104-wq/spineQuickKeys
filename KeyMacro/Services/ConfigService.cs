@@ -85,4 +85,50 @@ public class ConfigService
         try { if (File.Exists(SpinePathFile)) File.Delete(SpinePathFile); }
         catch { }
     }
+
+    private static readonly string PathHistoryFile =
+        Path.Combine(AppDataDir, "path_history.json");
+
+    public static PathHistory LoadPathHistory()
+    {
+        try
+        {
+            if (!File.Exists(PathHistoryFile))
+                return new PathHistory();
+            var json = File.ReadAllText(PathHistoryFile);
+            return JsonSerializer.Deserialize<PathHistory>(json) ?? new PathHistory();
+        }
+        catch (Exception ex)
+        {
+            OperationLogger.Error($"ConfigService.LoadPathHistory: failed: {ex.Message}");
+            return new PathHistory();
+        }
+    }
+
+    public static void SavePathHistory(PathHistory history)
+    {
+        try
+        {
+            if (!Directory.Exists(AppDataDir)) Directory.CreateDirectory(AppDataDir);
+            var json = JsonSerializer.Serialize(history, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(PathHistoryFile, json);
+        }
+        catch (Exception ex)
+        {
+            OperationLogger.Error($"ConfigService.SavePathHistory: failed: {ex.Message}");
+        }
+    }
+
+    public static void ClearPathHistory()
+    {
+        try
+        {
+            if (File.Exists(PathHistoryFile)) File.Delete(PathHistoryFile);
+            OperationLogger.Info("ConfigService.ClearPathHistory: path history cleared");
+        }
+        catch (Exception ex)
+        {
+            OperationLogger.Error($"ConfigService.ClearPathHistory: failed: {ex.Message}");
+        }
+    }
 }

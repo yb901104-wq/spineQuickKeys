@@ -19,10 +19,7 @@ KeyMacro/
 ├── Models/
 │   ├── DataBundle.cs        # 统一导入导出数据模型
 │   ├── MacroSequence.cs     # 数据模型 (序列 + 步骤)
-│   └── VirtualButton.cs     # 虚拟按键数据模型（含 IsSpacer）
-├── Services/
-│   ├── DataBundle.cs        # 统一导入导出数据模型
-│   ├── MacroSequence.cs     # 数据模型 (序列 + 步骤)
+│   ├── PathHistory.cs       # 批量复制前缀/后缀历史记录
 │   └── VirtualButton.cs     # 虚拟按键数据模型（含 IsSpacer）
 ├── Services/
 │   ├── ConfigService.cs     # JSON 配置读写 (%APPDATA%\KeyMacro\config.json)
@@ -31,6 +28,7 @@ KeyMacro/
 │   ├── IconService.cs       # 应用图标加载（嵌入→磁盘→代码三级回退）
 │   ├── MacroPlayer.cs       # SendKeys 按键序列播放引擎
 │   ├── OperationLogger.cs   # 文件日志系统 (%APPDATA%\KeyMacro\logs\)
+│   ├── BatchCopyService.cs  # 批量复制执行引擎（冲突检测/进度/日志）
 │   ├── SpineHotkeyService.cs # Spine TXT 文件解析/保存 + 按键名格式转换 + 中文注解
 │   ├── VirtualButtonManager.cs # 虚拟按键列表管理（排序/间隔）
 │   ├── VirtualKeyBindingManager.cs # 虚拟按键 ↔ 序列绑定
@@ -41,9 +39,14 @@ KeyMacro/
     ├── MainForm.cs          # 主窗口 + 系统托盘（导入导出）
     ├── SequenceEditor.cs    # 序列编辑器 + 热键录制对话框
     ├── SpineHotkeyEditor.cs # Spine 热键 TXT 文件编辑窗口（支持数据构造）
-    ├── VirtualKeyWindow.cs  # 虚拟按键浮动窗口（拖拽排序/spacer/横竖切换/自管理）
-    ├── VkWindowManager.cs   # 多虚拟按键窗口管理器（增删/显示/隐藏）
-    └── VirtualButtonWidget.cs # 虚拟按钮自绘控件（spacer/新文字布局）
+    ├── BatchCopyWindow.cs   # 文件批量复制主窗口
+    ├── ConflictDialog.cs    # 复制冲突弹窗（覆盖/跳过/打开文件夹）
+    ├── InputDialog.cs       # 通用输入对话框
+    ├── SourceFilePicker.cs  # 源文件缩略图浏览+勾选弹窗
+    ├── SubfolderSelectDialog.cs # 子文件夹勾选导入对话框
+    ├── VirtualKeyWindow.cs  # 虚拟按键浮动窗口
+    ├── VkWindowManager.cs   # 多虚拟按键窗口管理器
+    └── VirtualButtonWidget.cs # 虚拟按钮自绘控件
 ```
 
 ## 关键约定
@@ -89,7 +92,7 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 - 两方案共存自动降级：优先方案 A，若检测无效则自动切换到方案 B
 
 ## 主窗口序列列表
-- 工具栏按钮：添加 / 编辑 / 删除 / 测试 / **复制序列** / 暂停全部 / Spine热键编辑 / 释放 / 删除全部 / VK 开/关/管理 / 导入/导出
+- 工具栏按钮：添加 / 编辑 / 删除 / 测试 / **复制序列** / 暂停全部 / Spine热键编辑 / 释放 / 删除全部 / VK 开/关/管理 / 批量重命名 / **批量复制** / 导入/导出
 - "触发快捷键"列：绑定键盘热键时显示快捷键，绑定虚拟按键时显示"虚拟按键(按钮名)"
 - 列宽使用 Fill 模式等比分配（`AutoSizeMode = Fill` + `FillWeight`），随窗口缩放自动调整
 
@@ -158,6 +161,18 @@ BaseBtnWidth: SmallIcon=48  LargeIcon=96  LoopIcon=110
 - **SequenceEditor**：`OnLoad` 中对 `_topPanel` 行高/列宽应用 DPI 系数
 - 所有窗口覆盖 `OnDpiChanged` 以支持跨显示器 DPI 切换
 
+## 批量复制（V2.7 新增）
+- 主窗口工具栏"批量复制"按钮 → 打开 `BatchCopyWindow`
+- **源文件选择**：点击"选择文件" → 弹出 `SourceFilePicker` 弹窗（目录浏览 + 缩略图预览 + 勾选）→ 确认后路径列表展示
+- **源列表操作**：已选文件实时列表，支持选择文件去重追加、移除选中项、清空列表
+- **目标路径三段式**：前缀（`D:/exp/`）+ 中间列表（逐行读取）+ 后缀（`images`）→ 拼接生成完整路径
+- **智能导入**：前缀选择目录时检测子文件夹 → 提示 → 子文件夹勾选导入对话框（全选/全不选）→ 自动填入中间文本框
+- **中间列表**：多行 TextBox，用户可自由增删改每行内容，支持 `/` 多层级
+- **实时预览**：任何段变化后 300ms 防抖更新预览列表
+- **冲突处理**：每目标目录独立 `ConflictDialog` → 列出同名文件 → 覆盖/跳过/打开文件夹（`Path.GetFullPath` 标准化路径）
+- **历史记录**：前缀/后缀使用 ComboBox，输入自动记忆，关闭窗口自动保存，支持一键清理历史
+- **复制引擎**：`BatchCopyService` 异步执行，自动创建目录，进度状态栏，取消支持，OperationLogger 日志
+
 ## 统一导入导出
 - 主工具栏"导入"/"导出"按钮，使用 `.kmp` 格式（JSON）
 - 导出包含：Spine 热键编辑（如有打开）、序列设置、VK 布局、VK 设置
@@ -183,6 +198,7 @@ BaseBtnWidth: SmallIcon=48  LargeIcon=96  LoopIcon=110
 5. 修改完成后导出一个单独的.exe应用供测试，如遇应用已开启导致无法修改就强行终止应用再尝试导出
 
 ## 版本历史
+- **V2.7** (2026-05-21): 新增批量复制功能，重构中间列表/源文件选择/历史记录
 - **V2.6** (2026-05-20): 导入导出精细化管理（全部窗口导出、按 key 对位导入、逐项确认、重名检测）
 - **V2.5** (2026-05-20): 合并批量重命名/spine解包整理工具，移除测试按钮，工具栏重新排序
 - **V2.18** (2026-05-20): 修复目标窗口标题精确匹配失败后无 fallback 的问题
@@ -199,6 +215,6 @@ BaseBtnWidth: SmallIcon=48  LargeIcon=96  LoopIcon=110
 
 ## 禁止的行为
 - 禁止使用 `git commit -a` 或 `git commit -am "..."` —— 它们不会包括未跟踪的新文件。
-- 禁止只 `git add` 个别文件，除非我明确要求“只提交某个文件”。
+- 禁止只 `git add` 个别文件，除非我明确要求"只提交某个文件"。
 - 禁止在子目录执行 `git add .` 导致其他目录的更改被遗漏。
 - 提交前若存在合并冲突或钩子检查失败，必须报告我，不得强制跳过（如 `--no-verify`）。
