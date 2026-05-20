@@ -28,7 +28,7 @@ public partial class MainForm : Form
 
     public MainForm()
     {
-        Text = "spine宏助手（TANRY） V2.17";
+        Text = "spine宏助手（TANRY） V2.18";
         Icon = IconService.AppIcon;
         Size = new Size(900, 600);
         MinimumSize = new Size(600, 400);
@@ -172,7 +172,7 @@ public partial class MainForm : Form
 
     private void MainForm_Shown(object? sender, EventArgs e)
     {
-        OperationLogger.Info($"Application started, version 2.17");
+        OperationLogger.Info($"Application started, version 2.18");
         LoadSequences();
 
         // Auto-load spine entries if saved path exists and file is valid

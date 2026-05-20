@@ -454,10 +454,12 @@ public class VirtualKeyWindow : Form
         }
         var procs = System.Diagnostics.Process.GetProcessesByName(_targetProc);
         OperationLogger.Info($"[DIAG] VKTarget: proc=\"{_targetProc}\" title=\"{_targetTitle ?? ""}\" found={procs.Length} processes");
+        IntPtr firstValidHwnd = IntPtr.Zero;
         foreach (var proc in procs)
         {
             var hwnd = proc.MainWindowHandle;
             if (hwnd == IntPtr.Zero || !IsWindow(hwnd)) continue;
+            if (firstValidHwnd == IntPtr.Zero) firstValidHwnd = hwnd;
             if (!string.IsNullOrEmpty(_targetTitle))
             {
                 var len = GetWindowTextLength(hwnd);
@@ -471,6 +473,12 @@ public class VirtualKeyWindow : Form
             }
             OperationLogger.Info($"[DIAG] VKTarget: matched hwnd=0x{hwnd:X8} proc=\"{_targetProc}\"");
             return hwnd;
+        }
+        // Title exact match failed — fall back to process-only match
+        if (firstValidHwnd != IntPtr.Zero)
+        {
+            OperationLogger.Info($"[DIAG] VKTarget: title match failed, fallback to process-only hwnd=0x{firstValidHwnd:X8}");
+            return firstValidHwnd;
         }
         OperationLogger.Warn($"[DIAG] VKTarget: no valid hwnd found for \"{_targetProc}\" (found {procs.Length} processes, none had matching window)");
         return IntPtr.Zero;
