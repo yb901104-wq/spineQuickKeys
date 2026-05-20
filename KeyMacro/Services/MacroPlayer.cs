@@ -410,6 +410,16 @@ public class MacroPlayer
         var prefix = "";
         var key = parts[^1];
 
+        // SendKeys: uppercase letter = Shift+letter, lowercase = letter alone
+        // When Shift is not a modifier, lowercase the key to avoid unintended Shift
+        if (key.Length == 1 && char.IsLetter(key[0]))
+        {
+            bool hasShift = parts.Take(parts.Length - 1)
+                .Any(m => m.Equals("shift", StringComparison.OrdinalIgnoreCase));
+            if (!hasShift)
+                key = key.ToLowerInvariant();
+        }
+
         foreach (var mod in parts.Take(parts.Length - 1))
         {
             prefix += mod.ToLower() switch
