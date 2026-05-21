@@ -20,6 +20,7 @@ KeyMacro/
 │   ├── DataBundle.cs        # 统一导入导出数据模型
 │   ├── MacroSequence.cs     # 数据模型 (序列 + 步骤)
 │   ├── PathHistory.cs       # 批量复制前缀/后缀历史记录
+│   ├── SpineCliEntry.cs     # CLI 任务数据模型（含 CliResult）
 │   └── VirtualButton.cs     # 虚拟按键数据模型（含 IsSpacer）
 ├── Services/
 │   ├── ConfigService.cs     # JSON 配置读写 (%APPDATA%\KeyMacro\config.json)
@@ -29,6 +30,7 @@ KeyMacro/
 │   ├── MacroPlayer.cs       # SendKeys 按键序列播放引擎
 │   ├── OperationLogger.cs   # 文件日志系统 (%APPDATA%\KeyMacro\logs\)
 │   ├── BatchCopyService.cs  # 批量复制执行引擎（冲突检测/进度/日志）
+│   ├── SpineCliService.cs   # Spine.com CLI 进程调用封装
 │   ├── SpineHotkeyService.cs # Spine TXT 文件解析/保存 + 按键名格式转换 + 中文注解
 │   ├── VirtualButtonManager.cs # 虚拟按键列表管理（排序/间隔）
 │   ├── VirtualKeyBindingManager.cs # 虚拟按键 ↔ 序列绑定
@@ -40,6 +42,7 @@ KeyMacro/
     ├── SequenceEditor.cs    # 序列编辑器 + 热键录制对话框
     ├── SpineHotkeyEditor.cs # Spine 热键 TXT 文件编辑窗口（支持数据构造）
     ├── BatchCopyWindow.cs   # 文件批量复制主窗口
+    ├── BatchCliWindow.cs    # CLI批量合并/导出窗口（双Tab）
     ├── ConflictDialog.cs    # 复制冲突弹窗（覆盖/跳过/打开文件夹）
     ├── InputDialog.cs       # 通用输入对话框
     ├── SourceFilePicker.cs  # 源文件缩略图浏览+勾选弹窗
@@ -79,6 +82,7 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 - 主窗口关闭时隐藏到系统托盘，不退出进程
 - 播放期间 `MacroPlayer.IsPlaying` 为 true 以阻止嵌套触发
 - `SpineHotkeyService.ToSpineFormat()` 将 WinForms 按键名转回 Spine 格式，避免写回 TXT 后 Spine 无法识别
+- `BatchCliWindow` 使用 `SpineCliService` 封装 CLI 调用，TabControl 分"合并"（`-r` 集中管理）和"批量导出"两页
 
 ## 循环机制
 - `MacroSequence` 无单独的 `Loop` 开关字段，由 `LoopCount` 单一控制：1=执行一次，>1=循环N次，0=无限循环
@@ -198,6 +202,8 @@ BaseBtnWidth: SmallIcon=48  LargeIcon=96  LoopIcon=110
 5. 修改完成后导出一个单独的.exe应用供测试，如遇应用已开启导致无法修改就强行终止应用再尝试导出
 
 ## 版本历史
+- **V2.76** (2026-05-21): 修复批量CLI弹窗选择文件路径异常，探索JSON合并骨架方案并总结文档
+- **V2.75** (2026-05-21): 新增CLI批量合并/导出工具（SubfolderSelectDialog 重构、批量CLI窗口、SpineCliService）
 - **V2.7** (2026-05-21): 新增批量复制功能，重构中间列表/源文件选择/历史记录
 - **V2.6** (2026-05-20): 导入导出精细化管理（全部窗口导出、按 key 对位导入、逐项确认、重名检测）
 - **V2.5** (2026-05-20): 合并批量重命名/spine解包整理工具，移除测试按钮，工具栏重新排序
