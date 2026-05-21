@@ -15,6 +15,9 @@ public class ConfigService
     private static readonly string SpinePathFile =
         Path.Combine(AppDataDir, ".spine_path");
 
+    private static readonly string CliSpinePathFile =
+        Path.Combine(AppDataDir, ".cli_spine_path");
+
     private static readonly string ProjectPath =
         Path.Combine(Directory.GetCurrentDirectory(), "config.json");
 
@@ -83,6 +86,25 @@ public class ConfigService
     public static void ClearSpinePath()
     {
         try { if (File.Exists(SpinePathFile)) File.Delete(SpinePathFile); }
+        catch { }
+    }
+
+    public static string? LoadCliSpinePath()
+    {
+        try
+        {
+            return File.Exists(CliSpinePathFile) ? File.ReadAllText(CliSpinePathFile).Trim() : null;
+        }
+        catch { return null; }
+    }
+
+    public static void SaveCliSpinePath(string path)
+    {
+        try
+        {
+            if (!Directory.Exists(AppDataDir)) Directory.CreateDirectory(AppDataDir);
+            File.WriteAllText(CliSpinePathFile, path);
+        }
         catch { }
     }
 

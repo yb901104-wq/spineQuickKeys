@@ -1,3 +1,5 @@
+#nullable disable
+using System.ComponentModel;
 using KeyMacro.Services;
 
 namespace KeyMacro.Forms;
@@ -5,47 +7,73 @@ namespace KeyMacro.Forms;
 public class SubfolderSelectDialog : Form
 {
     private readonly CheckedListBox _clb;
-    private readonly List<string> _subfolders;
+    private readonly TextBox _txtSearch;
+    private readonly List<string> _allItems;
+    private readonly HashSet<int> _checkedIndices = [];
 
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public List<string> SelectedFolders { get; private set; } = [];
 
-    public SubfolderSelectDialog(List<string> subfolders)
+    public SubfolderSelectDialog(List<string> items)
     {
-        _subfolders = subfolders;
-        Text = "选择要导入的子文件夹";
+        _allItems = items;
+        Text = "选择要导入的文件（勾选后确认）";
         Icon = IconService.AppIcon;
-        Size = new Size(350, 450);
+        Size = new Size(700, 550);
+        MinimumSize = new Size(400, 300);
         StartPosition = FormStartPosition.CenterParent;
-        MinimizeBox = false;
-        MaximizeBox = false;
         ShowInTaskbar = false;
-        FormBorderStyle = FormBorderStyle.FixedDialog;
+        FormBorderStyle = FormBorderStyle.Sizable;
 
-        // Checked list box — create before buttons to fix nullable flow analysis
+        // Search box
+        _txtSearch = new TextBox
+        {
+            Dock = DockStyle.Fill,
+            Font = new Font("微软雅黑", 10),
+            Text = "",
+            ForeColor = Color.Gray
+        };
+        _txtSearch.Enter += (_, _) => { if (_txtSearch.ForeColor == Color.Gray) { _txtSearch.Text = ""; _txtSearch.ForeColor = Color.Black; } };
+        _txtSearch.Leave += (_, _) => { if (string.IsNullOrWhiteSpace(_txtSearch.Text)) { _txtSearch.Text = ""; _txtSearch.ForeColor = Color.Gray; } };
+        _txtSearch.TextChanged += (_, _) => ApplyFilter();
+
+        // Checked list box
         _clb = new CheckedListBox
         {
             Dock = DockStyle.Fill,
             Font = new Font("微软雅黑", 10),
-            CheckOnClick = true
+            CheckOnClick = true,
+            HorizontalScrollbar = true,
+            IntegralHeight = false
         };
-        foreach (var folder in subfolders)
-            _clb.Items.Add(folder, false);
+        _clb.ItemCheck += _clb_ItemCheck;
 
+        // Populate
+        for (int i = 0; i < _allItems.Count; i++)
+            _clb.Items.Add(GetDisplayText(_allItems[i]), false);
+
+        // Layout
         var mainPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             Padding = new Padding(12),
-            RowCount = 3,
+            RowCount = 4,
             ColumnCount = 1
         };
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
-        // Top buttons: 全选 / 全不选
-        var topPanel = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Top,
-            AutoSize = true,
-            Padding = new Padding(0, 0, 0, 8)
-        };
+        // Row 0: search
+        var searchPanel = new FlowLayoutPanel { AutoSize = true, Padding = new Padding(0, 0, 0, 6) };
+        _txtSearch.Size = new Size(300, 24);
+        searchPanel.Controls.Add(new Label { Text = "搜索:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft });
+        searchPanel.Controls.Add(_txtSearch);
+        mainPanel.Controls.Add(searchPanel, 0, 0);
+
+        // Row 1: 全选 / 全不选
+        var topPanel = new FlowLayoutPanel { AutoSize = true, Padding = new Padding(0, 0, 0, 6) };
 
         var btnSelectAll = new Button
         {
@@ -74,13 +102,14 @@ public class SubfolderSelectDialog : Form
         };
 
         topPanel.Controls.AddRange([btnSelectAll, btnDeselectAll]);
-        mainPanel.Controls.Add(topPanel);
-        mainPanel.Controls.Add(_clb);
+        mainPanel.Controls.Add(topPanel, 0, 1);
 
-        // Bottom buttons
+        // Row 2: list
+        mainPanel.Controls.Add(_clb, 0, 2);
+
+        // Row 3: bottom buttons
         var bottomPanel = new FlowLayoutPanel
         {
-            Dock = DockStyle.Bottom,
             FlowDirection = FlowDirection.RightToLeft,
             AutoSize = true,
             Padding = new Padding(0, 8, 0, 0)
@@ -106,14 +135,76 @@ public class SubfolderSelectDialog : Form
         };
         btnOk.Click += (_, _) =>
         {
-            SelectedFolders = _clb.CheckedItems.Cast<string>().ToList();
+            SelectedFolders = _checkedIndices.Select(i => _allItems[i]).ToList();
             DialogResult = DialogResult.OK;
             Close();
         };
 
         bottomPanel.Controls.AddRange([btnCancel, btnOk]);
-        mainPanel.Controls.Add(bottomPanel);
+        mainPanel.Controls.Add(bottomPanel, 0, 3);
 
         Controls.Add(mainPanel);
+    }
+
+    private string GetDisplayText(string path)
+    {
+        // Show filename (path) for readability
+        var fileName = Path.GetFileName(path);
+        var dir = Path.GetDirectoryName(path);
+        return $"{fileName}  — {dir}";
+    }
+
+    private int GetMasterIndex(int displayIndex)
+    {
+        var filter = _txtSearch?.Text?.Trim();
+        if (string.IsNullOrEmpty(filter) || filter == "" || _txtSearch?.ForeColor == Color.Gray)
+            return displayIndex;
+
+        int count = 0;
+        for (int i = 0; i < _allItems.Count; i++)
+        {
+            if (_allItems[i].Contains(filter, StringComparison.OrdinalIgnoreCase))
+            {
+                if (count == displayIndex) return i;
+                count++;
+            }
+        }
+        return displayIndex;
+    }
+
+    private void ApplyFilter()
+    {
+        var filter = _txtSearch.Text?.Trim();
+        if (string.IsNullOrEmpty(filter) || _txtSearch.ForeColor == Color.Gray)
+        {
+            // Show all
+            _clb.ItemCheck -= _clb_ItemCheck;
+            _clb.Items.Clear();
+            for (int i = 0; i < _allItems.Count; i++)
+            {
+                _clb.Items.Add(GetDisplayText(_allItems[i]), _checkedIndices.Contains(i));
+            }
+            _clb.ItemCheck += _clb_ItemCheck;
+            return;
+        }
+
+        // Filter
+        _clb.ItemCheck -= _clb_ItemCheck;
+        _clb.Items.Clear();
+        for (int i = 0; i < _allItems.Count; i++)
+        {
+            if (_allItems[i].Contains(filter, StringComparison.OrdinalIgnoreCase))
+            {
+                _clb.Items.Add(GetDisplayText(_allItems[i]), _checkedIndices.Contains(i));
+            }
+        }
+        _clb.ItemCheck += _clb_ItemCheck;
+    }
+
+    private void _clb_ItemCheck(object sender, ItemCheckEventArgs e)
+    {
+        var masterIdx = GetMasterIndex(e.Index);
+        if (e.NewValue == CheckState.Checked) _checkedIndices.Add(masterIdx);
+        else _checkedIndices.Remove(masterIdx);
     }
 }

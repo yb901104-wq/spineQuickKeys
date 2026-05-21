@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using KeyMacro.Services;
 
 namespace KeyMacro.Forms;
@@ -13,6 +14,7 @@ public class SourceFilePicker : Form
     private readonly Button _btnOk = new();
     private readonly Button _btnCancel = new();
 
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public List<string> SelectedFiles { get; private set; } = [];
 
     private static readonly HashSet<string> ImageExts = [".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tga"];
