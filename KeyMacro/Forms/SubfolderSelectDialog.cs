@@ -8,6 +8,7 @@ public class SubfolderSelectDialog : Form
 {
     private readonly CheckedListBox _clb;
     private readonly TextBox _txtSearch;
+    private readonly TextBox _txtExclude;
     private readonly List<string> _allItems;
     private readonly HashSet<int> _checkedIndices = [];
 
@@ -37,6 +38,18 @@ public class SubfolderSelectDialog : Form
         _txtSearch.Leave += (_, _) => { if (string.IsNullOrWhiteSpace(_txtSearch.Text)) { _txtSearch.Text = ""; _txtSearch.ForeColor = Color.Gray; } };
         _txtSearch.TextChanged += (_, _) => ApplyFilter();
 
+        // Exclude box
+        _txtExclude = new TextBox
+        {
+            Dock = DockStyle.Fill,
+            Font = new Font("微软雅黑", 10),
+            Text = "",
+            ForeColor = Color.Gray
+        };
+        _txtExclude.Enter += (_, _) => { if (_txtExclude.ForeColor == Color.Gray) { _txtExclude.Text = ""; _txtExclude.ForeColor = Color.Black; } };
+        _txtExclude.Leave += (_, _) => { if (string.IsNullOrWhiteSpace(_txtExclude.Text)) { _txtExclude.Text = ""; _txtExclude.ForeColor = Color.Gray; } };
+        _txtExclude.TextChanged += (_, _) => ApplyFilter();
+
         // Checked list box
         _clb = new CheckedListBox
         {
@@ -65,11 +78,14 @@ public class SubfolderSelectDialog : Form
         mainPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         mainPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
-        // Row 0: search
+        // Row 0: search + exclude
         var searchPanel = new FlowLayoutPanel { AutoSize = true, Padding = new Padding(0, 0, 0, 6) };
-        _txtSearch.Size = new Size(300, 24);
+        _txtSearch.Size = new Size(200, 24);
         searchPanel.Controls.Add(new Label { Text = "搜索:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft });
         searchPanel.Controls.Add(_txtSearch);
+        _txtExclude.Size = new Size(200, 24);
+        searchPanel.Controls.Add(new Label { Text = "不包含:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft });
+        searchPanel.Controls.Add(_txtExclude);
         mainPanel.Controls.Add(searchPanel, 0, 0);
 
         // Row 1: 全选 / 全不选
@@ -154,46 +170,48 @@ public class SubfolderSelectDialog : Form
         return $"{fileName}  — {dir}";
     }
 
+    private bool ShouldShow(int index)
+    {
+        var path = _allItems[index];
+        var searchText = _txtSearch?.Text?.Trim();
+        var excludeText = _txtExclude?.Text?.Trim();
+
+        // Search (include) filter
+        if (!string.IsNullOrEmpty(searchText) && _txtSearch?.ForeColor != Color.Gray)
+        {
+            if (!path.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+                return false;
+        }
+
+        // Exclude filter
+        if (!string.IsNullOrEmpty(excludeText) && _txtExclude?.ForeColor != Color.Gray)
+        {
+            if (path.Contains(excludeText, StringComparison.OrdinalIgnoreCase))
+                return false;
+        }
+
+        return true;
+    }
+
     private int GetMasterIndex(int displayIndex)
     {
-        var filter = _txtSearch?.Text?.Trim();
-        if (string.IsNullOrEmpty(filter) || filter == "" || _txtSearch?.ForeColor == Color.Gray)
-            return displayIndex;
-
         int count = 0;
         for (int i = 0; i < _allItems.Count; i++)
         {
-            if (_allItems[i].Contains(filter, StringComparison.OrdinalIgnoreCase))
-            {
-                if (count == displayIndex) return i;
-                count++;
-            }
+            if (!ShouldShow(i)) continue;
+            if (count == displayIndex) return i;
+            count++;
         }
         return displayIndex;
     }
 
     private void ApplyFilter()
     {
-        var filter = _txtSearch.Text?.Trim();
-        if (string.IsNullOrEmpty(filter) || _txtSearch.ForeColor == Color.Gray)
-        {
-            // Show all
-            _clb.ItemCheck -= _clb_ItemCheck;
-            _clb.Items.Clear();
-            for (int i = 0; i < _allItems.Count; i++)
-            {
-                _clb.Items.Add(GetDisplayText(_allItems[i]), _checkedIndices.Contains(i));
-            }
-            _clb.ItemCheck += _clb_ItemCheck;
-            return;
-        }
-
-        // Filter
         _clb.ItemCheck -= _clb_ItemCheck;
         _clb.Items.Clear();
         for (int i = 0; i < _allItems.Count; i++)
         {
-            if (_allItems[i].Contains(filter, StringComparison.OrdinalIgnoreCase))
+            if (ShouldShow(i))
             {
                 _clb.Items.Add(GetDisplayText(_allItems[i]), _checkedIndices.Contains(i));
             }

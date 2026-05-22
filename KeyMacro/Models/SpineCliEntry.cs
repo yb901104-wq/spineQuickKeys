@@ -6,6 +6,7 @@ public class SpineCliEntry
     public string FileName => Path.GetFileName(FilePath);
     public bool HasExportConfig { get; set; }
     public string? ExportConfigPath { get; set; }
+    public List<string> SelectedAnimations { get; set; } = []; // empty = all
 }
 
 public class CliResult
@@ -14,4 +15,11 @@ public class CliResult
     public string Output { get; set; } = "";
     public string Error { get; set; } = "";
     public bool Success => ExitCode == 0;
+}
+
+public class SpineProjectInfo
+{
+    public string Version { get; set; } = "";
+    public List<string> SkeletonNames { get; set; } = [];
+    public List<string> AnimationNames { get; set; } = [];
 }

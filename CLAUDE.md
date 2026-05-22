@@ -82,7 +82,8 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 - 主窗口关闭时隐藏到系统托盘，不退出进程
 - 播放期间 `MacroPlayer.IsPlaying` 为 true 以阻止嵌套触发
 - `SpineHotkeyService.ToSpineFormat()` 将 WinForms 按键名转回 Spine 格式，避免写回 TXT 后 Spine 无法识别
-- `BatchCliWindow` 使用 `SpineCliService` 封装 CLI 调用，TabControl 分"合并"（`-r` 集中管理）和"批量导出"两页
+- `BatchCliWindow` 使用 `SpineCliService` 封装 CLI 调用，TabControl 分"合并"（`-r` 集中管理 / 实验功能 `--merge`）和"批量导出"两页
+- 批量导出 Tab 支持切换 export.json 配置方案（finish/demotion/自定义），通过 `_exportConfigName` 字段控制检测文件名
 
 ## 循环机制
 - `MacroSequence` 无单独的 `Loop` 开关字段，由 `LoopCount` 单一控制：1=执行一次，>1=循环N次，0=无限循环
@@ -202,6 +203,7 @@ BaseBtnWidth: SmallIcon=48  LargeIcon=96  LoopIcon=110
 5. 修改完成后导出一个单独的.exe应用供测试，如遇应用已开启导致无法修改就强行终止应用再尝试导出
 
 ## 版本历史
+- **V2.77** (2026-05-22): Spine 4.3 CLI 实验合并功能（--merge/-a）、批量导出配置选择、进度条、文件选择过滤修复、排除筛选
 - **V2.76** (2026-05-21): 修复批量CLI弹窗选择文件路径异常，探索JSON合并骨架方案并总结文档
 - **V2.75** (2026-05-21): 新增CLI批量合并/导出工具（SubfolderSelectDialog 重构、批量CLI窗口、SpineCliService）
 - **V2.7** (2026-05-21): 新增批量复制功能，重构中间列表/源文件选择/历史记录

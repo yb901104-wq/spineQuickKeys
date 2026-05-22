@@ -17,7 +17,6 @@ public class SourceFilePicker : Form
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public List<string> SelectedFiles { get; private set; } = [];
 
-    private static readonly HashSet<string> ImageExts = [".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tga"];
     private const int MaxThumbnails = 200;
 
     public SourceFilePicker()
@@ -145,13 +144,12 @@ public class SourceFilePicker : Form
             try
             {
                 var allFiles = Directory.GetFiles(dir)
-                    .Where(f => ImageExts.Contains(Path.GetExtension(f).ToLowerInvariant()))
                     .OrderBy(f => Path.GetFileName(f))
                     .ToList();
                 if (allFiles.Count > MaxThumbnails)
                 {
                     BeginInvoke(new Action(() => MessageBox.Show(this,
-                        $"目录内图片文件超过 {MaxThumbnails} 个（共 {allFiles.Count} 个），\n仅显示前 200 个。",
+                        $"目录内文件超过 {MaxThumbnails} 个（共 {allFiles.Count} 个），\n仅显示前 200 个。",
                         "文件过多", MessageBoxButtons.OK, MessageBoxIcon.Warning)));
                     return allFiles.Take(MaxThumbnails).ToList();
                 }
@@ -192,7 +190,9 @@ public class SourceFilePicker : Form
                         var placeholder = new Bitmap(96, 96);
                         using var g = Graphics.FromImage(placeholder);
                         g.Clear(Color.LightGray);
-                        g.DrawString("?", new Font("Arial", 24), Brushes.Gray, 30, 30);
+                        var ext = Path.GetExtension(t).TrimStart('.').ToUpperInvariant();
+                        ext = string.IsNullOrEmpty(ext) ? "?" : ext.Length > 4 ? ext[..4] : ext;
+                        g.DrawString(ext, new Font("Arial", 18, FontStyle.Bold), Brushes.Gray, 20, 35);
                         return (name: Path.GetFileName(t), thumb: placeholder);
                     }
                 }).ToList());

@@ -124,7 +124,12 @@
       "Bash(cp \"D:/AI_cc/spine-tool-1/ReName-UnpackingAtlas/ReName/Form1.cs\" \"KeyMacro/Forms/ReNameTool/Form1.cs\")",
       "Bash(cp \"D:/AI_cc/spine-tool-1/ReName-UnpackingAtlas/ReName/Form1.Designer.cs\" \"KeyMacro/Forms/ReNameTool/Form1.Designer.cs\")",
       "Bash(cp \"D:/AI_cc/spine-tool-1/ReName-UnpackingAtlas/ReName/Form1.resx\" \"KeyMacro/Forms/ReNameTool/Form1.resx\")",
-      "WebFetch(domain:esotericsoftware.com)"
+      "WebFetch(domain:esotericsoftware.com)",
+      "WebFetch(domain:de.esotericsoftware.com)",
+      "WebFetch(domain:fr.esotericsoftware.com)",
+      "Bash(taskkill.exe /f /im KeyMacro.exe)",
+      "Bash(powershell -Command \"Stop-Process -Name KeyMacro -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 2\")",
+      "Bash(powershell -Command \"Stop-Process -Name KeyMacro -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 1\")"
     ],
     "additionalDirectories": [
       "d:\\AI_cc\\spineQuickKeys\\openspec\\changes\\virtual-key-window-target"
