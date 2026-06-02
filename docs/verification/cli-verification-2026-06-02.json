@@ -1,0 +1,131 @@
+{
+  "CreatedAt": "2026-06-02T18:12:40.4056036+08:00",
+  "OutputRoot": "D:\\AI_cc\\spineQuickKeys\\docs\\verification\\cli-output",
+  "Results": [
+    {
+      "Case": "CLI-PATH",
+      "SpinePath": "D:\\Program Files\\Spine\\Spine.com",
+      "IsValid": true,
+      "SpinePathExists": true,
+      "ConfigExists": true,
+      "ProjectFiles": [
+        "G5.json",
+        "G5.skel",
+        "G5.spine",
+        "ribbon_test2.json"
+      ]
+    },
+    {
+      "Case": "CLI-INFO-G5-SPINE",
+      "Success": true,
+      "Version": "4.1.10",
+      "SkeletonCount": 1,
+      "AnimationCount": 5,
+      "Skeletons": [
+        "G5"
+      ],
+      "Animations": [
+        "atk",
+        "atkfx",
+        "die",
+        "idle",
+        "walk"
+      ]
+    },
+    {
+      "Case": "CLI-INFO-G5-JSON",
+      "Success": true,
+      "Version": "4.1.10",
+      "SkeletonCount": 1,
+      "AnimationCount": 5,
+      "Skeletons": [
+        "G5"
+      ],
+      "Animations": [
+        "atk",
+        "atkfx",
+        "die",
+        "idle",
+        "walk"
+      ]
+    },
+    {
+      "Case": "CLI-INFO-G5-SKEL",
+      "Success": true,
+      "Version": "4.1.10",
+      "SkeletonCount": 1,
+      "AnimationCount": 5,
+      "Skeletons": [
+        "G5"
+      ],
+      "Animations": [
+        "atk",
+        "atkfx",
+        "die",
+        "idle",
+        "walk"
+      ]
+    },
+    {
+      "Case": "CLI-INFO-RIBBON-JSON",
+      "Success": true,
+      "Version": "4.1.10",
+      "SkeletonCount": 1,
+      "AnimationCount": 1,
+      "Skeletons": [
+        "ribbon_test2"
+      ],
+      "Animations": [
+        "animation"
+      ]
+    },
+    {
+      "Case": "CLI-EXPORT-FINISH",
+      "Success": true,
+      "ExitCode": 0,
+      "Output": "Spine Launcher 4.1.10\nEsoteric Software LLC (C) 2013-2022 | http://esotericsoftware.com\nWindows 10 Pro amd64 10.0\nStarting: Spine 4.1.24 Professional\nSpine 4.1.24 Professional\nLicensed to: fissiles \u003Ccoda@fissiles.com\u003E\nBinary export: G5\nImages path not found: ./images/\nPack: G5 (attachments)\nComplete.",
+      "Error": ""
+    },
+    {
+      "Case": "CLI-EXPORT-FINISH-FILES",
+      "Files": [
+        "G5.skel.bytes"
+      ]
+    },
+    {
+      "Case": "CLI-PACK",
+      "Success": false,
+      "ExitCode": 1,
+      "Output": "Spine Launcher 4.1.10\nEsoteric Software LLC (C) 2013-2022 | http://esotericsoftware.com\nWindows 10 Pro amd64 10.0\n\nERROR: Input path for packing must be a folder:\nD:\\AI_cc\\spineQuickKeys\\manual_test_assets\\cli\\projects\\G5.spine",
+      "Error": ""
+    },
+    {
+      "Case": "CLI-PACK-FILES",
+      "Files": []
+    },
+    {
+      "Case": "CLI-IMPORT-JSON-TO-TEMP",
+      "Success": true,
+      "ExitCode": 0,
+      "Output": "Spine Launcher 4.1.10\nEsoteric Software LLC (C) 2013-2022 | http://esotericsoftware.com\nWindows 10 Pro amd64 10.0\nStarting: Spine 4.1.24 Professional\nSpine 4.1.24 Professional\nLicensed to: fissiles \u003Ccoda@fissiles.com\u003E\nProject import: G5.json into G5_from_json\nComplete.",
+      "Error": ""
+    },
+    {
+      "Case": "CLI-IMPORT-JSON-TO-TEMP-FILE",
+      "Exists": true,
+      "Length": 23989
+    },
+    {
+      "Case": "CLI-IMPORT-MERGE-JSON-INTO-COPY",
+      "Success": true,
+      "ExitCode": 0,
+      "Output": "Spine Launcher 4.1.10\nEsoteric Software LLC (C) 2013-2022 | http://esotericsoftware.com\nWindows 10 Pro amd64 10.0\nStarting: Spine 4.1.24 Professional\nSpine 4.1.24 Professional\nLicensed to: fissiles \u003Ccoda@fissiles.com\u003E\nProject import: G5.json into G5_target_copy\nSkeleton renamed: G5 -\u003E G6\nComplete.",
+      "Error": ""
+    },
+    {
+      "Case": "CLI-IMPORT-MERGE-JSON-INTO-COPY-FILE",
+      "Exists": true,
+      "Length": 52656
+    }
+  ]
+}

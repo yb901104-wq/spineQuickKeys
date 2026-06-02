@@ -1,0 +1,370 @@
+--- General ---
+Undo: ctrl + Z
+Redo: ctrl + shift + Z
+Setup/Animate Mode: ctrl + TAB
+Rulers: ctrl + shift + R
+Zoom To Fit: ctrl + shift + F
+Zoom To 100%: ctrl + F
+Lock Zoom: 
+Fullscreen: ctrl + shift + alt + F
+Always On Top: ctrl + shift + alt + T
+Instant Tooltips: F1
+Hotkey Popups: ctrl + shift + K
+Pan Drag: J
+Zoom Drag: U
+Pan Move: 
+Zoom Move: 
+Top: HOME
+Bottom: END
+Focus - Dopesheet: 
+Focus - Graph: 
+Focus - Tree: 
+Focus - Viewport: ctrl + alt + V
+Next Skin: PERIOD
+Previous Skin: COMMA
+Mute: 
+Disable Constraints: 
+--- Views ---
+Minimize Views: F9
+Animations View: alt + A
+Audio View: alt + U
+Dopesheet View: alt + D
+Ghosting View: alt + H
+Graph View: alt + G
+Curves View: alt + V
+Metrics View: alt + M
+Mesh Tools View: alt + E
+Outline View: alt + O
+Playback View: alt + P
+Preview View: alt + R
+Skins View: alt + S
+Slot Color View: alt + C
+Timeline View: alt + L
+Tree View: alt + T
+Weights View: alt + W
+--- Tools ---
+Rotate Tool: C
+Translate Tool: V
+Scale Tool: X
+Shear Tool: Z
+Pose Tool: B
+Create Tool: N
+Weights Tool: G
+Last Tool: 
+Local Axes: 
+Parent Axes: 
+World Axes: 
+Bone Compensation: 
+Attachment Compensation: 
+Nudge Up: shift + UP
+Nudge Up (10): UP
+Nudge Down: shift + DOWN
+Nudge Down (10): DOWN
+Nudge Left: shift + LEFT
+Nudge Left (10): LEFT
+Nudge Right: shift + RIGHT
+Nudge Right (10): RIGHT
+Mesh Tools - Soft Selection: 
+Mesh Tools - Hull Vertices: 
+Brush+: '''
+Brush-: ';'
+Feather+: '"'
+Feather-: ':'
+Weights - Direct Mode: 
+Weights - Add Mode: 
+Weights - Remove Mode: 
+Weights - Replace Mode: 
+Weights - Strength+: alt + '''
+Weights - Strength-: alt + ';'
+Weights - Bind: 
+Weights - Remove: 
+Weights - Update Bindings: 
+Weights - Smooth: 
+Weights - Auto: 
+Weights - Prune: 
+Weights - Pies: 
+Weights - Overlay: 
+Weights - Selected: 
+Weights - Select Bones: 
+Weights - Swap: 
+--- Options ---
+Select Bones: ctrl + shift + B
+Show Bones: ctrl + B
+Bone Names: ctrl + shift + alt + B
+Select Images: ctrl + shift + I
+Show Images: ctrl + I
+Image Names: ctrl + shift + alt + I
+Select Others: 
+Show Others: 
+Other Names: 
+Auto Scroll: ctrl + SLASH
+Scroll To Selected: SLASH
+--- Selection ---
+Deselect: SPACE
+Select All: ctrl + A
+Select - Bones: 
+Select - Child Bones: ctrl + alt + C
+Select - Descendant Bones: ctrl + alt + B
+Select - Slots: ctrl + alt + S
+Select - Draw Order: ctrl + alt + D
+Select - Attachments: ctrl + alt + A
+Select - Visible Attachments: 
+Previous Selection: PAGE_DOWN
+Next Selection: PAGE_UP
+Hide Selection: 
+Store Selection 0: ctrl + 0
+Store Selection 1: ctrl + 1
+Store Selection 2: ctrl + 2
+Store Selection 3: ctrl + 3
+Store Selection 4: ctrl + 4
+Store Selection 5: ctrl + 5
+Store Selection 6: ctrl + 6
+Store Selection 7: ctrl + 7
+Store Selection 8: ctrl + 8
+Store Selection 9: ctrl + 9
+Set Selection 0: 0
+Set Selection 1: 1
+Set Selection 2: 2
+Set Selection 3: 3
+Set Selection 4: 4
+Set Selection 5: 5
+Set Selection 6: 6
+Set Selection 7: 7
+Set Selection 8: 8
+Set Selection 9: 9
+Add Selection 0: shift + 0
+Add Selection 1: shift + 1
+Add Selection 2: shift + 2
+Add Selection 3: shift + 3
+Add Selection 4: shift + 4
+Add Selection 5: shift + 5
+Add Selection 6: shift + 6
+Add Selection 7: shift + 7
+Add Selection 8: shift + 8
+Add Selection 9: shift + 9
+Cut: ctrl + X
+Copy: ctrl + C
+Paste: ctrl + V
+Delete: DELETE
+Rename: F2
+Duplicate: ctrl + D
+Visibility: H
+Show All Bones/Slots: ctrl + H
+Draw Order Down: MINUS
+Draw Order Down (5): shift + MINUS
+Draw Order Up: PLUS
+Draw Order Up (5): shift + PLUS
+--- Tree ---
+Replace: F4
+Parent: ctrl + shift + UP
+Child: ctrl + shift + DOWN
+Previous Sibling: ctrl + shift + LEFT
+Next Sibling: ctrl + shift + RIGHT
+Parent Bone: ctrl + UP
+Child Bone: ctrl + DOWN
+Previous Sibling Bone: ctrl + LEFT
+Next Sibling Bone: ctrl + RIGHT
+Tree Up: alt + UP
+Tree Down: alt + DOWN
+Collapse: alt + LEFT
+Expand: alt + RIGHT
+Expand/Collapse: ctrl + shift + ENTER
+Scroll To Selection: 
+Search: ENTER
+Search - Next: F3
+Search - Previous: shift + F3
+Search - Select All: ctrl + ENTER
+Search - Clear: 
+Tree Filter: 
+Tree Filter - Bones: 
+Tree Filter - Slots: 
+Tree Filter - Attachments: 
+Tree Filter - Text Search Filters: 
+Show All Skin Attachments: 
+Hide Skeleton Names: 
+Hide Skin Names: 
+Hide Skin Bones/Constraints: 
+Hide Viewport Skin Bones: 
+--- Menu ---
+Main Menu: alt + F
+New Project: ctrl + shift + N
+Open Project: ctrl + O
+Open Project (Browse): ctrl + shift + O
+Save Project: ctrl + S
+Save Project As: ctrl + shift + S
+New Skeleton: ctrl + N
+Import Project: 
+Import Data: 
+Export: ctrl + E
+Repeat Last Export: ctrl + shift + E
+Texture Packer: ctrl + P
+Repeat Last Texture Packer: ctrl + shift + P
+Texture Unpacker: 
+Settings: F12
+--- Setup Mode ---
+Set Parent: P
+--- New ---
+New Bone: 
+New Slot: 
+New Skin Placeholder: 
+New Bounding Box: 
+New Clipping: 
+New Path: 
+New Point: 
+New Animation: 
+New Event: 
+New Skin: 
+New IK Constraint: 
+New Path Constraint: 
+New Physics Constraint: 
+New Transform Constraint: 
+New Folder: 
+--- Attachments ---
+Color: M
+Mesh - Freeze: 
+Mesh - Reset: 
+Mesh - Wireframe: 
+Mesh - Edit Mesh: 
+Edit Mesh - Modify: 
+Edit Mesh - Create: 
+Edit Mesh - Delete: 
+Edit Mesh - New: 
+Edit Mesh - Reset: 
+Edit Mesh - Generate: 
+Edit Mesh - Trace: 
+Edit Mesh - Refine: 
+Edit Mesh - Triangles: 
+Edit Mesh - Dim: 
+Edit Mesh - Isolate: 
+Edit Mesh - Deformed: TAB
+--- Constraints ---
+Physics Constraint - Edit Physics: 
+Edit Physics - Modify: 
+Edit Physics - Create: 
+Edit Physics - Delete: 
+--- Animate Mode ---
+Auto Key: ctrl + shift + A
+Animation Clean Up: 
+Next Animation: Y
+Previous Animation: T
+Track Current Frame: 
+Frame Keys: 
+Setup Draw Order: 
+Setup Pose: ctrl + shift + J
+--- Dopesheet ---
+Sync Dopesheet: 
+Lock Dopesheet: 
+Refresh Dopesheet: 
+Select Dopesheet Bones: 
+Dopesheet Filter: 
+Dopesheet Toolbar: 
+Set Loop Start: LEFT_BRACKET
+Set Loop End: RIGHT_BRACKET
+--- Graph ---
+Lock Graph: 
+Refresh Graph: 
+Select Graph Bones: 
+Graph Filter: 
+Graph Toolbar: 
+Graph Rows: 
+Hide Bezier Handles: 
+Graph Frame: 
+Graph Auto Frame: 
+Bezier Handle - Auto: 
+Bezier Handle - Separate: 
+Bezier Handle - Bounce: 
+Bezier Handle - Flat: 
+Bezier Handle - Ease Out: 
+Bezier Handle - Ease In: 
+Bezier Handle - Ease: 
+Graph Snapping: 
+Graph X: 
+Graph X - Momentary: 
+Graph Y: 
+Graph Y - Momentary: 
+Graph - Shape Retime: 
+Graph - Value Retime: 
+Graph Store: 
+Graph Store Swap: 
+Favor Tool: 
+Favor+ (5): 
+Favor+ (10): 
+Favor+ (15): 
+Favor- (5): 
+Favor- (10): 
+Favor- (15): 
+Favor - Favor: 
+Favor - Blend: 
+Favor - Shift: 
+Favor - Linear: 
+Favor - Average (curve): 
+Favor - Average (frame): 
+Favor - Average (all): 
+Favor - Default: 
+Favor - Setup: 
+Favor - Store: 
+--- Keying ---
+Key Edited: K
+Key Active: L
+Key Selected: ctrl + L
+Key Shown: ctrl + shift + L
+Key Rotation: 
+Key Translate: 
+Key Translate X: 
+Key Translate Y: 
+Key Scale: 
+Key Scale X: 
+Key Scale Y: 
+Key Shear: 
+Key Shear X: 
+Key Shear Y: 
+Key Color: 
+Key Attachment: 
+Select Keys: 
+Stepped Curve: 
+Linear Curve: 
+Bezier Curve: 
+Shift Keys: 
+Offset Keys: 
+Adjust Keys: 
+--- Playback ---
+Play Forward: D
+Play Backward: A
+Play Forward / Reset: 
+Play Backward / Reset: 
+Stop: 
+Repeat: ctrl + R
+Stepped: 
+Interpolated: 
+First Key: Q
+Last Key: E
+Next Key: 'w'
+Previous Key: 's'
+Next Frame: 'r'
+Next Frame (10): 'R'
+Previous Frame: 'f'
+Previous Frame (10): 'F'
+Loop Start: ctrl + LEFT_BRACKET
+Loop End: ctrl + RIGHT_BRACKET
+Speed - Slower: 
+Speed - Faster: 
+Speed - 100%: 
+Timeline Pan Drag: 
+Timeline Pan Move: 
+Timeline Frame Drag: 
+Timeline Frame Move: 
+--- Ghosting ---
+Ghosting: 
+Ghosting - Frames Before: 
+Ghosting - Frames After: 
+Ghosting - Frames Current: 
+Ghosting - Keys Before: 
+Ghosting - Keys After: 
+Ghosting - Motion Vectors Before: 
+Ghosting - Motion Vectors After: 
+Ghosting - Anchor: 
+Ghosting - On Top: 
+Ghosting - Loop: 
+Ghosting - Lock: 
+Ghosting - Refresh: 
+Ghosting - Selection Only: 

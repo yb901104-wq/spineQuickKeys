@@ -1,0 +1,142 @@
+{ "skeleton": { "images": "D:/动画工程/monster-spine-h细线/G2/images/" },
+"bones": [
+	{ "name": "root" }
+],
+"slots": [
+	{ "name": "zz6", "bone": "root", "attachment": "zz6" },
+	{ "name": "zz5", "bone": "root", "attachment": "zz5" },
+	{ "name": "zz4", "bone": "root", "attachment": "zz4" },
+	{ "name": "zz3", "bone": "root", "attachment": "zz3" },
+	{ "name": "zz2", "bone": "root", "attachment": "zz2" },
+	{ "name": "zz1", "bone": "root", "attachment": "zz1" },
+	{ "name": "zz0", "bone": "root", "attachment": "zz0" },
+	{ "name": "ps10", "bone": "root", "attachment": "ps10" },
+	{ "name": "ps9", "bone": "root", "attachment": "ps9" },
+	{ "name": "ps8", "bone": "root", "attachment": "ps8" },
+	{ "name": "ps7", "bone": "root", "attachment": "ps7" },
+	{ "name": "ps6", "bone": "root", "attachment": "ps6" },
+	{ "name": "ps5", "bone": "root", "attachment": "ps5" },
+	{ "name": "ps4", "bone": "root", "attachment": "ps4" },
+	{ "name": "ps3", "bone": "root", "attachment": "ps3" },
+	{ "name": "ps2", "bone": "root", "attachment": "ps2" },
+	{ "name": "ps1", "bone": "root", "attachment": "ps1" },
+	{ "name": "ps0", "bone": "root", "attachment": "ps0" }
+],
+"skins": {
+	"default": {
+	},
+	"2": {
+		"zz6": {
+			"zz6": { "name": "2/zz6", "x": 78, "y": -176.5, "width": 32, "height": 41 }
+		},
+		"zz5": {
+			"zz5": { "name": "2/zz5", "x": 143.5, "y": -105.5, "width": 199, "height": 177 }
+		},
+		"zz4": {
+			"zz4": { "name": "2/zz4", "x": 108.5, "y": -144, "width": 59, "height": 38 }
+		},
+		"zz3": {
+			"zz3": { "name": "2/zz3", "x": 230, "y": -173, "width": 46, "height": 50 }
+		},
+		"zz2": {
+			"zz2": { "name": "2/zz2", "x": 204, "y": -185.5, "width": 46, "height": 65 }
+		},
+		"zz1": {
+			"zz1": { "name": "2/zz1", "x": 167, "y": -169, "width": 58, "height": 110 }
+		},
+		"zz0": {
+			"zz0": { "name": "2/zz0", "x": 44, "y": -156, "width": 80, "height": 112 }
+		},
+		"ps10": {
+			"ps10": { "name": "2/ps10", "x": 164, "y": -171, "width": 78, "height": 106 }
+		},
+		"ps9": {
+			"ps9": { "name": "2/ps9", "x": 161, "y": -110.5, "width": 84, "height": 75 }
+		},
+		"ps8": {
+			"ps8": { "name": "2/ps8", "x": 207, "y": -178.5, "width": 38, "height": 79 }
+		},
+		"ps7": {
+			"ps7": { "name": "2/ps7", "x": 224.5, "y": -156.5, "width": 57, "height": 83 }
+		},
+		"ps6": {
+			"ps6": { "name": "2/ps6", "x": 207, "y": -91, "width": 44, "height": 64 }
+		},
+		"ps5": {
+			"ps5": { "name": "2/ps5", "x": 123, "y": -173, "width": 40, "height": 40 }
+		},
+		"ps4": {
+			"ps4": { "name": "2/ps4", "x": 107, "y": -152, "width": 52, "height": 76 }
+		},
+		"ps3": {
+			"ps3": { "name": "2/ps3", "x": 154.5, "y": -50, "width": 81, "height": 66 }
+		},
+		"ps2": {
+			"ps2": { "name": "2/ps2", "x": 103, "y": -85.5, "width": 80, "height": 77 }
+		},
+		"ps1": {
+			"ps1": { "name": "2/ps1", "x": 45.5, "y": -131.5, "width": 83, "height": 67 }
+		},
+		"ps0": {
+			"ps0": { "name": "2/ps0", "x": 48, "y": -179, "width": 78, "height": 66 }
+		}
+	},
+	"1": {
+		"zz6": {
+			"zz6": { "name": "1/zz6", "x": 78, "y": -176.5, "width": 32, "height": 41 }
+		},
+		"zz5": {
+			"zz5": { "name": "1/zz5", "x": 143.5, "y": -118, "width": 199, "height": 152 }
+		},
+		"zz4": {
+			"zz4": { "name": "1/zz4", "x": 108.5, "y": -144, "width": 59, "height": 38 }
+		},
+		"zz3": {
+			"zz3": { "name": "1/zz3", "x": 230, "y": -173, "width": 46, "height": 50 }
+		},
+		"zz2": {
+			"zz2": { "name": "1/zz2", "x": 204, "y": -185.5, "width": 46, "height": 65 }
+		},
+		"zz1": {
+			"zz1": { "name": "1/zz1", "x": 167, "y": -169, "width": 58, "height": 110 }
+		},
+		"zz0": {
+			"zz0": { "name": "1/zz0", "x": 46.5, "y": -157, "width": 75, "height": 110 }
+		},
+		"ps10": {
+			"ps10": { "name": "1/ps10", "x": 164, "y": -171, "width": 78, "height": 106 }
+		},
+		"ps9": {
+			"ps9": { "name": "1/ps9", "x": 161, "y": -110.5, "width": 84, "height": 75 }
+		},
+		"ps8": {
+			"ps8": { "name": "1/ps8", "x": 207, "y": -178.5, "width": 38, "height": 79 }
+		},
+		"ps7": {
+			"ps7": { "name": "1/ps7", "x": 224.5, "y": -156.5, "width": 57, "height": 83 }
+		},
+		"ps6": {
+			"ps6": { "name": "1/ps6", "x": 207, "y": -91, "width": 44, "height": 64 }
+		},
+		"ps5": {
+			"ps5": { "name": "1/ps5", "x": 123, "y": -173, "width": 40, "height": 40 }
+		},
+		"ps4": {
+			"ps4": { "name": "1/ps4", "x": 107, "y": -152, "width": 52, "height": 76 }
+		},
+		"ps3": {
+			"ps3": { "name": "1/ps3", "x": 154.5, "y": -62.5, "width": 81, "height": 41 }
+		},
+		"ps2": {
+			"ps2": { "name": "1/ps2", "x": 103, "y": -85.5, "width": 80, "height": 77 }
+		},
+		"ps1": {
+			"ps1": { "name": "1/ps1", "x": 48, "y": -131.5, "width": 78, "height": 67 }
+		},
+		"ps0": {
+			"ps0": { "name": "1/ps0", "x": 48, "y": -179, "width": 78, "height": 66 }
+		}
+	}
+},
+"animations": { "animation": {} }
+}

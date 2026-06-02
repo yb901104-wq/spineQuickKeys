@@ -1,3 +1,4 @@
+using KeyMacro.Controls;
 using KeyMacro.Models;
 using KeyMacro.Services;
 
@@ -26,6 +27,8 @@ public class BatchCopyWindow : Form
     private readonly Button _btnClearHistory = new();
     private readonly Button _btnStartCopy = new();
     private readonly Label _lblStatus = new();
+    private readonly Label _lblProgressCurrent = new();
+    private readonly TextProgressBar _progressBar = new();
 
     // ── State ──
     private readonly BatchCopyService _copyService = new();
@@ -55,7 +58,7 @@ public class BatchCopyWindow : Form
             Dock = DockStyle.Fill,
             Padding = new Padding(8),
             ColumnCount = 1,
-            RowCount = 6
+            RowCount = 7
         };
 
         mainPanel.Controls.Add(BuildSourcePanel(), 0, 0);
@@ -69,18 +72,20 @@ public class BatchCopyWindow : Form
         mainPanel.Controls.Add(BuildTargetPanel(), 0, 2);
         mainPanel.Controls.Add(BuildHistoryRow(), 0, 3);
         mainPanel.Controls.Add(BuildActionPanel(), 0, 4);
+        mainPanel.Controls.Add(BuildProgressPanel(), 0, 5);
 
         _lblStatus.Text = "就绪";
         _lblStatus.ForeColor = Color.Gray;
         _lblStatus.Height = 20;
         _lblStatus.Margin = new Padding(0, 4, 0, 0);
-        mainPanel.Controls.Add(_lblStatus, 0, 5);
+        mainPanel.Controls.Add(_lblStatus, 0, 6);
 
         mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 180));
         mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
         mainPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
         mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
         mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
 
         Controls.Add(mainPanel);
@@ -144,6 +149,35 @@ public class BatchCopyWindow : Form
         _lblSourceCount.ForeColor = Color.Gray;
         panel.Controls.Add(_lblSourceCount);
 
+        return panel;
+    }
+
+    private Control BuildProgressPanel()
+    {
+        var panel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            Padding = new Padding(0, 2, 0, 2)
+        };
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 20));
+        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        _lblProgressCurrent.Dock = DockStyle.Fill;
+        _lblProgressCurrent.AutoEllipsis = true;
+        _lblProgressCurrent.TextAlign = ContentAlignment.MiddleCenter;
+        _lblProgressCurrent.ForeColor = Color.FromArgb(55, 55, 55);
+        _lblProgressCurrent.Text = "";
+
+        _progressBar.Dock = DockStyle.Fill;
+        _progressBar.Minimum = 0;
+        _progressBar.Maximum = 100;
+        _progressBar.Value = 0;
+        _progressBar.ProgressText = "0%";
+
+        panel.Controls.Add(_lblProgressCurrent, 0, 0);
+        panel.Controls.Add(_progressBar, 0, 1);
         return panel;
     }
 
@@ -524,6 +558,14 @@ public class BatchCopyWindow : Form
         SavePrefixHistory(_cmbPrefix.Text.Trim());
         SaveSuffixHistory(_cmbSuffix.Text.Trim());
 
+        Action<string, int, int>? onProgressReported = null;
+        onProgressReported = (msg, current, total) =>
+        {
+            if (IsDisposed) return;
+            BeginInvoke(new Action(() => SetProgress(current, total, msg)));
+        };
+        _copyService.ProgressReported += onProgressReported;
+
         Action<string>? onProgress = null;
         onProgress = msg =>
         {
@@ -539,11 +581,13 @@ public class BatchCopyWindow : Form
             BeginInvoke(new Action(() =>
             {
                 _lblStatus.Text = msg;
+                _lblProgressCurrent.Text = msg;
                 _btnStartCopy.Text = "开始复制";
                 _btnStartCopy.BackColor = Color.FromArgb(0x00, 0xC8, 0x53);
             }));
             _copyService.Completed -= onCompleted;
             _copyService.ProgressChanged -= onProgress;
+            _copyService.ProgressReported -= onProgressReported;
         };
         _copyService.Completed += onCompleted;
 
@@ -551,8 +595,19 @@ public class BatchCopyWindow : Form
         _btnStartCopy.BackColor = Color.FromArgb(0xD9, 0x5C, 0x5C);
         _lblStatus.Text = "复制中...";
         _lblStatus.ForeColor = Color.DarkBlue;
+        SetProgress(0, _sourceFiles.Count * targetPaths.Count, "准备复制...");
 
         await _copyService.CopyFilesAsync(_sourceFiles, targetPaths, OnConflictAsync);
+    }
+
+    private void SetProgress(int current, int total, string text)
+    {
+        total = Math.Max(1, total);
+        current = Math.Clamp(current, 0, total);
+        _progressBar.Maximum = total;
+        _progressBar.Value = current;
+        _progressBar.ProgressText = $"{current}/{total}";
+        _lblProgressCurrent.Text = text;
     }
 
     private Task<ConflictAction> OnConflictAsync(string targetDir, List<string> files, CancellationToken token)

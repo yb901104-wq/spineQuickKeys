@@ -1,0 +1,38 @@
+{
+  "CreatedAt": "2026-06-02T17:57:25.2781721+08:00",
+  "Results": [
+    {
+      "Case": "SPINE-HOTKEY-SERVICE",
+      "EntryCount": 370,
+      "SectionCount": 17,
+      "AnnotationCreated": true,
+      "ToSpineFormatPeriod": "Ctrl \u002B PERIOD",
+      "ToSpineFormatComma": "Alt \u002B COMMA"
+    },
+    {
+      "Case": "KMP-DATABUNDLE",
+      "Loaded": true,
+      "SequenceCount": 3,
+      "VkWindowCount": 1,
+      "HasRawSpineText": true,
+      "SpineEntryCount": 370
+    },
+    {
+      "Case": "BC-SERVICE",
+      "SourceCount": 2,
+      "TargetCount": 5,
+      "NormalCopyToTargets1To5": true,
+      "SkipOnlyConflictFile": true,
+      "OverwriteConflictFile": true,
+      "CancelAllStopsFollowingTargets": true,
+      "FinalTargets1To5Synced": true,
+      "Targets": [
+        "D:\\AI_cc\\spineQuickKeys\\manual_test_assets\\batch_copy\\targets1",
+        "D:\\AI_cc\\spineQuickKeys\\manual_test_assets\\batch_copy\\targets2",
+        "D:\\AI_cc\\spineQuickKeys\\manual_test_assets\\batch_copy\\targets3",
+        "D:\\AI_cc\\spineQuickKeys\\manual_test_assets\\batch_copy\\targets4",
+        "D:\\AI_cc\\spineQuickKeys\\manual_test_assets\\batch_copy\\targets5"
+      ]
+    }
+  ]
+}

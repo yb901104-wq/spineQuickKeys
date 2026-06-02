@@ -12,16 +12,81 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using KeyMacro.Controls;
 using KeyMacro.Services;
 
 namespace KeyMacro.Forms.ReNameTool
 {
     public partial class Form1 : Form
     {
+        private readonly Label _renameProgressLabel = new Label();
+        private readonly TextProgressBar _renameProgressBar = new TextProgressBar();
+        private readonly Label _organizeProgressLabel = new Label();
+        private readonly TextProgressBar _organizeProgressBar = new TextProgressBar();
+        private readonly Label _unpackProgressLabel = new Label();
+        private readonly TextProgressBar _unpackProgressBar = new TextProgressBar();
+
         public Form1()
         {
             InitializeComponent();
             Icon = IconService.AppIcon;
+            InitializeProgressPanels();
+        }
+
+        private void InitializeProgressPanels()
+        {
+            listBox1.Size = new Size(listBox1.Width, 304);
+            AddProgressPanel(tabPage1, _renameProgressLabel, _renameProgressBar, new Point(0, 314), new Size(480, 46));
+
+            listBox2.Size = new Size(listBox2.Width, 212);
+            AddProgressPanel(tabPage2, _organizeProgressLabel, _organizeProgressBar, new Point(3, 218), new Size(789, 42));
+
+            listBox3.Size = new Size(listBox3.Width, 292);
+            AddProgressPanel(tabPage3, _unpackProgressLabel, _unpackProgressBar, new Point(3, 300), new Size(650, 42));
+        }
+
+        private static void AddProgressPanel(Control parent, Label label, TextProgressBar progressBar, Point location, Size size)
+        {
+            var panel = new TableLayoutPanel
+            {
+                Location = location,
+                Size = size,
+                Anchor = AnchorStyles.Left | AnchorStyles.Right,
+                ColumnCount = 1,
+                RowCount = 2,
+                Padding = new Padding(0),
+                BackColor = parent.BackColor
+            };
+            panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 18));
+            panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+            label.Dock = DockStyle.Fill;
+            label.AutoEllipsis = true;
+            label.TextAlign = ContentAlignment.MiddleCenter;
+            label.ForeColor = Color.FromArgb(55, 55, 55);
+            label.Text = "";
+
+            progressBar.Dock = DockStyle.Fill;
+            progressBar.Minimum = 0;
+            progressBar.Maximum = 100;
+            progressBar.Value = 0;
+            progressBar.ProgressText = "0%";
+
+            panel.Controls.Add(label, 0, 0);
+            panel.Controls.Add(progressBar, 0, 1);
+            parent.Controls.Add(panel);
+            panel.BringToFront();
+        }
+
+        private static void SetProgress(Label label, TextProgressBar progressBar, int current, int total, string text)
+        {
+            total = Math.Max(1, total);
+            current = Math.Clamp(current, 0, total);
+            label.Text = text;
+            progressBar.Maximum = total;
+            progressBar.Value = current;
+            progressBar.ProgressText = $"{current}/{total}";
+            Application.DoEvents();
         }
 
         private void button1_Click(object sender, EventArgs e)//选择文件到列表1
@@ -50,12 +115,14 @@ namespace KeyMacro.Forms.ReNameTool
         private void button3_Click(object sender, EventArgs e)//替换关键字
         {
             //foreach (string file in listBox1.Items) //(旧方案)遍历listbox1列表里的所有数组，并获取里面的每一个文件的路径file
+            SetProgress(_renameProgressLabel, _renameProgressBar, 0, listBox1.Items.Count, "准备局部替换...");
             for (int i = 0; i < listBox1.Items.Count; i++)
             {
                 //string filename = Path.GetFileName(file);//(旧方案)创建变量filename等于获取（getfilename）每一个文件file的文件名和扩展名
                 //string filepath = Path.GetDirectoryName(file);//(旧方案)创建变量filepath等于获取（GetDirectoryName）每一个文件file的路径
 
                 string oldfullpath = listBox1.Items[i].ToString();
+                SetProgress(_renameProgressLabel, _renameProgressBar, i + 1, listBox1.Items.Count, $"局部替换: {Path.GetFileName(oldfullpath)}");
 
                 string filename = Path.GetFileName(oldfullpath);
                 string filepath = Path.GetDirectoryName(oldfullpath);
@@ -121,6 +188,7 @@ namespace KeyMacro.Forms.ReNameTool
 
                 }
             }
+            SetProgress(_renameProgressLabel, _renameProgressBar, listBox1.Items.Count, listBox1.Items.Count, "局部替换完成");
             MessageBox.Show("替换已完成");
         }
 
@@ -182,11 +250,13 @@ namespace KeyMacro.Forms.ReNameTool
         {
              int a = 1;
 
+             SetProgress(_renameProgressLabel, _renameProgressBar, 0, listBox1.Items.Count, "准备统一重命名...");
              for (int i = 0; i < listBox1.Items.Count; i++)
              {
                 
                
                 string oldfullpath = listBox1.Items[i].ToString();
+                SetProgress(_renameProgressLabel, _renameProgressBar, i + 1, listBox1.Items.Count, $"统一重命名: {Path.GetFileName(oldfullpath)}");
 
                 string filepath = Path.GetDirectoryName(oldfullpath);
 
@@ -210,6 +280,7 @@ namespace KeyMacro.Forms.ReNameTool
 
                
              }
+            SetProgress(_renameProgressLabel, _renameProgressBar, listBox1.Items.Count, listBox1.Items.Count, "统一重命名完成");
             MessageBox.Show("文件名修改已完成");
         }
 
@@ -278,10 +349,12 @@ namespace KeyMacro.Forms.ReNameTool
             //string savefilepath = Path.GetDirectoryName(savefolderpath);savefolderpath已经是纯目录了。
 
             
+            SetProgress(_organizeProgressLabel, _organizeProgressBar, 0, listBox2.Items.Count, "准备整理...");
 
             for (int i = 0; i < listBox2.Items.Count; i++) 
             {
                 string startfilepath = listBox2.Items[i].ToString();
+                SetProgress(_organizeProgressLabel, _organizeProgressBar, i + 1, listBox2.Items.Count, $"整理: {Path.GetFileName(startfilepath)}");
 
                 string startname = Path.GetFileName(startfilepath);
                 string startpath = Path.GetDirectoryName(startfilepath);
@@ -417,6 +490,7 @@ namespace KeyMacro.Forms.ReNameTool
                     }
                 }
             }
+            SetProgress(_organizeProgressLabel, _organizeProgressBar, listBox2.Items.Count, listBox2.Items.Count, "整理完成");
             MessageBox.Show("整理完成");   
         }//page2,整理文件
 
@@ -490,8 +564,12 @@ namespace KeyMacro.Forms.ReNameTool
             }
             else 
             {
+                SetProgress(_unpackProgressLabel, _unpackProgressBar, 0, listBox3.Items.Count, "准备解包...");
+                var unpackIndex = 0;
                 foreach (string atlasfilepath in listBox3.Items) 
                 {
+                    unpackIndex++;
+                    SetProgress(_unpackProgressLabel, _unpackProgressBar, unpackIndex, listBox3.Items.Count, $"解包: {Path.GetFileName(atlasfilepath)}");
                     string targetpath = Path.GetDirectoryName(atlasfilepath);
                     string imagespath = Path.Combine(targetpath, "images");
                     Directory.CreateDirectory(imagespath);
@@ -500,6 +578,7 @@ namespace KeyMacro.Forms.ReNameTool
                     MessageBox.Show($"{Path.GetFileName(atlasfilepath)} 解析到 {regions.Count} 个区域");
                     ExtractRegions(regions, targetpath, imagespath);
                 }
+                SetProgress(_unpackProgressLabel, _unpackProgressBar, listBox3.Items.Count, listBox3.Items.Count, "解包完成");
             }
         }
 

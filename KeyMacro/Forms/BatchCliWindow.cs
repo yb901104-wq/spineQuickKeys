@@ -1,5 +1,6 @@
 #nullable enable
 using System.ComponentModel;
+using KeyMacro.Controls;
 using KeyMacro.Models;
 using KeyMacro.Services;
 
@@ -55,8 +56,8 @@ public class BatchCliWindow : Form
     private CancellationTokenSource? _cliCts;
 
     // ── Progress bar ──
-    private readonly ProgressBar _progressBar = new();
-    private readonly Label _lblProgress = new();
+    private readonly Label _lblProgressCurrent = new();
+    private readonly TextProgressBar _progressBar = new();
 
     private static readonly Color ColorOk = Color.FromArgb(0xE8, 0xFF, 0xE8);
     private static readonly Color ColorMissing = Color.FromArgb(0xFF, 0xE8, 0xE8);
@@ -77,22 +78,13 @@ public class BatchCliWindow : Form
         };
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
 
         layout.Controls.Add(BuildTopBar(), 0, 0);
         BuildTabControl();
         layout.Controls.Add(_tabControl, 0, 1);
 
-        // Progress bar row with overlay text
-        var progressPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10, 2, 10, 2) };
-        _progressBar.Dock = DockStyle.Fill;
-        _progressBar.Visible = false;
-        _lblProgress.Dock = DockStyle.Fill;
-        _lblProgress.TextAlign = ContentAlignment.MiddleCenter;
-        _lblProgress.Visible = false;
-        // Label overlays the progress bar (added second = higher Z-order)
-        progressPanel.Controls.Add(_progressBar);
-        progressPanel.Controls.Add(_lblProgress);
+        var progressPanel = BuildProgressPanel();
         layout.Controls.Add(progressPanel, 0, 2);
 
         Controls.Add(layout);
@@ -203,7 +195,7 @@ public class BatchCliWindow : Form
     private void CancelCliOperation()
     {
         _cliCts?.Cancel();
-        _lblProgress.Text = "正在取消...";
+        _lblProgressCurrent.Text = "正在取消...";
     }
 
     // ────────────────────── TabControl ──────────────────────
@@ -596,6 +588,9 @@ public class BatchCliWindow : Form
         _btnMergeExecute.Enabled = false;
         _btnMergeExecute.Text = "合并中...";
         var ct = BeginCliOperation();
+        var totalPairs = Math.Max(srcCount, tgtCount);
+        var currentPair = 0;
+        ShowProgress(true);
 
         try
         {
@@ -610,6 +605,8 @@ public class BatchCliWindow : Form
                 foreach (var target in _targetEntries)
                 {
                     ct.ThrowIfCancellationRequested();
+                    currentPair++;
+                    SetProgress(currentPair, totalPairs, $"普通合并: {target.FileName}");
                     var result = await MergeOne(source, target, tempDir, ct);
                     if (!result.Success) errors.Add($"{target.FileName}: {result.Error}");
                 }
@@ -621,6 +618,8 @@ public class BatchCliWindow : Form
                 foreach (var source in _sourceEntries)
                 {
                     ct.ThrowIfCancellationRequested();
+                    currentPair++;
+                    SetProgress(currentPair, totalPairs, $"普通合并: {source.FileName}");
                     var result = await MergeOne(source, target, tempDir, ct);
                     if (!result.Success) errors.Add($"{source.FileName}: {result.Error}");
                 }
@@ -640,6 +639,7 @@ public class BatchCliWindow : Form
         }
         finally
         {
+            ShowProgress(false);
             EndCliOperation();
             _btnMergeExecute.Enabled = true;
             _btnMergeExecute.Text = "执行合并";
@@ -701,7 +701,7 @@ public class BatchCliWindow : Form
                 {
                     ct.ThrowIfCancellationRequested();
                     currentPair++;
-                    SetProgress(currentPair, totalPairs, $"[{currentPair}/{totalPairs}] {target.FileName}");
+                    SetProgress(currentPair, totalPairs, $"实验合并: {target.FileName}");
                     var result = await ExperimentalMergeOne(source, target, ct);
                     if (result.Success)
                         successes.Add($"{target.FileName} → {result.Output}");
@@ -717,7 +717,7 @@ public class BatchCliWindow : Form
                 {
                     ct.ThrowIfCancellationRequested();
                     currentPair++;
-                    SetProgress(currentPair, totalPairs, $"[{currentPair}/{totalPairs}] {source.FileName}");
+                    SetProgress(currentPair, totalPairs, $"实验合并: {source.FileName}");
                     var result = await ExperimentalMergeOne(source, target, ct);
                     if (result.Success)
                         successes.Add($"{source.FileName} → {result.Output}");
@@ -849,19 +849,50 @@ public class BatchCliWindow : Form
     private void ShowProgress(bool visible)
     {
         _progressBar.Visible = visible;
+        _progressBar.Minimum = 0;
+        _progressBar.Maximum = 100;
         _progressBar.Value = 0;
-        _lblProgress.Visible = visible;
-        _lblProgress.Text = "";
+        _progressBar.ProgressText = "0%";
+        _lblProgressCurrent.Visible = visible;
+        _lblProgressCurrent.Text = "";
         Application.DoEvents();
     }
 
     private void SetProgress(int current, int total, string text)
     {
         if (total <= 0) return;
+        current = Math.Clamp(current, 0, total);
         _progressBar.Maximum = total;
-        _progressBar.Value = Math.Clamp(current, 0, total);
-        _lblProgress.Text = text;
+        _progressBar.Value = current;
+        _progressBar.ProgressText = $"{current}/{total}";
+        _lblProgressCurrent.Text = text;
         Application.DoEvents();
+    }
+
+    private Control BuildProgressPanel()
+    {
+        var progressPanel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            Padding = new Padding(10, 3, 10, 4)
+        };
+        progressPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 20));
+        progressPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        _lblProgressCurrent.Dock = DockStyle.Fill;
+        _lblProgressCurrent.TextAlign = ContentAlignment.MiddleCenter;
+        _lblProgressCurrent.AutoEllipsis = true;
+        _lblProgressCurrent.Visible = false;
+        _lblProgressCurrent.ForeColor = Color.FromArgb(55, 55, 55);
+
+        _progressBar.Dock = DockStyle.Fill;
+        _progressBar.Visible = false;
+
+        progressPanel.Controls.Add(_lblProgressCurrent, 0, 0);
+        progressPanel.Controls.Add(_progressBar, 0, 1);
+        return progressPanel;
     }
 
     private static Version? ParseVersion(string? version)
@@ -1141,6 +1172,9 @@ public class BatchCliWindow : Form
         _btnExport.Enabled = false;
         _btnExport.Text = "导出中...";
         var ct = BeginCliOperation();
+        var current = 0;
+        var total = _exportEntries.Count;
+        ShowProgress(true);
 
         try
         {
@@ -1153,6 +1187,8 @@ public class BatchCliWindow : Form
             foreach (var entry in _exportEntries)
             {
                 ct.ThrowIfCancellationRequested();
+                current++;
+                SetProgress(current, total, $"批量导出: {entry.FileName}");
                 var tempOutputDir = Path.Combine(Path.GetTempPath(), "KeyMacro", "cli_export", Guid.NewGuid().ToString("N"));
                 try
                 {
@@ -1217,6 +1253,7 @@ public class BatchCliWindow : Form
         }
         finally
         {
+            ShowProgress(false);
             EndCliOperation();
             _btnExport.Enabled = true;
             _btnExport.Text = "导出";
@@ -1230,6 +1267,9 @@ public class BatchCliWindow : Form
         _btnPack.Enabled = false;
         _btnPack.Text = "打包中...";
         var ct = BeginCliOperation();
+        var current = 0;
+        var total = _exportEntries.Count;
+        ShowProgress(true);
 
         try
         {
@@ -1240,6 +1280,8 @@ public class BatchCliWindow : Form
             foreach (var entry in _exportEntries)
             {
                 ct.ThrowIfCancellationRequested();
+                current++;
+                SetProgress(current, total, $"单纹理图: {entry.FileName}");
                 var tempOutputDir = Path.Combine(Path.GetTempPath(), "KeyMacro", "cli_pack", Guid.NewGuid().ToString("N"));
                 try
                 {
@@ -1278,6 +1320,7 @@ public class BatchCliWindow : Form
         }
         finally
         {
+            ShowProgress(false);
             EndCliOperation();
             _btnPack.Enabled = true;
             _btnPack.Text = "单纹理图";

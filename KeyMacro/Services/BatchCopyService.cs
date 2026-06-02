@@ -9,6 +9,7 @@ public class BatchCopyService
     public bool IsRunning => _cts is not null;
 
     public event Action<string>? ProgressChanged;
+    public event Action<string, int, int>? ProgressReported;
     public event Action<string>? Completed;
     public event Action<string>? ErrorOccurred;
 
@@ -78,14 +79,14 @@ public class BatchCopyService
                         if (conflictSet.Contains(fileName))
                         {
                             done++;
-                            ProgressChanged?.Invoke($"跳过冲突文件: {fileName} → {targetDir} ({done}/{total})");
+                            ReportProgress($"跳过冲突文件: {fileName} → {targetDir}", done, total);
                             continue;
                         }
 
                         var destPath = Path.Combine(targetDir, fileName);
                         File.Copy(srcFile, destPath, overwrite: action == ConflictAction.Overwrite);
                         done++;
-                        ProgressChanged?.Invoke($"复制中: {fileName} → {targetDir} ({done}/{total})");
+                        ReportProgress($"复制中: {fileName} → {targetDir}", done, total);
                     }
                     catch (Exception ex)
                     {
@@ -116,6 +117,12 @@ public class BatchCopyService
             _cts?.Dispose();
             _cts = null;
         }
+    }
+
+    private void ReportProgress(string message, int done, int total)
+    {
+        ProgressChanged?.Invoke($"{message} ({done}/{total})");
+        ProgressReported?.Invoke(message, done, total);
     }
 }
 

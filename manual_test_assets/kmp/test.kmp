@@ -1,0 +1,2855 @@
+{
+  "Version": "1.0",
+  "CreatedAt": "2026-06-02T17:49:39.5446595+08:00",
+  "SpineHotkeys": [
+    {
+      "Name": "--- General ---",
+      "Keys": "",
+      "Section": "General",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Undo",
+      "Keys": "ctrl \u002B Z",
+      "Section": "General",
+      "ChineseNote": "\u64A4\u9500"
+    },
+    {
+      "Name": "Redo",
+      "Keys": "ctrl \u002B shift \u002B Z",
+      "Section": "General",
+      "ChineseNote": "\u91CD\u505A"
+    },
+    {
+      "Name": "Setup/Animate Mode",
+      "Keys": "ctrl \u002B TAB",
+      "Section": "General",
+      "ChineseNote": "\u5207\u6362Setup/Animate\u6A21\u5F0F"
+    },
+    {
+      "Name": "Rulers",
+      "Keys": "ctrl \u002B shift \u002B R",
+      "Section": "General",
+      "ChineseNote": "\u6807\u5C3A"
+    },
+    {
+      "Name": "Zoom To Fit",
+      "Keys": "ctrl \u002B shift \u002B F",
+      "Section": "General",
+      "ChineseNote": "\u653E\u5927\u5230\u9002\u914D"
+    },
+    {
+      "Name": "Zoom To 100%",
+      "Keys": "ctrl \u002B F",
+      "Section": "General",
+      "ChineseNote": "100%\u7F29\u653E"
+    },
+    {
+      "Name": "Lock Zoom",
+      "Keys": "",
+      "Section": "General",
+      "ChineseNote": "\u9501\u5B9A\u7F29\u653E"
+    },
+    {
+      "Name": "Fullscreen",
+      "Keys": "ctrl \u002B shift \u002B alt \u002B F",
+      "Section": "General",
+      "ChineseNote": "\u5168\u5C4F"
+    },
+    {
+      "Name": "Always On Top",
+      "Keys": "ctrl \u002B shift \u002B alt \u002B T",
+      "Section": "General",
+      "ChineseNote": "\u603B\u5728\u6700\u524D"
+    },
+    {
+      "Name": "Instant Tooltips",
+      "Keys": "F1",
+      "Section": "General",
+      "ChineseNote": "\u663E\u793A\u5DE5\u5177\u63D0\u793A"
+    },
+    {
+      "Name": "Hotkey Popups",
+      "Keys": "ctrl \u002B shift \u002B K",
+      "Section": "General",
+      "ChineseNote": "\u5FEB\u6377\u952E\u5F39\u51FA"
+    },
+    {
+      "Name": "Pan Drag",
+      "Keys": "J",
+      "Section": "General",
+      "ChineseNote": "\u5E73\u79FB\u62D6\u62FD"
+    },
+    {
+      "Name": "Zoom Drag",
+      "Keys": "U",
+      "Section": "General",
+      "ChineseNote": "\u7F29\u653E\u62D6\u62FD"
+    },
+    {
+      "Name": "Pan Move",
+      "Keys": "",
+      "Section": "General",
+      "ChineseNote": "\u5E73\u79FB\u79FB\u52A8"
+    },
+    {
+      "Name": "Zoom Move",
+      "Keys": "",
+      "Section": "General",
+      "ChineseNote": "\u7F29\u653E\u79FB\u52A8"
+    },
+    {
+      "Name": "Top",
+      "Keys": "HOME",
+      "Section": "General",
+      "ChineseNote": "\u8DF3\u8F6C\u5230\u9876\u90E8"
+    },
+    {
+      "Name": "Bottom",
+      "Keys": "END",
+      "Section": "General",
+      "ChineseNote": "\u8DF3\u8F6C\u5230\u5E95\u90E8"
+    },
+    {
+      "Name": "Focus - Dopesheet",
+      "Keys": "",
+      "Section": "General",
+      "ChineseNote": "\u805A\u7126\u6444\u5F71\u8868"
+    },
+    {
+      "Name": "Focus - Graph",
+      "Keys": "",
+      "Section": "General",
+      "ChineseNote": "\u805A\u7126\u56FE\u8868"
+    },
+    {
+      "Name": "Focus - Tree",
+      "Keys": "",
+      "Section": "General",
+      "ChineseNote": "\u805A\u7126\u5C42\u7EA7\u6811"
+    },
+    {
+      "Name": "Focus - Viewport",
+      "Keys": "ctrl \u002B alt \u002B V",
+      "Section": "General",
+      "ChineseNote": "\u805A\u7126\u89C6\u56FE"
+    },
+    {
+      "Name": "Next Skin",
+      "Keys": "PERIOD",
+      "Section": "General",
+      "ChineseNote": "\u4E0B\u4E00\u4E2A\u76AE\u80A4"
+    },
+    {
+      "Name": "Previous Skin",
+      "Keys": "COMMA",
+      "Section": "General",
+      "ChineseNote": "\u4E0A\u4E00\u4E2A\u76AE\u80A4"
+    },
+    {
+      "Name": "Mute",
+      "Keys": "",
+      "Section": "General",
+      "ChineseNote": "\u9759\u97F3"
+    },
+    {
+      "Name": "Disable Constraints",
+      "Keys": "",
+      "Section": "General",
+      "ChineseNote": "\u7981\u7528\u7EA6\u675F"
+    },
+    {
+      "Name": "--- Views ---",
+      "Keys": "",
+      "Section": "Views",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Minimize Views",
+      "Keys": "F9",
+      "Section": "Views",
+      "ChineseNote": "\u6700\u5C0F\u5316\u89C6\u56FE"
+    },
+    {
+      "Name": "Animations View",
+      "Keys": "alt \u002B A",
+      "Section": "Views",
+      "ChineseNote": "\u52A8\u753B\u89C6\u56FE"
+    },
+    {
+      "Name": "Audio View",
+      "Keys": "alt \u002B U",
+      "Section": "Views",
+      "ChineseNote": "\u97F3\u9891\u89C6\u56FE"
+    },
+    {
+      "Name": "Dopesheet View",
+      "Keys": "alt \u002B D",
+      "Section": "Views",
+      "ChineseNote": "\u6444\u5F71\u8868\u89C6\u56FE"
+    },
+    {
+      "Name": "Ghosting View",
+      "Keys": "alt \u002B H",
+      "Section": "Views",
+      "ChineseNote": "\u5E7B\u5F71\u89C6\u56FE"
+    },
+    {
+      "Name": "Graph View",
+      "Keys": "alt \u002B G",
+      "Section": "Views",
+      "ChineseNote": "\u56FE\u8868\u89C6\u56FE"
+    },
+    {
+      "Name": "Curves View",
+      "Keys": "alt \u002B V",
+      "Section": "Views",
+      "ChineseNote": "\u66F2\u7EBF\u89C6\u56FE"
+    },
+    {
+      "Name": "Metrics View",
+      "Keys": "alt \u002B M",
+      "Section": "Views",
+      "ChineseNote": "\u6307\u6807\u89C6\u56FE"
+    },
+    {
+      "Name": "Mesh Tools View",
+      "Keys": "alt \u002B E",
+      "Section": "Views",
+      "ChineseNote": "\u7F51\u683C\u5DE5\u5177\u89C6\u56FE"
+    },
+    {
+      "Name": "Outline View",
+      "Keys": "alt \u002B O",
+      "Section": "Views",
+      "ChineseNote": "\u8F6E\u5ED3\u89C6\u56FE"
+    },
+    {
+      "Name": "Playback View",
+      "Keys": "alt \u002B P",
+      "Section": "Views",
+      "ChineseNote": "\u64AD\u653E\u89C6\u56FE"
+    },
+    {
+      "Name": "Preview View",
+      "Keys": "alt \u002B R",
+      "Section": "Views",
+      "ChineseNote": "\u9884\u89C8\u89C6\u56FE"
+    },
+    {
+      "Name": "Skins View",
+      "Keys": "alt \u002B S",
+      "Section": "Views",
+      "ChineseNote": "\u76AE\u80A4\u89C6\u56FE"
+    },
+    {
+      "Name": "Slot Color View",
+      "Keys": "alt \u002B C",
+      "Section": "Views",
+      "ChineseNote": "\u63D2\u69FD\u989C\u8272\u89C6\u56FE"
+    },
+    {
+      "Name": "Timeline View",
+      "Keys": "alt \u002B L",
+      "Section": "Views",
+      "ChineseNote": "\u65F6\u95F4\u8F74\u89C6\u56FE"
+    },
+    {
+      "Name": "Tree View",
+      "Keys": "alt \u002B T",
+      "Section": "Views",
+      "ChineseNote": "\u5C42\u7EA7\u6811\u89C6\u56FE"
+    },
+    {
+      "Name": "Weights View",
+      "Keys": "alt \u002B W",
+      "Section": "Views",
+      "ChineseNote": "\u6743\u91CD\u89C6\u56FE"
+    },
+    {
+      "Name": "--- Tools ---",
+      "Keys": "",
+      "Section": "Tools",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Rotate Tool",
+      "Keys": "C",
+      "Section": "Tools",
+      "ChineseNote": "\u65CB\u8F6C\u5DE5\u5177"
+    },
+    {
+      "Name": "Translate Tool",
+      "Keys": "V",
+      "Section": "Tools",
+      "ChineseNote": "\u79FB\u52A8\u5DE5\u5177"
+    },
+    {
+      "Name": "Scale Tool",
+      "Keys": "X",
+      "Section": "Tools",
+      "ChineseNote": "\u7F29\u653E\u5DE5\u5177"
+    },
+    {
+      "Name": "Shear Tool",
+      "Keys": "Z",
+      "Section": "Tools",
+      "ChineseNote": "\u5207\u53D8\u5DE5\u5177"
+    },
+    {
+      "Name": "Pose Tool",
+      "Keys": "B",
+      "Section": "Tools",
+      "ChineseNote": "\u59FF\u6001\u5DE5\u5177"
+    },
+    {
+      "Name": "Create Tool",
+      "Keys": "N",
+      "Section": "Tools",
+      "ChineseNote": "\u521B\u5EFA\u5DE5\u5177"
+    },
+    {
+      "Name": "Weights Tool",
+      "Keys": "G",
+      "Section": "Tools",
+      "ChineseNote": "\u6743\u91CD\u5DE5\u5177"
+    },
+    {
+      "Name": "Last Tool",
+      "Keys": "",
+      "Section": "Tools",
+      "ChineseNote": "\u4E0A\u4E00\u4E2A\u5DE5\u5177"
+    },
+    {
+      "Name": "Local Axes",
+      "Keys": "",
+      "Section": "Tools",
+      "ChineseNote": "\u5C40\u90E8\u8F74"
+    },
+    {
+      "Name": "Parent Axes",
+      "Keys": "",
+      "Section": "Tools",
+      "ChineseNote": "\u7236\u8F74"
+    },
+    {
+      "Name": "World Axes",
+      "Keys": "",
+      "Section": "Tools",
+      "ChineseNote": "\u4E16\u754C\u8F74"
+    },
+    {
+      "Name": "Bone Compensation",
+      "Keys": "",
+      "Section": "Tools",
+      "ChineseNote": "\u9AA8\u9ABC\u8865\u507F"
+    },
+    {
+      "Name": "Attachment Compensation",
+      "Keys": "",
+      "Section": "Tools",
+      "ChineseNote": "\u9644\u4EF6\u8865\u507F"
+    },
+    {
+      "Name": "Nudge Up",
+      "Keys": "shift \u002B UP",
+      "Section": "Tools",
+      "ChineseNote": "\u5411\u4E0A\u5FAE\u8C03"
+    },
+    {
+      "Name": "Nudge Up (10)",
+      "Keys": "UP",
+      "Section": "Tools",
+      "ChineseNote": "\u5411\u4E0A\u5FAE\u8C0310"
+    },
+    {
+      "Name": "Nudge Down",
+      "Keys": "shift \u002B DOWN",
+      "Section": "Tools",
+      "ChineseNote": "\u5411\u4E0B\u5FAE\u8C03"
+    },
+    {
+      "Name": "Nudge Down (10)",
+      "Keys": "DOWN",
+      "Section": "Tools",
+      "ChineseNote": "\u5411\u4E0B\u5FAE\u8C0310"
+    },
+    {
+      "Name": "Nudge Left",
+      "Keys": "shift \u002B LEFT",
+      "Section": "Tools",
+      "ChineseNote": "\u5411\u5DE6\u5FAE\u8C03"
+    },
+    {
+      "Name": "Nudge Left (10)",
+      "Keys": "LEFT",
+      "Section": "Tools",
+      "ChineseNote": "\u5411\u5DE6\u5FAE\u8C0310"
+    },
+    {
+      "Name": "Nudge Right",
+      "Keys": "shift \u002B RIGHT",
+      "Section": "Tools",
+      "ChineseNote": "\u5411\u53F3\u5FAE\u8C03"
+    },
+    {
+      "Name": "Nudge Right (10)",
+      "Keys": "RIGHT",
+      "Section": "Tools",
+      "ChineseNote": "\u5411\u53F3\u5FAE\u8C0310"
+    },
+    {
+      "Name": "Mesh Tools - Soft Selection",
+      "Keys": "",
+      "Section": "Tools",
+      "ChineseNote": "\u7F51\u683C\u5DE5\u5177-\u8F6F\u9009\u62E9"
+    },
+    {
+      "Name": "Mesh Tools - Hull Vertices",
+      "Keys": "",
+      "Section": "Tools",
+      "ChineseNote": "\u7F51\u683C\u5DE5\u5177-\u5916\u58F3\u9876\u70B9"
+    },
+    {
+      "Name": "Brush\u002B",
+      "Keys": "\u0027\u0027\u0027",
+      "Section": "Tools",
+      "ChineseNote": "\u7B14\u5237\u002B"
+    },
+    {
+      "Name": "Brush-",
+      "Keys": "\u0027;\u0027",
+      "Section": "Tools",
+      "ChineseNote": "\u7B14\u5237-"
+    },
+    {
+      "Name": "Feather\u002B",
+      "Keys": "\u0027\u0022\u0027",
+      "Section": "Tools",
+      "ChineseNote": "\u7FBD\u5316\u002B"
+    },
+    {
+      "Name": "Feather-",
+      "Keys": "\u0027:\u0027",
+      "Section": "Tools",
+      "ChineseNote": "\u7FBD\u5316-"
+    },
+    {
+      "Name": "Weights - Direct Mode",
+      "Keys": "",
+      "Section": "Tools",
+      "ChineseNote": "\u6743\u91CD-\u76F4\u63A5\u6A21\u5F0F"
+    },
+    {
+      "Name": "Weights - Add Mode",
+      "Keys": "",
+      "Section": "Tools",
+      "ChineseNote": "\u6743\u91CD-\u6DFB\u52A0\u6A21\u5F0F"
+    },
+    {
+      "Name": "Weights - Remove Mode",
+      "Keys": "",
+      "Section": "Tools",
+      "ChineseNote": "\u6743\u91CD-\u79FB\u9664\u6A21\u5F0F"
+    },
+    {
+      "Name": "Weights - Replace Mode",
+      "Keys": "",
+      "Section": "Tools",
+      "ChineseNote": "\u6743\u91CD-\u66FF\u6362\u6A21\u5F0F"
+    },
+    {
+      "Name": "Weights - Strength\u002B",
+      "Keys": "alt \u002B \u0027\u0027\u0027",
+      "Section": "Tools",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Weights - Strength-",
+      "Keys": "alt \u002B \u0027;\u0027",
+      "Section": "Tools",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Weights - Bind",
+      "Keys": "",
+      "Section": "Tools",
+      "ChineseNote": "\u6743\u91CD\u7ED1\u5B9A"
+    },
+    {
+      "Name": "Weights - Remove",
+      "Keys": "",
+      "Section": "Tools",
+      "ChineseNote": "\u6743\u91CD\u79FB\u9664"
+    },
+    {
+      "Name": "Weights - Update Bindings",
+      "Keys": "",
+      "Section": "Tools",
+      "ChineseNote": "\u66F4\u65B0\u6743\u91CD\u7ED1\u5B9A"
+    },
+    {
+      "Name": "Weights - Smooth",
+      "Keys": "",
+      "Section": "Tools",
+      "ChineseNote": "\u6743\u91CD\u5E73\u6ED1"
+    },
+    {
+      "Name": "Weights - Auto",
+      "Keys": "",
+      "Section": "Tools",
+      "ChineseNote": "\u81EA\u52A8\u6743\u91CD"
+    },
+    {
+      "Name": "Weights - Prune",
+      "Keys": "",
+      "Section": "Tools",
+      "ChineseNote": "\u6743\u91CD\u526A\u679D"
+    },
+    {
+      "Name": "Weights - Pies",
+      "Keys": "",
+      "Section": "Tools",
+      "ChineseNote": "\u6743\u91CD\u997C\u56FE"
+    },
+    {
+      "Name": "Weights - Overlay",
+      "Keys": "",
+      "Section": "Tools",
+      "ChineseNote": "\u6743\u91CD\u53E0\u52A0"
+    },
+    {
+      "Name": "Weights - Selected",
+      "Keys": "",
+      "Section": "Tools",
+      "ChineseNote": "\u5DF2\u9009\u6743\u91CD"
+    },
+    {
+      "Name": "Weights - Select Bones",
+      "Keys": "",
+      "Section": "Tools",
+      "ChineseNote": "\u9009\u62E9\u6743\u91CD\u9AA8\u9ABC"
+    },
+    {
+      "Name": "Weights - Swap",
+      "Keys": "",
+      "Section": "Tools",
+      "ChineseNote": "\u4EA4\u6362\u6743\u91CD"
+    },
+    {
+      "Name": "--- Options ---",
+      "Keys": "",
+      "Section": "Options",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Select Bones",
+      "Keys": "ctrl \u002B shift \u002B B",
+      "Section": "Options",
+      "ChineseNote": "\u9009\u62E9\u9AA8\u9ABC"
+    },
+    {
+      "Name": "Show Bones",
+      "Keys": "ctrl \u002B B",
+      "Section": "Options",
+      "ChineseNote": "\u663E\u793A\u9AA8\u9ABC"
+    },
+    {
+      "Name": "Bone Names",
+      "Keys": "ctrl \u002B shift \u002B alt \u002B B",
+      "Section": "Options",
+      "ChineseNote": "\u663E\u793A\u9AA8\u9ABC\u540D\u79F0"
+    },
+    {
+      "Name": "Select Images",
+      "Keys": "ctrl \u002B shift \u002B I",
+      "Section": "Options",
+      "ChineseNote": "\u9009\u62E9\u56FE\u7247"
+    },
+    {
+      "Name": "Show Images",
+      "Keys": "ctrl \u002B I",
+      "Section": "Options",
+      "ChineseNote": "\u663E\u793A\u56FE\u7247"
+    },
+    {
+      "Name": "Image Names",
+      "Keys": "ctrl \u002B shift \u002B alt \u002B I",
+      "Section": "Options",
+      "ChineseNote": "\u663E\u793A\u56FE\u7247\u540D\u79F0"
+    },
+    {
+      "Name": "Select Others",
+      "Keys": "",
+      "Section": "Options",
+      "ChineseNote": "\u9009\u62E9\u5176\u4ED6"
+    },
+    {
+      "Name": "Show Others",
+      "Keys": "",
+      "Section": "Options",
+      "ChineseNote": "\u663E\u793A\u5176\u4ED6"
+    },
+    {
+      "Name": "Other Names",
+      "Keys": "",
+      "Section": "Options",
+      "ChineseNote": "\u663E\u793A\u5176\u4ED6\u540D\u79F0"
+    },
+    {
+      "Name": "Auto Scroll",
+      "Keys": "ctrl \u002B SLASH",
+      "Section": "Options",
+      "ChineseNote": "\u81EA\u52A8\u6EDA\u52A8"
+    },
+    {
+      "Name": "Scroll To Selected",
+      "Keys": "SLASH",
+      "Section": "Options",
+      "ChineseNote": "\u6EDA\u52A8\u5230\u9009\u4E2D"
+    },
+    {
+      "Name": "--- Selection ---",
+      "Keys": "",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Deselect",
+      "Keys": "SPACE",
+      "Section": "Selection",
+      "ChineseNote": "\u53D6\u6D88\u9009\u62E9"
+    },
+    {
+      "Name": "Select All",
+      "Keys": "ctrl \u002B A",
+      "Section": "Selection",
+      "ChineseNote": "\u5168\u9009"
+    },
+    {
+      "Name": "Select - Bones",
+      "Keys": "",
+      "Section": "Selection",
+      "ChineseNote": "\u9009\u62E9\u9AA8\u9ABC"
+    },
+    {
+      "Name": "Select - Child Bones",
+      "Keys": "ctrl \u002B alt \u002B C",
+      "Section": "Selection",
+      "ChineseNote": "\u9009\u62E9\u5B50\u9AA8\u9ABC"
+    },
+    {
+      "Name": "Select - Descendant Bones",
+      "Keys": "ctrl \u002B alt \u002B B",
+      "Section": "Selection",
+      "ChineseNote": "\u9009\u62E9\u540E\u4EE3\u9AA8\u9ABC"
+    },
+    {
+      "Name": "Select - Slots",
+      "Keys": "ctrl \u002B alt \u002B S",
+      "Section": "Selection",
+      "ChineseNote": "\u9009\u62E9\u63D2\u69FD"
+    },
+    {
+      "Name": "Select - Draw Order",
+      "Keys": "ctrl \u002B alt \u002B D",
+      "Section": "Selection",
+      "ChineseNote": "\u9009\u62E9\u7ED8\u5236\u987A\u5E8F"
+    },
+    {
+      "Name": "Select - Attachments",
+      "Keys": "ctrl \u002B alt \u002B A",
+      "Section": "Selection",
+      "ChineseNote": "\u9009\u62E9\u9644\u4EF6"
+    },
+    {
+      "Name": "Select - Visible Attachments",
+      "Keys": "",
+      "Section": "Selection",
+      "ChineseNote": "\u9009\u62E9\u53EF\u89C1\u9644\u4EF6"
+    },
+    {
+      "Name": "Previous Selection",
+      "Keys": "PAGE_DOWN",
+      "Section": "Selection",
+      "ChineseNote": "\u4E0A\u4E00\u4E2A\u9009\u62E9"
+    },
+    {
+      "Name": "Next Selection",
+      "Keys": "PAGE_UP",
+      "Section": "Selection",
+      "ChineseNote": "\u4E0B\u4E00\u4E2A\u9009\u62E9"
+    },
+    {
+      "Name": "Hide Selection",
+      "Keys": "",
+      "Section": "Selection",
+      "ChineseNote": "\u9690\u85CF\u9009\u62E9"
+    },
+    {
+      "Name": "Store Selection 0",
+      "Keys": "ctrl \u002B 0",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Store Selection 1",
+      "Keys": "ctrl \u002B 1",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Store Selection 2",
+      "Keys": "ctrl \u002B 2",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Store Selection 3",
+      "Keys": "ctrl \u002B 3",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Store Selection 4",
+      "Keys": "ctrl \u002B 4",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Store Selection 5",
+      "Keys": "ctrl \u002B 5",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Store Selection 6",
+      "Keys": "ctrl \u002B 6",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Store Selection 7",
+      "Keys": "ctrl \u002B 7",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Store Selection 8",
+      "Keys": "ctrl \u002B 8",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Store Selection 9",
+      "Keys": "ctrl \u002B 9",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Set Selection 0",
+      "Keys": "0",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Set Selection 1",
+      "Keys": "1",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Set Selection 2",
+      "Keys": "2",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Set Selection 3",
+      "Keys": "3",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Set Selection 4",
+      "Keys": "4",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Set Selection 5",
+      "Keys": "5",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Set Selection 6",
+      "Keys": "6",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Set Selection 7",
+      "Keys": "7",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Set Selection 8",
+      "Keys": "8",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Set Selection 9",
+      "Keys": "9",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Add Selection 0",
+      "Keys": "shift \u002B 0",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Add Selection 1",
+      "Keys": "shift \u002B 1",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Add Selection 2",
+      "Keys": "shift \u002B 2",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Add Selection 3",
+      "Keys": "shift \u002B 3",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Add Selection 4",
+      "Keys": "shift \u002B 4",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Add Selection 5",
+      "Keys": "shift \u002B 5",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Add Selection 6",
+      "Keys": "shift \u002B 6",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Add Selection 7",
+      "Keys": "shift \u002B 7",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Add Selection 8",
+      "Keys": "shift \u002B 8",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Add Selection 9",
+      "Keys": "shift \u002B 9",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Cut",
+      "Keys": "ctrl \u002B X",
+      "Section": "Selection",
+      "ChineseNote": "\u526A\u5207"
+    },
+    {
+      "Name": "Copy",
+      "Keys": "ctrl \u002B C",
+      "Section": "Selection",
+      "ChineseNote": "\u590D\u5236"
+    },
+    {
+      "Name": "Paste",
+      "Keys": "ctrl \u002B V",
+      "Section": "Selection",
+      "ChineseNote": "\u7C98\u8D34"
+    },
+    {
+      "Name": "Delete",
+      "Keys": "DELETE",
+      "Section": "Selection",
+      "ChineseNote": "\u5220\u9664"
+    },
+    {
+      "Name": "Rename",
+      "Keys": "F2",
+      "Section": "Selection",
+      "ChineseNote": "\u91CD\u547D\u540D"
+    },
+    {
+      "Name": "Duplicate",
+      "Keys": "ctrl \u002B D",
+      "Section": "Selection",
+      "ChineseNote": "\u590D\u5236"
+    },
+    {
+      "Name": "Visibility",
+      "Keys": "H",
+      "Section": "Selection",
+      "ChineseNote": "\u53EF\u89C1\u6027"
+    },
+    {
+      "Name": "Show All Bones/Slots",
+      "Keys": "ctrl \u002B H",
+      "Section": "Selection",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Draw Order Down",
+      "Keys": "MINUS",
+      "Section": "Selection",
+      "ChineseNote": "\u7ED8\u5236\u987A\u5E8F\u4E0B\u79FB"
+    },
+    {
+      "Name": "Draw Order Down (5)",
+      "Keys": "shift \u002B MINUS",
+      "Section": "Selection",
+      "ChineseNote": "\u7ED8\u5236\u987A\u5E8F\u4E0B\u79FB5"
+    },
+    {
+      "Name": "Draw Order Up",
+      "Keys": "PLUS",
+      "Section": "Selection",
+      "ChineseNote": "\u7ED8\u5236\u987A\u5E8F\u4E0A\u79FB"
+    },
+    {
+      "Name": "Draw Order Up (5)",
+      "Keys": "shift \u002B PLUS",
+      "Section": "Selection",
+      "ChineseNote": "\u7ED8\u5236\u987A\u5E8F\u4E0A\u79FB5"
+    },
+    {
+      "Name": "--- Tree ---",
+      "Keys": "",
+      "Section": "Tree",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Replace",
+      "Keys": "F4",
+      "Section": "Tree",
+      "ChineseNote": "\u66FF\u6362"
+    },
+    {
+      "Name": "Parent",
+      "Keys": "ctrl \u002B shift \u002B UP",
+      "Section": "Tree",
+      "ChineseNote": "\u8BBE\u4E3A\u7236\u7EA7"
+    },
+    {
+      "Name": "Child",
+      "Keys": "ctrl \u002B shift \u002B DOWN",
+      "Section": "Tree",
+      "ChineseNote": "\u8BBE\u4E3A\u5B50\u7EA7"
+    },
+    {
+      "Name": "Previous Sibling",
+      "Keys": "ctrl \u002B shift \u002B LEFT",
+      "Section": "Tree",
+      "ChineseNote": "\u4E0A\u4E00\u4E2A\u540C\u7EA7"
+    },
+    {
+      "Name": "Next Sibling",
+      "Keys": "ctrl \u002B shift \u002B RIGHT",
+      "Section": "Tree",
+      "ChineseNote": "\u4E0B\u4E00\u4E2A\u540C\u7EA7"
+    },
+    {
+      "Name": "Parent Bone",
+      "Keys": "ctrl \u002B UP",
+      "Section": "Tree",
+      "ChineseNote": "\u7236\u9AA8\u9ABC"
+    },
+    {
+      "Name": "Child Bone",
+      "Keys": "ctrl \u002B DOWN",
+      "Section": "Tree",
+      "ChineseNote": "\u5B50\u9AA8\u9ABC"
+    },
+    {
+      "Name": "Previous Sibling Bone",
+      "Keys": "ctrl \u002B LEFT",
+      "Section": "Tree",
+      "ChineseNote": "\u4E0A\u4E00\u4E2A\u540C\u7EA7\u9AA8\u9ABC"
+    },
+    {
+      "Name": "Next Sibling Bone",
+      "Keys": "ctrl \u002B RIGHT",
+      "Section": "Tree",
+      "ChineseNote": "\u4E0B\u4E00\u4E2A\u540C\u7EA7\u9AA8\u9ABC"
+    },
+    {
+      "Name": "Tree Up",
+      "Keys": "alt \u002B UP",
+      "Section": "Tree",
+      "ChineseNote": "\u6811\u5411\u4E0A"
+    },
+    {
+      "Name": "Tree Down",
+      "Keys": "alt \u002B DOWN",
+      "Section": "Tree",
+      "ChineseNote": "\u6811\u5411\u4E0B"
+    },
+    {
+      "Name": "Collapse",
+      "Keys": "alt \u002B LEFT",
+      "Section": "Tree",
+      "ChineseNote": "\u6298\u53E0"
+    },
+    {
+      "Name": "Expand",
+      "Keys": "alt \u002B RIGHT",
+      "Section": "Tree",
+      "ChineseNote": "\u5C55\u5F00"
+    },
+    {
+      "Name": "Expand/Collapse",
+      "Keys": "ctrl \u002B shift \u002B ENTER",
+      "Section": "Tree",
+      "ChineseNote": "\u5C55\u5F00/\u6298\u53E0"
+    },
+    {
+      "Name": "Scroll To Selection",
+      "Keys": "",
+      "Section": "Tree",
+      "ChineseNote": "\u6EDA\u52A8\u5230\u9009\u4E2D"
+    },
+    {
+      "Name": "Search",
+      "Keys": "ENTER",
+      "Section": "Tree",
+      "ChineseNote": "\u641C\u7D22"
+    },
+    {
+      "Name": "Search - Next",
+      "Keys": "F3",
+      "Section": "Tree",
+      "ChineseNote": "\u641C\u7D22\u4E0B\u4E00\u4E2A"
+    },
+    {
+      "Name": "Search - Previous",
+      "Keys": "shift \u002B F3",
+      "Section": "Tree",
+      "ChineseNote": "\u641C\u7D22\u4E0A\u4E00\u4E2A"
+    },
+    {
+      "Name": "Search - Select All",
+      "Keys": "ctrl \u002B ENTER",
+      "Section": "Tree",
+      "ChineseNote": "\u641C\u7D22\u5168\u9009"
+    },
+    {
+      "Name": "Search - Clear",
+      "Keys": "",
+      "Section": "Tree",
+      "ChineseNote": "\u6E05\u9664\u641C\u7D22"
+    },
+    {
+      "Name": "Tree Filter",
+      "Keys": "",
+      "Section": "Tree",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Tree Filter - Bones",
+      "Keys": "",
+      "Section": "Tree",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Tree Filter - Slots",
+      "Keys": "",
+      "Section": "Tree",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Tree Filter - Attachments",
+      "Keys": "",
+      "Section": "Tree",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Tree Filter - Text Search Filters",
+      "Keys": "",
+      "Section": "Tree",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Show All Skin Attachments",
+      "Keys": "",
+      "Section": "Tree",
+      "ChineseNote": "\u663E\u793A\u6240\u6709\u76AE\u80A4\u9644\u4EF6"
+    },
+    {
+      "Name": "Hide Skeleton Names",
+      "Keys": "",
+      "Section": "Tree",
+      "ChineseNote": "\u9690\u85CF\u9AA8\u9ABC\u540D\u79F0"
+    },
+    {
+      "Name": "Hide Skin Names",
+      "Keys": "",
+      "Section": "Tree",
+      "ChineseNote": "\u9690\u85CF\u76AE\u80A4\u540D\u79F0"
+    },
+    {
+      "Name": "Hide Skin Bones/Constraints",
+      "Keys": "",
+      "Section": "Tree",
+      "ChineseNote": "\u9690\u85CF\u76AE\u80A4\u9AA8\u9ABC/\u7EA6\u675F"
+    },
+    {
+      "Name": "Hide Viewport Skin Bones",
+      "Keys": "",
+      "Section": "Tree",
+      "ChineseNote": "\u9690\u85CF\u89C6\u53E3\u76AE\u80A4\u9AA8\u9ABC"
+    },
+    {
+      "Name": "--- Menu ---",
+      "Keys": "",
+      "Section": "Menu",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Main Menu",
+      "Keys": "alt \u002B F",
+      "Section": "Menu",
+      "ChineseNote": "\u4E3B\u83DC\u5355"
+    },
+    {
+      "Name": "New Project",
+      "Keys": "ctrl \u002B shift \u002B N",
+      "Section": "Menu",
+      "ChineseNote": "\u65B0\u5EFA\u9879\u76EE"
+    },
+    {
+      "Name": "Open Project",
+      "Keys": "ctrl \u002B O",
+      "Section": "Menu",
+      "ChineseNote": "\u6253\u5F00\u9879\u76EE"
+    },
+    {
+      "Name": "Open Project (Browse)",
+      "Keys": "ctrl \u002B shift \u002B O",
+      "Section": "Menu",
+      "ChineseNote": "\u6D4F\u89C8\u6253\u5F00\u9879\u76EE"
+    },
+    {
+      "Name": "Save Project",
+      "Keys": "ctrl \u002B S",
+      "Section": "Menu",
+      "ChineseNote": "\u4FDD\u5B58\u9879\u76EE"
+    },
+    {
+      "Name": "Save Project As",
+      "Keys": "ctrl \u002B shift \u002B S",
+      "Section": "Menu",
+      "ChineseNote": "\u53E6\u5B58\u9879\u76EE"
+    },
+    {
+      "Name": "New Skeleton",
+      "Keys": "ctrl \u002B N",
+      "Section": "Menu",
+      "ChineseNote": "\u65B0\u5EFA\u9AA8\u67B6"
+    },
+    {
+      "Name": "Import Project",
+      "Keys": "",
+      "Section": "Menu",
+      "ChineseNote": "\u5BFC\u5165\u9879\u76EE"
+    },
+    {
+      "Name": "Import Data",
+      "Keys": "",
+      "Section": "Menu",
+      "ChineseNote": "\u5BFC\u5165\u6570\u636E"
+    },
+    {
+      "Name": "Export",
+      "Keys": "ctrl \u002B E",
+      "Section": "Menu",
+      "ChineseNote": "\u5BFC\u51FA"
+    },
+    {
+      "Name": "Repeat Last Export",
+      "Keys": "ctrl \u002B shift \u002B E",
+      "Section": "Menu",
+      "ChineseNote": "\u91CD\u590D\u4E0A\u6B21\u5BFC\u51FA"
+    },
+    {
+      "Name": "Texture Packer",
+      "Keys": "ctrl \u002B P",
+      "Section": "Menu",
+      "ChineseNote": "\u7EB9\u7406\u6253\u5305\u5668"
+    },
+    {
+      "Name": "Repeat Last Texture Packer",
+      "Keys": "ctrl \u002B shift \u002B P",
+      "Section": "Menu",
+      "ChineseNote": "\u91CD\u590D\u4E0A\u6B21\u7EB9\u7406\u6253\u5305"
+    },
+    {
+      "Name": "Texture Unpacker",
+      "Keys": "",
+      "Section": "Menu",
+      "ChineseNote": "\u7EB9\u7406\u89E3\u5305\u5668"
+    },
+    {
+      "Name": "Settings",
+      "Keys": "F12",
+      "Section": "Menu",
+      "ChineseNote": "\u8BBE\u7F6E"
+    },
+    {
+      "Name": "--- Setup Mode ---",
+      "Keys": "",
+      "Section": "Setup Mode",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Set Parent",
+      "Keys": "P",
+      "Section": "Setup Mode",
+      "ChineseNote": "\u8BBE\u7F6E\u7236\u8282\u70B9"
+    },
+    {
+      "Name": "--- New ---",
+      "Keys": "",
+      "Section": "New",
+      "ChineseNote": null
+    },
+    {
+      "Name": "New Bone",
+      "Keys": "",
+      "Section": "New",
+      "ChineseNote": "\u65B0\u5EFA\u9AA8\u9ABC"
+    },
+    {
+      "Name": "New Slot",
+      "Keys": "",
+      "Section": "New",
+      "ChineseNote": "\u65B0\u5EFA\u63D2\u69FD"
+    },
+    {
+      "Name": "New Skin Placeholder",
+      "Keys": "",
+      "Section": "New",
+      "ChineseNote": "\u65B0\u5EFA\u76AE\u80A4\u5360\u4F4D"
+    },
+    {
+      "Name": "New Bounding Box",
+      "Keys": "",
+      "Section": "New",
+      "ChineseNote": "\u65B0\u5EFA\u8FB9\u754C\u6846"
+    },
+    {
+      "Name": "New Clipping",
+      "Keys": "",
+      "Section": "New",
+      "ChineseNote": "\u65B0\u5EFA\u88C1\u526A"
+    },
+    {
+      "Name": "New Path",
+      "Keys": "",
+      "Section": "New",
+      "ChineseNote": "\u65B0\u5EFA\u8DEF\u5F84"
+    },
+    {
+      "Name": "New Point",
+      "Keys": "",
+      "Section": "New",
+      "ChineseNote": "\u65B0\u5EFA\u70B9"
+    },
+    {
+      "Name": "New Animation",
+      "Keys": "",
+      "Section": "New",
+      "ChineseNote": "\u65B0\u5EFA\u52A8\u753B"
+    },
+    {
+      "Name": "New Event",
+      "Keys": "",
+      "Section": "New",
+      "ChineseNote": "\u65B0\u5EFA\u4E8B\u4EF6"
+    },
+    {
+      "Name": "New Skin",
+      "Keys": "",
+      "Section": "New",
+      "ChineseNote": "\u65B0\u5EFA\u76AE\u80A4"
+    },
+    {
+      "Name": "New IK Constraint",
+      "Keys": "",
+      "Section": "New",
+      "ChineseNote": "\u65B0\u5EFAIK\u7EA6\u675F"
+    },
+    {
+      "Name": "New Path Constraint",
+      "Keys": "",
+      "Section": "New",
+      "ChineseNote": "\u65B0\u5EFA\u8DEF\u5F84\u7EA6\u675F"
+    },
+    {
+      "Name": "New Physics Constraint",
+      "Keys": "",
+      "Section": "New",
+      "ChineseNote": "\u65B0\u5EFA\u7269\u7406\u7EA6\u675F"
+    },
+    {
+      "Name": "New Transform Constraint",
+      "Keys": "",
+      "Section": "New",
+      "ChineseNote": "\u65B0\u5EFA\u53D8\u6362\u7EA6\u675F"
+    },
+    {
+      "Name": "New Folder",
+      "Keys": "",
+      "Section": "New",
+      "ChineseNote": "\u65B0\u5EFA\u6587\u4EF6\u5939"
+    },
+    {
+      "Name": "--- Attachments ---",
+      "Keys": "",
+      "Section": "Attachments",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Color",
+      "Keys": "M",
+      "Section": "Attachments",
+      "ChineseNote": "\u989C\u8272"
+    },
+    {
+      "Name": "Mesh - Freeze",
+      "Keys": "",
+      "Section": "Attachments",
+      "ChineseNote": "\u7F51\u683C\u51BB\u7ED3"
+    },
+    {
+      "Name": "Mesh - Reset",
+      "Keys": "",
+      "Section": "Attachments",
+      "ChineseNote": "\u7F51\u683C\u91CD\u7F6E"
+    },
+    {
+      "Name": "Mesh - Wireframe",
+      "Keys": "",
+      "Section": "Attachments",
+      "ChineseNote": "\u7F51\u683C\u7EBF\u6846"
+    },
+    {
+      "Name": "Mesh - Edit Mesh",
+      "Keys": "",
+      "Section": "Attachments",
+      "ChineseNote": "\u7F16\u8F91\u7F51\u683C"
+    },
+    {
+      "Name": "Edit Mesh - Modify",
+      "Keys": "",
+      "Section": "Attachments",
+      "ChineseNote": "\u7F16\u8F91\u7F51\u683C-\u4FEE\u6539"
+    },
+    {
+      "Name": "Edit Mesh - Create",
+      "Keys": "",
+      "Section": "Attachments",
+      "ChineseNote": "\u7F16\u8F91\u7F51\u683C-\u521B\u5EFA"
+    },
+    {
+      "Name": "Edit Mesh - Delete",
+      "Keys": "",
+      "Section": "Attachments",
+      "ChineseNote": "\u7F16\u8F91\u7F51\u683C-\u5220\u9664"
+    },
+    {
+      "Name": "Edit Mesh - New",
+      "Keys": "",
+      "Section": "Attachments",
+      "ChineseNote": "\u7F16\u8F91\u7F51\u683C-\u65B0\u5EFA"
+    },
+    {
+      "Name": "Edit Mesh - Reset",
+      "Keys": "",
+      "Section": "Attachments",
+      "ChineseNote": "\u7F16\u8F91\u7F51\u683C-\u91CD\u7F6E"
+    },
+    {
+      "Name": "Edit Mesh - Generate",
+      "Keys": "",
+      "Section": "Attachments",
+      "ChineseNote": "\u7F16\u8F91\u7F51\u683C-\u751F\u6210"
+    },
+    {
+      "Name": "Edit Mesh - Trace",
+      "Keys": "",
+      "Section": "Attachments",
+      "ChineseNote": "\u7F16\u8F91\u7F51\u683C-\u8FFD\u8E2A"
+    },
+    {
+      "Name": "Edit Mesh - Refine",
+      "Keys": "",
+      "Section": "Attachments",
+      "ChineseNote": "\u7F16\u8F91\u7F51\u683C-\u7EC6\u5316"
+    },
+    {
+      "Name": "Edit Mesh - Triangles",
+      "Keys": "",
+      "Section": "Attachments",
+      "ChineseNote": "\u7F16\u8F91\u7F51\u683C-\u4E09\u89D2\u5316"
+    },
+    {
+      "Name": "Edit Mesh - Dim",
+      "Keys": "",
+      "Section": "Attachments",
+      "ChineseNote": "\u7F16\u8F91\u7F51\u683C-\u6697\u6DE1"
+    },
+    {
+      "Name": "Edit Mesh - Isolate",
+      "Keys": "",
+      "Section": "Attachments",
+      "ChineseNote": "\u7F16\u8F91\u7F51\u683C-\u9694\u79BB"
+    },
+    {
+      "Name": "Edit Mesh - Deformed",
+      "Keys": "TAB",
+      "Section": "Attachments",
+      "ChineseNote": "\u7F16\u8F91\u7F51\u683C-\u53D8\u5F62"
+    },
+    {
+      "Name": "--- Constraints ---",
+      "Keys": "",
+      "Section": "Constraints",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Physics Constraint - Edit Physics",
+      "Keys": "",
+      "Section": "Constraints",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Edit Physics - Modify",
+      "Keys": "",
+      "Section": "Constraints",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Edit Physics - Create",
+      "Keys": "",
+      "Section": "Constraints",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Edit Physics - Delete",
+      "Keys": "",
+      "Section": "Constraints",
+      "ChineseNote": null
+    },
+    {
+      "Name": "--- Animate Mode ---",
+      "Keys": "",
+      "Section": "Animate Mode",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Auto Key",
+      "Keys": "ctrl \u002B shift \u002B A",
+      "Section": "Animate Mode",
+      "ChineseNote": "\u81EA\u52A8\u5173\u952E\u5E27"
+    },
+    {
+      "Name": "Animation Clean Up",
+      "Keys": "",
+      "Section": "Animate Mode",
+      "ChineseNote": "\u52A8\u753B\u6E05\u7406"
+    },
+    {
+      "Name": "Next Animation",
+      "Keys": "Y",
+      "Section": "Animate Mode",
+      "ChineseNote": "\u4E0B\u4E00\u4E2A\u52A8\u753B"
+    },
+    {
+      "Name": "Previous Animation",
+      "Keys": "T",
+      "Section": "Animate Mode",
+      "ChineseNote": "\u4E0A\u4E00\u4E2A\u52A8\u753B"
+    },
+    {
+      "Name": "Track Current Frame",
+      "Keys": "",
+      "Section": "Animate Mode",
+      "ChineseNote": "\u8DDF\u8E2A\u5F53\u524D\u5E27"
+    },
+    {
+      "Name": "Frame Keys",
+      "Keys": "",
+      "Section": "Animate Mode",
+      "ChineseNote": "\u5E27\u5173\u952E\u5E27"
+    },
+    {
+      "Name": "Setup Draw Order",
+      "Keys": "",
+      "Section": "Animate Mode",
+      "ChineseNote": "\u8BBE\u7F6E\u7ED8\u5236\u987A\u5E8F"
+    },
+    {
+      "Name": "Setup Pose",
+      "Keys": "ctrl \u002B shift \u002B J",
+      "Section": "Animate Mode",
+      "ChineseNote": "\u8BBE\u7F6E\u59FF\u6001"
+    },
+    {
+      "Name": "--- Dopesheet ---",
+      "Keys": "",
+      "Section": "Dopesheet",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Sync Dopesheet",
+      "Keys": "",
+      "Section": "Dopesheet",
+      "ChineseNote": "\u540C\u6B65\u6444\u5F71\u8868"
+    },
+    {
+      "Name": "Lock Dopesheet",
+      "Keys": "",
+      "Section": "Dopesheet",
+      "ChineseNote": "\u9501\u5B9A\u6444\u5F71\u8868"
+    },
+    {
+      "Name": "Refresh Dopesheet",
+      "Keys": "",
+      "Section": "Dopesheet",
+      "ChineseNote": "\u5237\u65B0\u6444\u5F71\u8868"
+    },
+    {
+      "Name": "Select Dopesheet Bones",
+      "Keys": "",
+      "Section": "Dopesheet",
+      "ChineseNote": "\u9009\u62E9\u6444\u5F71\u8868\u9AA8\u9ABC"
+    },
+    {
+      "Name": "Dopesheet Filter",
+      "Keys": "",
+      "Section": "Dopesheet",
+      "ChineseNote": "\u6444\u5F71\u8868\u8FC7\u6EE4\u5668"
+    },
+    {
+      "Name": "Dopesheet Toolbar",
+      "Keys": "",
+      "Section": "Dopesheet",
+      "ChineseNote": "\u6444\u5F71\u8868\u5DE5\u5177\u680F"
+    },
+    {
+      "Name": "Set Loop Start",
+      "Keys": "LEFT_BRACKET",
+      "Section": "Dopesheet",
+      "ChineseNote": "\u8BBE\u7F6E\u5FAA\u73AF\u5F00\u59CB"
+    },
+    {
+      "Name": "Set Loop End",
+      "Keys": "RIGHT_BRACKET",
+      "Section": "Dopesheet",
+      "ChineseNote": "\u8BBE\u7F6E\u5FAA\u73AF\u7ED3\u675F"
+    },
+    {
+      "Name": "--- Graph ---",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Lock Graph",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u9501\u5B9A\u56FE\u8868"
+    },
+    {
+      "Name": "Refresh Graph",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u5237\u65B0\u56FE\u8868"
+    },
+    {
+      "Name": "Select Graph Bones",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u9009\u62E9\u56FE\u8868\u9AA8\u9ABC"
+    },
+    {
+      "Name": "Graph Filter",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u56FE\u8868\u8FC7\u6EE4\u5668"
+    },
+    {
+      "Name": "Graph Toolbar",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u56FE\u8868\u5DE5\u5177\u680F"
+    },
+    {
+      "Name": "Graph Rows",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u56FE\u8868\u884C"
+    },
+    {
+      "Name": "Hide Bezier Handles",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u9690\u85CF\u8D1D\u585E\u5C14\u624B\u67C4"
+    },
+    {
+      "Name": "Graph Frame",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u56FE\u8868\u5E27"
+    },
+    {
+      "Name": "Graph Auto Frame",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u56FE\u8868\u81EA\u52A8\u5E27"
+    },
+    {
+      "Name": "Bezier Handle - Auto",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u81EA\u52A8\u8D1D\u585E\u5C14\u624B\u67C4"
+    },
+    {
+      "Name": "Bezier Handle - Separate",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u5206\u79BB\u8D1D\u585E\u5C14\u624B\u67C4"
+    },
+    {
+      "Name": "Bezier Handle - Bounce",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u5F39\u8DF3\u8D1D\u585E\u5C14\u624B\u67C4"
+    },
+    {
+      "Name": "Bezier Handle - Flat",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u5E73\u5766\u8D1D\u585E\u5C14\u624B\u67C4"
+    },
+    {
+      "Name": "Bezier Handle - Ease Out",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u7F13\u51FA\u8D1D\u585E\u5C14\u624B\u67C4"
+    },
+    {
+      "Name": "Bezier Handle - Ease In",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u7F13\u5165\u8D1D\u585E\u5C14\u624B\u67C4"
+    },
+    {
+      "Name": "Bezier Handle - Ease",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u7F13\u52A8\u8D1D\u585E\u5C14\u624B\u67C4"
+    },
+    {
+      "Name": "Graph Snapping",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u56FE\u8868\u5438\u9644"
+    },
+    {
+      "Name": "Graph X",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u56FE\u8868X\u8F74"
+    },
+    {
+      "Name": "Graph X - Momentary",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u56FE\u8868X\u8F74\u4E34\u65F6"
+    },
+    {
+      "Name": "Graph Y",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u56FE\u8868Y\u8F74"
+    },
+    {
+      "Name": "Graph Y - Momentary",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u56FE\u8868Y\u8F74\u4E34\u65F6"
+    },
+    {
+      "Name": "Graph - Shape Retime",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Graph - Value Retime",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Graph Store",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u56FE\u8868\u5B58\u50A8"
+    },
+    {
+      "Name": "Graph Store Swap",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u56FE\u8868\u5B58\u50A8\u4EA4\u6362"
+    },
+    {
+      "Name": "Favor Tool",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u504F\u597D\u5DE5\u5177"
+    },
+    {
+      "Name": "Favor\u002B (5)",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u504F\u597D\u002B5"
+    },
+    {
+      "Name": "Favor\u002B (10)",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u504F\u597D\u002B10"
+    },
+    {
+      "Name": "Favor\u002B (15)",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u504F\u597D\u002B15"
+    },
+    {
+      "Name": "Favor- (5)",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u504F\u597D-5"
+    },
+    {
+      "Name": "Favor- (10)",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u504F\u597D-10"
+    },
+    {
+      "Name": "Favor- (15)",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u504F\u597D-15"
+    },
+    {
+      "Name": "Favor - Favor",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u504F\u597D-\u504F\u597D"
+    },
+    {
+      "Name": "Favor - Blend",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u504F\u597D-\u6DF7\u5408"
+    },
+    {
+      "Name": "Favor - Shift",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u504F\u597D-\u4F4D\u79FB"
+    },
+    {
+      "Name": "Favor - Linear",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u504F\u597D-\u7EBF\u6027"
+    },
+    {
+      "Name": "Favor - Average (curve)",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u504F\u597D-\u5E73\u5747\u66F2\u7EBF"
+    },
+    {
+      "Name": "Favor - Average (frame)",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u504F\u597D-\u5E73\u5747\u5E27"
+    },
+    {
+      "Name": "Favor - Average (all)",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u504F\u597D-\u5E73\u5747\u5168\u90E8"
+    },
+    {
+      "Name": "Favor - Default",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u504F\u597D-\u9ED8\u8BA4"
+    },
+    {
+      "Name": "Favor - Setup",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u504F\u597D-\u8BBE\u7F6E"
+    },
+    {
+      "Name": "Favor - Store",
+      "Keys": "",
+      "Section": "Graph",
+      "ChineseNote": "\u504F\u597D-\u5B58\u50A8"
+    },
+    {
+      "Name": "--- Keying ---",
+      "Keys": "",
+      "Section": "Keying",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Key Edited",
+      "Keys": "K",
+      "Section": "Keying",
+      "ChineseNote": "\u4E3A\u5DF2\u7F16\u8F91\u8BBE\u5173\u952E\u5E27"
+    },
+    {
+      "Name": "Key Active",
+      "Keys": "L",
+      "Section": "Keying",
+      "ChineseNote": "\u4E3A\u6FC0\u6D3B\u8BBE\u5173\u952E\u5E27"
+    },
+    {
+      "Name": "Key Selected",
+      "Keys": "ctrl \u002B L",
+      "Section": "Keying",
+      "ChineseNote": "\u4E3A\u9009\u4E2D\u8BBE\u5173\u952E\u5E27"
+    },
+    {
+      "Name": "Key Shown",
+      "Keys": "ctrl \u002B shift \u002B L",
+      "Section": "Keying",
+      "ChineseNote": "\u4E3A\u663E\u793A\u8BBE\u5173\u952E\u5E27"
+    },
+    {
+      "Name": "Key Rotation",
+      "Keys": "",
+      "Section": "Keying",
+      "ChineseNote": "\u65CB\u8F6C\u5173\u952E\u5E27"
+    },
+    {
+      "Name": "Key Translate",
+      "Keys": "",
+      "Section": "Keying",
+      "ChineseNote": "\u4F4D\u79FB\u5173\u952E\u5E27"
+    },
+    {
+      "Name": "Key Translate X",
+      "Keys": "",
+      "Section": "Keying",
+      "ChineseNote": "\u4F4D\u79FBX\u5173\u952E\u5E27"
+    },
+    {
+      "Name": "Key Translate Y",
+      "Keys": "",
+      "Section": "Keying",
+      "ChineseNote": "\u4F4D\u79FBY\u5173\u952E\u5E27"
+    },
+    {
+      "Name": "Key Scale",
+      "Keys": "",
+      "Section": "Keying",
+      "ChineseNote": "\u7F29\u653E\u5173\u952E\u5E27"
+    },
+    {
+      "Name": "Key Scale X",
+      "Keys": "",
+      "Section": "Keying",
+      "ChineseNote": "\u7F29\u653EX\u5173\u952E\u5E27"
+    },
+    {
+      "Name": "Key Scale Y",
+      "Keys": "",
+      "Section": "Keying",
+      "ChineseNote": "\u7F29\u653EY\u5173\u952E\u5E27"
+    },
+    {
+      "Name": "Key Shear",
+      "Keys": "",
+      "Section": "Keying",
+      "ChineseNote": "\u5207\u53D8\u5173\u952E\u5E27"
+    },
+    {
+      "Name": "Key Shear X",
+      "Keys": "",
+      "Section": "Keying",
+      "ChineseNote": "\u5207\u53D8X\u5173\u952E\u5E27"
+    },
+    {
+      "Name": "Key Shear Y",
+      "Keys": "",
+      "Section": "Keying",
+      "ChineseNote": "\u5207\u53D8Y\u5173\u952E\u5E27"
+    },
+    {
+      "Name": "Key Color",
+      "Keys": "",
+      "Section": "Keying",
+      "ChineseNote": "\u989C\u8272\u5173\u952E\u5E27"
+    },
+    {
+      "Name": "Key Attachment",
+      "Keys": "",
+      "Section": "Keying",
+      "ChineseNote": "\u9644\u4EF6\u5173\u952E\u5E27"
+    },
+    {
+      "Name": "Select Keys",
+      "Keys": "",
+      "Section": "Keying",
+      "ChineseNote": "\u9009\u62E9\u5173\u952E\u5E27"
+    },
+    {
+      "Name": "Stepped Curve",
+      "Keys": "",
+      "Section": "Keying",
+      "ChineseNote": "\u6B65\u8FDB\u66F2\u7EBF"
+    },
+    {
+      "Name": "Linear Curve",
+      "Keys": "",
+      "Section": "Keying",
+      "ChineseNote": "\u7EBF\u6027\u66F2\u7EBF"
+    },
+    {
+      "Name": "Bezier Curve",
+      "Keys": "",
+      "Section": "Keying",
+      "ChineseNote": "\u8D1D\u585E\u5C14\u66F2\u7EBF"
+    },
+    {
+      "Name": "Shift Keys",
+      "Keys": "",
+      "Section": "Keying",
+      "ChineseNote": "\u4F4D\u79FB\u5173\u952E\u5E27"
+    },
+    {
+      "Name": "Offset Keys",
+      "Keys": "",
+      "Section": "Keying",
+      "ChineseNote": "\u504F\u79FB\u5173\u952E\u5E27"
+    },
+    {
+      "Name": "Adjust Keys",
+      "Keys": "",
+      "Section": "Keying",
+      "ChineseNote": "\u8C03\u6574\u5173\u952E\u5E27"
+    },
+    {
+      "Name": "--- Playback ---",
+      "Keys": "",
+      "Section": "Playback",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Play Forward",
+      "Keys": "D",
+      "Section": "Playback",
+      "ChineseNote": "\u5411\u524D\u64AD\u653E"
+    },
+    {
+      "Name": "Play Backward",
+      "Keys": "A",
+      "Section": "Playback",
+      "ChineseNote": "\u5411\u540E\u64AD\u653E"
+    },
+    {
+      "Name": "Play Forward / Reset",
+      "Keys": "",
+      "Section": "Playback",
+      "ChineseNote": "\u5411\u524D\u64AD\u653E/\u91CD\u7F6E"
+    },
+    {
+      "Name": "Play Backward / Reset",
+      "Keys": "",
+      "Section": "Playback",
+      "ChineseNote": "\u5411\u540E\u64AD\u653E/\u91CD\u7F6E"
+    },
+    {
+      "Name": "Stop",
+      "Keys": "",
+      "Section": "Playback",
+      "ChineseNote": "\u505C\u6B62"
+    },
+    {
+      "Name": "Repeat",
+      "Keys": "ctrl \u002B R",
+      "Section": "Playback",
+      "ChineseNote": "\u91CD\u590D"
+    },
+    {
+      "Name": "Stepped",
+      "Keys": "",
+      "Section": "Playback",
+      "ChineseNote": "\u6B65\u8FDB"
+    },
+    {
+      "Name": "Interpolated",
+      "Keys": "",
+      "Section": "Playback",
+      "ChineseNote": "\u63D2\u503C"
+    },
+    {
+      "Name": "First Key",
+      "Keys": "Q",
+      "Section": "Playback",
+      "ChineseNote": "\u9996\u5E27"
+    },
+    {
+      "Name": "Last Key",
+      "Keys": "E",
+      "Section": "Playback",
+      "ChineseNote": "\u5C3E\u5E27"
+    },
+    {
+      "Name": "Next Key",
+      "Keys": "\u0027w\u0027",
+      "Section": "Playback",
+      "ChineseNote": "\u4E0B\u4E00\u5173\u952E\u5E27"
+    },
+    {
+      "Name": "Previous Key",
+      "Keys": "\u0027s\u0027",
+      "Section": "Playback",
+      "ChineseNote": "\u4E0A\u4E00\u5173\u952E\u5E27"
+    },
+    {
+      "Name": "Next Frame",
+      "Keys": "\u0027r\u0027",
+      "Section": "Playback",
+      "ChineseNote": "\u4E0B\u4E00\u5E27"
+    },
+    {
+      "Name": "Next Frame (10)",
+      "Keys": "\u0027R\u0027",
+      "Section": "Playback",
+      "ChineseNote": "\u4E0B10\u5E27"
+    },
+    {
+      "Name": "Previous Frame",
+      "Keys": "\u0027f\u0027",
+      "Section": "Playback",
+      "ChineseNote": "\u4E0A\u4E00\u5E27"
+    },
+    {
+      "Name": "Previous Frame (10)",
+      "Keys": "\u0027F\u0027",
+      "Section": "Playback",
+      "ChineseNote": "\u4E0A10\u5E27"
+    },
+    {
+      "Name": "Loop Start",
+      "Keys": "ctrl \u002B LEFT_BRACKET",
+      "Section": "Playback",
+      "ChineseNote": "\u5FAA\u73AF\u5F00\u59CB"
+    },
+    {
+      "Name": "Loop End",
+      "Keys": "ctrl \u002B RIGHT_BRACKET",
+      "Section": "Playback",
+      "ChineseNote": "\u5FAA\u73AF\u7ED3\u675F"
+    },
+    {
+      "Name": "Speed - Slower",
+      "Keys": "",
+      "Section": "Playback",
+      "ChineseNote": "\u51CF\u901F"
+    },
+    {
+      "Name": "Speed - Faster",
+      "Keys": "",
+      "Section": "Playback",
+      "ChineseNote": "\u52A0\u901F"
+    },
+    {
+      "Name": "Speed - 100%",
+      "Keys": "",
+      "Section": "Playback",
+      "ChineseNote": "\u6B63\u5E38\u901F\u5EA6"
+    },
+    {
+      "Name": "Timeline Pan Drag",
+      "Keys": "",
+      "Section": "Playback",
+      "ChineseNote": "\u65F6\u95F4\u8F74\u5E73\u79FB\u62D6\u62FD"
+    },
+    {
+      "Name": "Timeline Pan Move",
+      "Keys": "",
+      "Section": "Playback",
+      "ChineseNote": "\u65F6\u95F4\u8F74\u5E73\u79FB\u79FB\u52A8"
+    },
+    {
+      "Name": "Timeline Frame Drag",
+      "Keys": "",
+      "Section": "Playback",
+      "ChineseNote": "\u65F6\u95F4\u8F74\u5E27\u62D6\u62FD"
+    },
+    {
+      "Name": "Timeline Frame Move",
+      "Keys": "",
+      "Section": "Playback",
+      "ChineseNote": "\u65F6\u95F4\u8F74\u5E27\u79FB\u52A8"
+    },
+    {
+      "Name": "--- Ghosting ---",
+      "Keys": "",
+      "Section": "Ghosting",
+      "ChineseNote": null
+    },
+    {
+      "Name": "Ghosting",
+      "Keys": "",
+      "Section": "Ghosting",
+      "ChineseNote": "\u5E7B\u5F71"
+    },
+    {
+      "Name": "Ghosting - Frames Before",
+      "Keys": "",
+      "Section": "Ghosting",
+      "ChineseNote": "\u5E7B\u5F71-\u524D\u5E27\u6570"
+    },
+    {
+      "Name": "Ghosting - Frames After",
+      "Keys": "",
+      "Section": "Ghosting",
+      "ChineseNote": "\u5E7B\u5F71-\u540E\u5E27\u6570"
+    },
+    {
+      "Name": "Ghosting - Frames Current",
+      "Keys": "",
+      "Section": "Ghosting",
+      "ChineseNote": "\u5E7B\u5F71-\u5F53\u524D\u5E27"
+    },
+    {
+      "Name": "Ghosting - Keys Before",
+      "Keys": "",
+      "Section": "Ghosting",
+      "ChineseNote": "\u5E7B\u5F71-\u524D\u5173\u952E\u5E27"
+    },
+    {
+      "Name": "Ghosting - Keys After",
+      "Keys": "",
+      "Section": "Ghosting",
+      "ChineseNote": "\u5E7B\u5F71-\u540E\u5173\u952E\u5E27"
+    },
+    {
+      "Name": "Ghosting - Motion Vectors Before",
+      "Keys": "",
+      "Section": "Ghosting",
+      "ChineseNote": "\u5E7B\u5F71-\u524D\u8FD0\u52A8\u5411\u91CF"
+    },
+    {
+      "Name": "Ghosting - Motion Vectors After",
+      "Keys": "",
+      "Section": "Ghosting",
+      "ChineseNote": "\u5E7B\u5F71-\u540E\u8FD0\u52A8\u5411\u91CF"
+    },
+    {
+      "Name": "Ghosting - Anchor",
+      "Keys": "",
+      "Section": "Ghosting",
+      "ChineseNote": "\u5E7B\u5F71-\u951A\u70B9"
+    },
+    {
+      "Name": "Ghosting - On Top",
+      "Keys": "",
+      "Section": "Ghosting",
+      "ChineseNote": "\u5E7B\u5F71-\u7F6E\u9876"
+    },
+    {
+      "Name": "Ghosting - Loop",
+      "Keys": "",
+      "Section": "Ghosting",
+      "ChineseNote": "\u5E7B\u5F71-\u5FAA\u73AF"
+    },
+    {
+      "Name": "Ghosting - Lock",
+      "Keys": "",
+      "Section": "Ghosting",
+      "ChineseNote": "\u5E7B\u5F71-\u9501\u5B9A"
+    },
+    {
+      "Name": "Ghosting - Refresh",
+      "Keys": "",
+      "Section": "Ghosting",
+      "ChineseNote": "\u5E7B\u5F71-\u5237\u65B0"
+    },
+    {
+      "Name": "Ghosting - Selection Only",
+      "Keys": "",
+      "Section": "Ghosting",
+      "ChineseNote": "\u5E7B\u5F71-\u4EC5\u9009\u4E2D"
+    }
+  ],
+  "SpineHotkeyRawText": "--- General ---\r\nUndo: ctrl \u002B Z\r\nRedo: ctrl \u002B shift \u002B Z\r\nSetup/Animate Mode: ctrl \u002B TAB\r\nRulers: ctrl \u002B shift \u002B R\r\nZoom To Fit: ctrl \u002B shift \u002B F\r\nZoom To 100%: ctrl \u002B F\r\nLock Zoom: \r\nFullscreen: ctrl \u002B shift \u002B alt \u002B F\r\nAlways On Top: ctrl \u002B shift \u002B alt \u002B T\r\nInstant Tooltips: F1\r\nHotkey Popups: ctrl \u002B shift \u002B K\r\nPan Drag: J\r\nZoom Drag: U\r\nPan Move: \r\nZoom Move: \r\nTop: HOME\r\nBottom: END\r\nFocus - Dopesheet: \r\nFocus - Graph: \r\nFocus - Tree: \r\nFocus - Viewport: ctrl \u002B alt \u002B V\r\nNext Skin: PERIOD\r\nPrevious Skin: COMMA\r\nMute: \r\nDisable Constraints: \r\n--- Views ---\r\nMinimize Views: F9\r\nAnimations View: alt \u002B A\r\nAudio View: alt \u002B U\r\nDopesheet View: alt \u002B D\r\nGhosting View: alt \u002B H\r\nGraph View: alt \u002B G\r\nCurves View: alt \u002B V\r\nMetrics View: alt \u002B M\r\nMesh Tools View: alt \u002B E\r\nOutline View: alt \u002B O\r\nPlayback View: alt \u002B P\r\nPreview View: alt \u002B R\r\nSkins View: alt \u002B S\r\nSlot Color View: alt \u002B C\r\nTimeline View: alt \u002B L\r\nTree View: alt \u002B T\r\nWeights View: alt \u002B W\r\n--- Tools ---\r\nRotate Tool: C\r\nTranslate Tool: V\r\nScale Tool: X\r\nShear Tool: Z\r\nPose Tool: B\r\nCreate Tool: N\r\nWeights Tool: G\r\nLast Tool: \r\nLocal Axes: \r\nParent Axes: \r\nWorld Axes: \r\nBone Compensation: \r\nAttachment Compensation: \r\nNudge Up: shift \u002B UP\r\nNudge Up (10): UP\r\nNudge Down: shift \u002B DOWN\r\nNudge Down (10): DOWN\r\nNudge Left: shift \u002B LEFT\r\nNudge Left (10): LEFT\r\nNudge Right: shift \u002B RIGHT\r\nNudge Right (10): RIGHT\r\nMesh Tools - Soft Selection: \r\nMesh Tools - Hull Vertices: \r\nBrush\u002B: \u0027\u0027\u0027\r\nBrush-: \u0027;\u0027\r\nFeather\u002B: \u0027\u0022\u0027\r\nFeather-: \u0027:\u0027\r\nWeights - Direct Mode: \r\nWeights - Add Mode: \r\nWeights - Remove Mode: \r\nWeights - Replace Mode: \r\nWeights - Strength\u002B: alt \u002B \u0027\u0027\u0027\r\nWeights - Strength-: alt \u002B \u0027;\u0027\r\nWeights - Bind: \r\nWeights - Remove: \r\nWeights - Update Bindings: \r\nWeights - Smooth: \r\nWeights - Auto: \r\nWeights - Prune: \r\nWeights - Pies: \r\nWeights - Overlay: \r\nWeights - Selected: \r\nWeights - Select Bones: \r\nWeights - Swap: \r\n--- Options ---\r\nSelect Bones: ctrl \u002B shift \u002B B\r\nShow Bones: ctrl \u002B B\r\nBone Names: ctrl \u002B shift \u002B alt \u002B B\r\nSelect Images: ctrl \u002B shift \u002B I\r\nShow Images: ctrl \u002B I\r\nImage Names: ctrl \u002B shift \u002B alt \u002B I\r\nSelect Others: \r\nShow Others: \r\nOther Names: \r\nAuto Scroll: ctrl \u002B SLASH\r\nScroll To Selected: SLASH\r\n--- Selection ---\r\nDeselect: SPACE\r\nSelect All: ctrl \u002B A\r\nSelect - Bones: \r\nSelect - Child Bones: ctrl \u002B alt \u002B C\r\nSelect - Descendant Bones: ctrl \u002B alt \u002B B\r\nSelect - Slots: ctrl \u002B alt \u002B S\r\nSelect - Draw Order: ctrl \u002B alt \u002B D\r\nSelect - Attachments: ctrl \u002B alt \u002B A\r\nSelect - Visible Attachments: \r\nPrevious Selection: PAGE_DOWN\r\nNext Selection: PAGE_UP\r\nHide Selection: \r\nStore Selection 0: ctrl \u002B 0\r\nStore Selection 1: ctrl \u002B 1\r\nStore Selection 2: ctrl \u002B 2\r\nStore Selection 3: ctrl \u002B 3\r\nStore Selection 4: ctrl \u002B 4\r\nStore Selection 5: ctrl \u002B 5\r\nStore Selection 6: ctrl \u002B 6\r\nStore Selection 7: ctrl \u002B 7\r\nStore Selection 8: ctrl \u002B 8\r\nStore Selection 9: ctrl \u002B 9\r\nSet Selection 0: 0\r\nSet Selection 1: 1\r\nSet Selection 2: 2\r\nSet Selection 3: 3\r\nSet Selection 4: 4\r\nSet Selection 5: 5\r\nSet Selection 6: 6\r\nSet Selection 7: 7\r\nSet Selection 8: 8\r\nSet Selection 9: 9\r\nAdd Selection 0: shift \u002B 0\r\nAdd Selection 1: shift \u002B 1\r\nAdd Selection 2: shift \u002B 2\r\nAdd Selection 3: shift \u002B 3\r\nAdd Selection 4: shift \u002B 4\r\nAdd Selection 5: shift \u002B 5\r\nAdd Selection 6: shift \u002B 6\r\nAdd Selection 7: shift \u002B 7\r\nAdd Selection 8: shift \u002B 8\r\nAdd Selection 9: shift \u002B 9\r\nCut: ctrl \u002B X\r\nCopy: ctrl \u002B C\r\nPaste: ctrl \u002B V\r\nDelete: DELETE\r\nRename: F2\r\nDuplicate: ctrl \u002B D\r\nVisibility: H\r\nShow All Bones/Slots: ctrl \u002B H\r\nDraw Order Down: MINUS\r\nDraw Order Down (5): shift \u002B MINUS\r\nDraw Order Up: PLUS\r\nDraw Order Up (5): shift \u002B PLUS\r\n--- Tree ---\r\nReplace: F4\r\nParent: ctrl \u002B shift \u002B UP\r\nChild: ctrl \u002B shift \u002B DOWN\r\nPrevious Sibling: ctrl \u002B shift \u002B LEFT\r\nNext Sibling: ctrl \u002B shift \u002B RIGHT\r\nParent Bone: ctrl \u002B UP\r\nChild Bone: ctrl \u002B DOWN\r\nPrevious Sibling Bone: ctrl \u002B LEFT\r\nNext Sibling Bone: ctrl \u002B RIGHT\r\nTree Up: alt \u002B UP\r\nTree Down: alt \u002B DOWN\r\nCollapse: alt \u002B LEFT\r\nExpand: alt \u002B RIGHT\r\nExpand/Collapse: ctrl \u002B shift \u002B ENTER\r\nScroll To Selection: \r\nSearch: ENTER\r\nSearch - Next: F3\r\nSearch - Previous: shift \u002B F3\r\nSearch - Select All: ctrl \u002B ENTER\r\nSearch - Clear: \r\nTree Filter: \r\nTree Filter - Bones: \r\nTree Filter - Slots: \r\nTree Filter - Attachments: \r\nTree Filter - Text Search Filters: \r\nShow All Skin Attachments: \r\nHide Skeleton Names: \r\nHide Skin Names: \r\nHide Skin Bones/Constraints: \r\nHide Viewport Skin Bones: \r\n--- Menu ---\r\nMain Menu: alt \u002B F\r\nNew Project: ctrl \u002B shift \u002B N\r\nOpen Project: ctrl \u002B O\r\nOpen Project (Browse): ctrl \u002B shift \u002B O\r\nSave Project: ctrl \u002B S\r\nSave Project As: ctrl \u002B shift \u002B S\r\nNew Skeleton: ctrl \u002B N\r\nImport Project: \r\nImport Data: \r\nExport: ctrl \u002B E\r\nRepeat Last Export: ctrl \u002B shift \u002B E\r\nTexture Packer: ctrl \u002B P\r\nRepeat Last Texture Packer: ctrl \u002B shift \u002B P\r\nTexture Unpacker: \r\nSettings: F12\r\n--- Setup Mode ---\r\nSet Parent: P\r\n--- New ---\r\nNew Bone: \r\nNew Slot: \r\nNew Skin Placeholder: \r\nNew Bounding Box: \r\nNew Clipping: \r\nNew Path: \r\nNew Point: \r\nNew Animation: \r\nNew Event: \r\nNew Skin: \r\nNew IK Constraint: \r\nNew Path Constraint: \r\nNew Physics Constraint: \r\nNew Transform Constraint: \r\nNew Folder: \r\n--- Attachments ---\r\nColor: M\r\nMesh - Freeze: \r\nMesh - Reset: \r\nMesh - Wireframe: \r\nMesh - Edit Mesh: \r\nEdit Mesh - Modify: \r\nEdit Mesh - Create: \r\nEdit Mesh - Delete: \r\nEdit Mesh - New: \r\nEdit Mesh - Reset: \r\nEdit Mesh - Generate: \r\nEdit Mesh - Trace: \r\nEdit Mesh - Refine: \r\nEdit Mesh - Triangles: \r\nEdit Mesh - Dim: \r\nEdit Mesh - Isolate: \r\nEdit Mesh - Deformed: TAB\r\n--- Constraints ---\r\nPhysics Constraint - Edit Physics: \r\nEdit Physics - Modify: \r\nEdit Physics - Create: \r\nEdit Physics - Delete: \r\n--- Animate Mode ---\r\nAuto Key: ctrl \u002B shift \u002B A\r\nAnimation Clean Up: \r\nNext Animation: Y\r\nPrevious Animation: T\r\nTrack Current Frame: \r\nFrame Keys: \r\nSetup Draw Order: \r\nSetup Pose: ctrl \u002B shift \u002B J\r\n--- Dopesheet ---\r\nSync Dopesheet: \r\nLock Dopesheet: \r\nRefresh Dopesheet: \r\nSelect Dopesheet Bones: \r\nDopesheet Filter: \r\nDopesheet Toolbar: \r\nSet Loop Start: LEFT_BRACKET\r\nSet Loop End: RIGHT_BRACKET\r\n--- Graph ---\r\nLock Graph: \r\nRefresh Graph: \r\nSelect Graph Bones: \r\nGraph Filter: \r\nGraph Toolbar: \r\nGraph Rows: \r\nHide Bezier Handles: \r\nGraph Frame: \r\nGraph Auto Frame: \r\nBezier Handle - Auto: \r\nBezier Handle - Separate: \r\nBezier Handle - Bounce: \r\nBezier Handle - Flat: \r\nBezier Handle - Ease Out: \r\nBezier Handle - Ease In: \r\nBezier Handle - Ease: \r\nGraph Snapping: \r\nGraph X: \r\nGraph X - Momentary: \r\nGraph Y: \r\nGraph Y - Momentary: \r\nGraph - Shape Retime: \r\nGraph - Value Retime: \r\nGraph Store: \r\nGraph Store Swap: \r\nFavor Tool: \r\nFavor\u002B (5): \r\nFavor\u002B (10): \r\nFavor\u002B (15): \r\nFavor- (5): \r\nFavor- (10): \r\nFavor- (15): \r\nFavor - Favor: \r\nFavor - Blend: \r\nFavor - Shift: \r\nFavor - Linear: \r\nFavor - Average (curve): \r\nFavor - Average (frame): \r\nFavor - Average (all): \r\nFavor - Default: \r\nFavor - Setup: \r\nFavor - Store: \r\n--- Keying ---\r\nKey Edited: K\r\nKey Active: L\r\nKey Selected: ctrl \u002B L\r\nKey Shown: ctrl \u002B shift \u002B L\r\nKey Rotation: \r\nKey Translate: \r\nKey Translate X: \r\nKey Translate Y: \r\nKey Scale: \r\nKey Scale X: \r\nKey Scale Y: \r\nKey Shear: \r\nKey Shear X: \r\nKey Shear Y: \r\nKey Color: \r\nKey Attachment: \r\nSelect Keys: \r\nStepped Curve: \r\nLinear Curve: \r\nBezier Curve: \r\nShift Keys: \r\nOffset Keys: \r\nAdjust Keys: \r\n--- Playback ---\r\nPlay Forward: D\r\nPlay Backward: A\r\nPlay Forward / Reset: \r\nPlay Backward / Reset: \r\nStop: \r\nRepeat: ctrl \u002B R\r\nStepped: \r\nInterpolated: \r\nFirst Key: Q\r\nLast Key: E\r\nNext Key: \u0027w\u0027\r\nPrevious Key: \u0027s\u0027\r\nNext Frame: \u0027r\u0027\r\nNext Frame (10): \u0027R\u0027\r\nPrevious Frame: \u0027f\u0027\r\nPrevious Frame (10): \u0027F\u0027\r\nLoop Start: ctrl \u002B LEFT_BRACKET\r\nLoop End: ctrl \u002B RIGHT_BRACKET\r\nSpeed - Slower: \r\nSpeed - Faster: \r\nSpeed - 100%: \r\nTimeline Pan Drag: \r\nTimeline Pan Move: \r\nTimeline Frame Drag: \r\nTimeline Frame Move: \r\n--- Ghosting ---\r\nGhosting: \r\nGhosting - Frames Before: \r\nGhosting - Frames After: \r\nGhosting - Frames Current: \r\nGhosting - Keys Before: \r\nGhosting - Keys After: \r\nGhosting - Motion Vectors Before: \r\nGhosting - Motion Vectors After: \r\nGhosting - Anchor: \r\nGhosting - On Top: \r\nGhosting - Loop: \r\nGhosting - Lock: \r\nGhosting - Refresh: \r\nGhosting - Selection Only: \r\n",
+  "SpineHotkeyFileName": "hotkeys-1.txt",
+  "SpineHotkeyHash": "1125B448151A729C34D99591FC5FE1B33BE669A320CB445B430A596438E12624",
+  "SpineHotkeyNames": [
+    "Undo",
+    "Redo",
+    "Setup/Animate Mode",
+    "Rulers",
+    "Zoom To Fit",
+    "Zoom To 100%",
+    "Lock Zoom",
+    "Fullscreen",
+    "Always On Top",
+    "Instant Tooltips",
+    "Hotkey Popups",
+    "Pan Drag",
+    "Zoom Drag",
+    "Pan Move",
+    "Zoom Move",
+    "Top",
+    "Bottom",
+    "Focus - Dopesheet",
+    "Focus - Graph",
+    "Focus - Tree",
+    "Focus - Viewport",
+    "Next Skin",
+    "Previous Skin",
+    "Mute",
+    "Disable Constraints",
+    "Minimize Views",
+    "Animations View",
+    "Audio View",
+    "Dopesheet View",
+    "Ghosting View",
+    "Graph View",
+    "Curves View",
+    "Metrics View",
+    "Mesh Tools View",
+    "Outline View",
+    "Playback View",
+    "Preview View",
+    "Skins View",
+    "Slot Color View",
+    "Timeline View",
+    "Tree View",
+    "Weights View",
+    "Rotate Tool",
+    "Translate Tool",
+    "Scale Tool",
+    "Shear Tool",
+    "Pose Tool",
+    "Create Tool",
+    "Weights Tool",
+    "Last Tool",
+    "Local Axes",
+    "Parent Axes",
+    "World Axes",
+    "Bone Compensation",
+    "Attachment Compensation",
+    "Nudge Up",
+    "Nudge Up (10)",
+    "Nudge Down",
+    "Nudge Down (10)",
+    "Nudge Left",
+    "Nudge Left (10)",
+    "Nudge Right",
+    "Nudge Right (10)",
+    "Mesh Tools - Soft Selection",
+    "Mesh Tools - Hull Vertices",
+    "Brush\u002B",
+    "Brush-",
+    "Feather\u002B",
+    "Feather-",
+    "Weights - Direct Mode",
+    "Weights - Add Mode",
+    "Weights - Remove Mode",
+    "Weights - Replace Mode",
+    "Weights - Strength\u002B",
+    "Weights - Strength-",
+    "Weights - Bind",
+    "Weights - Remove",
+    "Weights - Update Bindings",
+    "Weights - Smooth",
+    "Weights - Auto",
+    "Weights - Prune",
+    "Weights - Pies",
+    "Weights - Overlay",
+    "Weights - Selected",
+    "Weights - Select Bones",
+    "Weights - Swap",
+    "Select Bones",
+    "Show Bones",
+    "Bone Names",
+    "Select Images",
+    "Show Images",
+    "Image Names",
+    "Select Others",
+    "Show Others",
+    "Other Names",
+    "Auto Scroll",
+    "Scroll To Selected",
+    "Deselect",
+    "Select All",
+    "Select - Bones",
+    "Select - Child Bones",
+    "Select - Descendant Bones",
+    "Select - Slots",
+    "Select - Draw Order",
+    "Select - Attachments",
+    "Select - Visible Attachments",
+    "Previous Selection",
+    "Next Selection",
+    "Hide Selection",
+    "Store Selection 0",
+    "Store Selection 1",
+    "Store Selection 2",
+    "Store Selection 3",
+    "Store Selection 4",
+    "Store Selection 5",
+    "Store Selection 6",
+    "Store Selection 7",
+    "Store Selection 8",
+    "Store Selection 9",
+    "Set Selection 0",
+    "Set Selection 1",
+    "Set Selection 2",
+    "Set Selection 3",
+    "Set Selection 4",
+    "Set Selection 5",
+    "Set Selection 6",
+    "Set Selection 7",
+    "Set Selection 8",
+    "Set Selection 9",
+    "Add Selection 0",
+    "Add Selection 1",
+    "Add Selection 2",
+    "Add Selection 3",
+    "Add Selection 4",
+    "Add Selection 5",
+    "Add Selection 6",
+    "Add Selection 7",
+    "Add Selection 8",
+    "Add Selection 9",
+    "Cut",
+    "Copy",
+    "Paste",
+    "Delete",
+    "Rename",
+    "Duplicate",
+    "Visibility",
+    "Show All Bones/Slots",
+    "Draw Order Down",
+    "Draw Order Down (5)",
+    "Draw Order Up",
+    "Draw Order Up (5)",
+    "Replace",
+    "Parent",
+    "Child",
+    "Previous Sibling",
+    "Next Sibling",
+    "Parent Bone",
+    "Child Bone",
+    "Previous Sibling Bone",
+    "Next Sibling Bone",
+    "Tree Up",
+    "Tree Down",
+    "Collapse",
+    "Expand",
+    "Expand/Collapse",
+    "Scroll To Selection",
+    "Search",
+    "Search - Next",
+    "Search - Previous",
+    "Search - Select All",
+    "Search - Clear",
+    "Tree Filter",
+    "Tree Filter - Bones",
+    "Tree Filter - Slots",
+    "Tree Filter - Attachments",
+    "Tree Filter - Text Search Filters",
+    "Show All Skin Attachments",
+    "Hide Skeleton Names",
+    "Hide Skin Names",
+    "Hide Skin Bones/Constraints",
+    "Hide Viewport Skin Bones",
+    "Main Menu",
+    "New Project",
+    "Open Project",
+    "Open Project (Browse)",
+    "Save Project",
+    "Save Project As",
+    "New Skeleton",
+    "Import Project",
+    "Import Data",
+    "Export",
+    "Repeat Last Export",
+    "Texture Packer",
+    "Repeat Last Texture Packer",
+    "Texture Unpacker",
+    "Settings",
+    "Set Parent",
+    "New Bone",
+    "New Slot",
+    "New Skin Placeholder",
+    "New Bounding Box",
+    "New Clipping",
+    "New Path",
+    "New Point",
+    "New Animation",
+    "New Event",
+    "New Skin",
+    "New IK Constraint",
+    "New Path Constraint",
+    "New Physics Constraint",
+    "New Transform Constraint",
+    "New Folder",
+    "Color",
+    "Mesh - Freeze",
+    "Mesh - Reset",
+    "Mesh - Wireframe",
+    "Mesh - Edit Mesh",
+    "Edit Mesh - Modify",
+    "Edit Mesh - Create",
+    "Edit Mesh - Delete",
+    "Edit Mesh - New",
+    "Edit Mesh - Reset",
+    "Edit Mesh - Generate",
+    "Edit Mesh - Trace",
+    "Edit Mesh - Refine",
+    "Edit Mesh - Triangles",
+    "Edit Mesh - Dim",
+    "Edit Mesh - Isolate",
+    "Edit Mesh - Deformed",
+    "Physics Constraint - Edit Physics",
+    "Edit Physics - Modify",
+    "Edit Physics - Create",
+    "Edit Physics - Delete",
+    "Auto Key",
+    "Animation Clean Up",
+    "Next Animation",
+    "Previous Animation",
+    "Track Current Frame",
+    "Frame Keys",
+    "Setup Draw Order",
+    "Setup Pose",
+    "Sync Dopesheet",
+    "Lock Dopesheet",
+    "Refresh Dopesheet",
+    "Select Dopesheet Bones",
+    "Dopesheet Filter",
+    "Dopesheet Toolbar",
+    "Set Loop Start",
+    "Set Loop End",
+    "Lock Graph",
+    "Refresh Graph",
+    "Select Graph Bones",
+    "Graph Filter",
+    "Graph Toolbar",
+    "Graph Rows",
+    "Hide Bezier Handles",
+    "Graph Frame",
+    "Graph Auto Frame",
+    "Bezier Handle - Auto",
+    "Bezier Handle - Separate",
+    "Bezier Handle - Bounce",
+    "Bezier Handle - Flat",
+    "Bezier Handle - Ease Out",
+    "Bezier Handle - Ease In",
+    "Bezier Handle - Ease",
+    "Graph Snapping",
+    "Graph X",
+    "Graph X - Momentary",
+    "Graph Y",
+    "Graph Y - Momentary",
+    "Graph - Shape Retime",
+    "Graph - Value Retime",
+    "Graph Store",
+    "Graph Store Swap",
+    "Favor Tool",
+    "Favor\u002B (5)",
+    "Favor\u002B (10)",
+    "Favor\u002B (15)",
+    "Favor- (5)",
+    "Favor- (10)",
+    "Favor- (15)",
+    "Favor - Favor",
+    "Favor - Blend",
+    "Favor - Shift",
+    "Favor - Linear",
+    "Favor - Average (curve)",
+    "Favor - Average (frame)",
+    "Favor - Average (all)",
+    "Favor - Default",
+    "Favor - Setup",
+    "Favor - Store",
+    "Key Edited",
+    "Key Active",
+    "Key Selected",
+    "Key Shown",
+    "Key Rotation",
+    "Key Translate",
+    "Key Translate X",
+    "Key Translate Y",
+    "Key Scale",
+    "Key Scale X",
+    "Key Scale Y",
+    "Key Shear",
+    "Key Shear X",
+    "Key Shear Y",
+    "Key Color",
+    "Key Attachment",
+    "Select Keys",
+    "Stepped Curve",
+    "Linear Curve",
+    "Bezier Curve",
+    "Shift Keys",
+    "Offset Keys",
+    "Adjust Keys",
+    "Play Forward",
+    "Play Backward",
+    "Play Forward / Reset",
+    "Play Backward / Reset",
+    "Stop",
+    "Repeat",
+    "Stepped",
+    "Interpolated",
+    "First Key",
+    "Last Key",
+    "Next Key",
+    "Previous Key",
+    "Next Frame",
+    "Next Frame (10)",
+    "Previous Frame",
+    "Previous Frame (10)",
+    "Loop Start",
+    "Loop End",
+    "Speed - Slower",
+    "Speed - Faster",
+    "Speed - 100%",
+    "Timeline Pan Drag",
+    "Timeline Pan Move",
+    "Timeline Frame Drag",
+    "Timeline Frame Move",
+    "Ghosting",
+    "Ghosting - Frames Before",
+    "Ghosting - Frames After",
+    "Ghosting - Frames Current",
+    "Ghosting - Keys Before",
+    "Ghosting - Keys After",
+    "Ghosting - Motion Vectors Before",
+    "Ghosting - Motion Vectors After",
+    "Ghosting - Anchor",
+    "Ghosting - On Top",
+    "Ghosting - Loop",
+    "Ghosting - Lock",
+    "Ghosting - Refresh",
+    "Ghosting - Selection Only"
+  ],
+  "Sequences": [
+    {
+      "Id": "cb02a5bd-2fab-4148-a3f1-0daee9bf533b",
+      "Name": "\u5FAA\u73AF\u9644\u4EF6(\u95F4\u96942)",
+      "TriggerHotkey": "Ctrl\u002BOemtilde",
+      "Enabled": true,
+      "LoopIntervalMs": 100,
+      "LoopCount": 1,
+      "TargetAppPath": "",
+      "TargetAppProcessName": "",
+      "TargetAppDisplayName": "",
+      "TriggerVkButtonName": "\u5BFC\u51651/\u5E8F\u5217\u5E272",
+      "Steps": [
+        {
+          "Type": 1,
+          "Keys": "h",
+          "DelayMs": 50,
+          "PressMode": 0,
+          "HoldDurationMs": 0
+        },
+        {
+          "Type": 0,
+          "Keys": "r",
+          "DelayMs": 50,
+          "PressMode": 0,
+          "HoldDurationMs": 0
+        },
+        {
+          "Type": 0,
+          "Keys": "r",
+          "DelayMs": 50,
+          "PressMode": 0,
+          "HoldDurationMs": 0
+        },
+        {
+          "Type": 1,
+          "Keys": "ctrl \u002B shift \u002B RIGHT",
+          "DelayMs": 50,
+          "PressMode": 0,
+          "HoldDurationMs": 0
+        }
+      ]
+    },
+    {
+      "Id": "77c21d05-dd60-4d8e-a34d-386852f39dc5",
+      "Name": "\u5FAA\u73AF\u9644\u4EF6(\u95F4\u96941)",
+      "TriggerHotkey": "",
+      "Enabled": true,
+      "LoopIntervalMs": 100,
+      "LoopCount": 1,
+      "TargetAppPath": "",
+      "TargetAppProcessName": "",
+      "TargetAppDisplayName": "",
+      "TriggerVkButtonName": "\u5BFC\u51651/\u5E8F\u5217\u5E271",
+      "Steps": [
+        {
+          "Type": 1,
+          "Keys": "h",
+          "DelayMs": 50,
+          "PressMode": 0,
+          "HoldDurationMs": 0
+        },
+        {
+          "Type": 0,
+          "Keys": "r",
+          "DelayMs": 50,
+          "PressMode": 0,
+          "HoldDurationMs": 0
+        },
+        {
+          "Type": 1,
+          "Keys": "ctrl \u002B shift \u002B RIGHT",
+          "DelayMs": 50,
+          "PressMode": 0,
+          "HoldDurationMs": 0
+        }
+      ]
+    },
+    {
+      "Id": "5eb0f83b-d372-4647-bb68-ce5cb8788699",
+      "Name": "\u5168\u52A8\u753B\u9996\u5C3E\u5E27\uFF08\u5168\u8981\u7D20\u5E27\uFF09",
+      "TriggerHotkey": "",
+      "Enabled": true,
+      "LoopIntervalMs": 100,
+      "LoopCount": 1,
+      "TargetAppPath": "",
+      "TargetAppProcessName": "",
+      "TargetAppDisplayName": "",
+      "TriggerVkButtonName": "\u5BFC\u51651/\u5168\u52A8\u753B\u9996\u5C3E\u5E27\uFF08\u5168\u8981\u7D20\u5E27\uFF09",
+      "Steps": [
+        {
+          "Type": 0,
+          "Keys": "q",
+          "DelayMs": 100,
+          "PressMode": 0,
+          "HoldDurationMs": 0
+        },
+        {
+          "Type": 1,
+          "Keys": "Ctrl\u002BAlt\u002BV",
+          "DelayMs": 100,
+          "PressMode": 0,
+          "HoldDurationMs": 0
+        },
+        {
+          "Type": 1,
+          "Keys": "Ctrl\u002BA",
+          "DelayMs": 100,
+          "PressMode": 0,
+          "HoldDurationMs": 0
+        },
+        {
+          "Type": 1,
+          "Keys": "Ctrl\u002BL",
+          "DelayMs": 100,
+          "PressMode": 0,
+          "HoldDurationMs": 0
+        },
+        {
+          "Type": 1,
+          "Keys": "Ctrl\u002BAlt\u002BS",
+          "DelayMs": 100,
+          "PressMode": 0,
+          "HoldDurationMs": 0
+        },
+        {
+          "Type": 1,
+          "Keys": "Ctrl\u002BAlt\u002BA",
+          "DelayMs": 100,
+          "PressMode": 0,
+          "HoldDurationMs": 0
+        },
+        {
+          "Type": 1,
+          "Keys": "Ctrl\u002BAlt\u002BC",
+          "DelayMs": 100,
+          "PressMode": 0,
+          "HoldDurationMs": 0
+        },
+        {
+          "Type": 0,
+          "Keys": "e",
+          "DelayMs": 100,
+          "PressMode": 0,
+          "HoldDurationMs": 0
+        },
+        {
+          "Type": 1,
+          "Keys": "Ctrl\u002BAlt\u002BV",
+          "DelayMs": 100,
+          "PressMode": 0,
+          "HoldDurationMs": 0
+        },
+        {
+          "Type": 1,
+          "Keys": "Ctrl\u002BA",
+          "DelayMs": 100,
+          "PressMode": 0,
+          "HoldDurationMs": 0
+        },
+        {
+          "Type": 1,
+          "Keys": "Ctrl\u002BL",
+          "DelayMs": 100,
+          "PressMode": 0,
+          "HoldDurationMs": 0
+        },
+        {
+          "Type": 1,
+          "Keys": "Ctrl\u002BAlt\u002BS",
+          "DelayMs": 100,
+          "PressMode": 0,
+          "HoldDurationMs": 0
+        },
+        {
+          "Type": 1,
+          "Keys": "Ctrl\u002BAlt\u002BA",
+          "DelayMs": 100,
+          "PressMode": 0,
+          "HoldDurationMs": 0
+        },
+        {
+          "Type": 1,
+          "Keys": "Ctrl\u002BAlt\u002BC",
+          "DelayMs": 100,
+          "PressMode": 0,
+          "HoldDurationMs": 0
+        },
+        {
+          "Type": 0,
+          "Keys": "y",
+          "DelayMs": 100,
+          "PressMode": 0,
+          "HoldDurationMs": 0
+        }
+      ]
+    }
+  ],
+  "VkDataList": [
+    {
+      "Name": "\u5BFC\u51651",
+      "Enabled": true,
+      "WindowX": 1195,
+      "WindowY": 828,
+      "WindowWidth": 174,
+      "WindowHeight": 40,
+      "TopMost": true,
+      "PositionLocked": false,
+      "WindowLocked": true,
+      "TargetProcessName": "Spine",
+      "TargetWindowTitle": "Spine - *G5-skin_merged",
+      "SkinPath": "SpineSkin",
+      "SingleLineMode": true,
+      "VerticalMode": false,
+      "ScaleFactor": 0.6,
+      "Buttons": [
+        {
+          "Id": "d4cf6634-1b82-4f2f-9f12-3c03c33a22cc",
+          "Name": "\u5168\u52A8\u753B\u9996\u5C3E\u5E27\uFF08\u5168\u8981\u7D20\u5E27\uFF09",
+          "StyleType": 2,
+          "BindActionId": "5eb0f83b-d372-4647-bb68-ce5cb8788699",
+          "LoopEnabled": false,
+          "LoopInterval": 100,
+          "LoopCount": 1,
+          "ExtraGap": 10,
+          "IconPath": null,
+          "PositionX": 0,
+          "PositionY": 0
+        },
+        {
+          "Id": "63ef95e8-2701-4cd7-8bce-e1be963947f7",
+          "Name": "\u5E8F\u5217\u5E272",
+          "StyleType": 0,
+          "BindActionId": "cb02a5bd-2fab-4148-a3f1-0daee9bf533b",
+          "LoopEnabled": false,
+          "LoopInterval": 100,
+          "LoopCount": 1,
+          "ExtraGap": 0,
+          "IconPath": null,
+          "PositionX": 0,
+          "PositionY": 0
+        },
+        {
+          "Id": "30218715-994f-4b3d-b6ad-8a5da121df6b",
+          "Name": "\u5E8F\u5217\u5E271",
+          "StyleType": 0,
+          "BindActionId": "77c21d05-dd60-4d8e-a34d-386852f39dc5",
+          "LoopEnabled": false,
+          "LoopInterval": 100,
+          "LoopCount": 1,
+          "ExtraGap": 0,
+          "IconPath": null,
+          "PositionX": 0,
+          "PositionY": 0
+        },
+        {
+          "Id": "a4a36ff2-78db-4301-8205-96b1561e99bd",
+          "Name": "\u6309\u94AE7",
+          "StyleType": 0,
+          "BindActionId": null,
+          "LoopEnabled": false,
+          "LoopInterval": 100,
+          "LoopCount": 1,
+          "ExtraGap": 0,
+          "IconPath": null,
+          "PositionX": 0,
+          "PositionY": 0
+        }
+      ]
+    }
+  ]
+}

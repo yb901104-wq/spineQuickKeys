@@ -43,10 +43,17 @@
 | AUD-024 | 批量复制路径拼接改为安全 Path.Combine | 批量复制三段式路径 | 低 | 已完成 |
 | AUD-025 | 虚拟按键目标窗口播放方案暂保持激活窗口优先 | 虚拟按键目标窗口播放 | 中 | 设计保留 |
 | AUD-026 | Spine TXT 保存备份/编码保留暂不处理 | Spine 热键 TXT 保存 | 低 | 暂不处理 |
+| AUD-027 | 批量文件处理进度文字显示缺失或被遮挡 | CLI 批量合并/导出、批量复制、批量重命名/整理/解包 | 高 | 已完成 |
 
 ## 问题详情
 
 ## 本轮修复记录
+
+- 版本：V2.79
+- 范围：AUD-027
+- 代码验证：`dotnet build KeyMacro.sln` 已通过，0 警告，0 错误。
+- 截图验证：已生成 `docs/verification/screenshots/AUD-027_cli-progress-layout.png`、`AUD-027_batch-copy-progress-layout.png`、`AUD-027_rename-tool-progress-layout.png`、`AUD-027_rename-tool-organize-progress-layout.png`、`AUD-027_rename-tool-unpack-progress-layout.png`。
+- 发布验证：`dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishDir="bin/Release/publish" KeyMacro\KeyMacro.csproj` 已通过。
 
 - 版本：V2.78
 - 范围：AUD-001 至 AUD-024
@@ -260,6 +267,14 @@
 - 建议处理：暂不处理；依赖 Spine 自带热键重置功能恢复。
 - 验证方式：无需本轮验证。
 - 备注：已确认暂不处理。
+
+### AUD-027 批量文件处理进度文字显示缺失或被遮挡
+
+- 现状：CLI 实验合并使用原生 `ProgressBar` 叠加 `Label`，用户真实操作时能看到进度条但看不到当前处理文件文字；CLI 普通合并、批量导出、单纹理图未覆盖进度更新。批量复制只有底部状态文字，没有进度条。ReNameTool 的批量重命名、Spine 文件整理、图集解包没有进度条和当前文件文字。
+- 目标：所有批量处理文件的入口都使用一致的进度显示结构：当前处理文件文字独立显示在进度条上方，进度条中间显示当前序号/总数；文字不能被原生进度条遮挡，也不能遮住原有按钮、输入框、列表和状态区。
+- 建议处理：新增共用自绘 `TextProgressBar` 控件；CLI 底部进度区改为独立当前文件 `Label` + 自绘进度条，并覆盖普通合并、实验合并、批量导出、单纹理图；批量复制服务发出结构化进度事件，窗口底部显示当前复制/跳过项；ReNameTool 三个页签在列表与底部操作区之间增加同款进度区。
+- 验证方式：已通过 `dotnet build KeyMacro.sln`；已用截图 harness 生成模拟进度状态截图，确认 CLI、批量复制、ReNameTool 重命名页、整理页、解包页的当前处理文件文字在进度条上方可见，进度条中间序号可见，且未遮挡原有按钮、输入框、列表和状态区。
+- 备注：用户已确认将 TMP-20260602-003、TMP-20260602-004、TMP-20260602-005 合并录入并直接修复。修复过程中发现 ReNameTool 解包页列表高度会覆盖进度区，已同步缩短列表并复查截图。
 
 ## 后续维护规则
 
