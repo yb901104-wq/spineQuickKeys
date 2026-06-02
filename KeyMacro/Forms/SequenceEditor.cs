@@ -144,6 +144,7 @@ public partial class SequenceEditor : Form
         _dgvSteps.CellBeginEdit += DgvSteps_CellBeginEdit;
         _dgvSteps.CellEndEdit += (_, _) => { OperationLogger.Info("Suggest: CellEndEdit"); BeginInvoke(HideSuggestion); };
         _dgvSteps.EditingControlShowing += DgvSteps_EditingControlShowing;
+        _dgvSteps.CellClick += StepsGrid_CellClick;
 
         // ── Autocomplete suggestion dropdown (ToolStripDropDown, no focus steal) ──
         _suggestionListBox = new ListBox
@@ -333,8 +334,6 @@ public partial class SequenceEditor : Form
         _dgvSteps.Columns.Add(pressCol);
         _dgvSteps.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "按压时长(ms)", Width = 100 });
         _dgvSteps.Columns.Add(new DataGridViewButtonColumn { HeaderText = "操作", Text = "复制", UseColumnTextForButtonValue = true, Width = 50 });
-
-        _dgvSteps.CellClick += StepsGrid_CellClick;
 
         _dgvSteps.Rows.Clear();
         foreach (var step in _sequence.Steps)
@@ -631,7 +630,7 @@ public partial class SequenceEditor : Form
     private void BtnAddStep_Click(object? sender, EventArgs e)
     {
         _dgvSteps.EndEdit();
-        int newIdx = _dgvSteps.Rows.Add("单键", "", 50);
+        int newIdx = _dgvSteps.Rows.Add("单键", "", 50, "点按", 0, "复制");
         _dgvSteps.CurrentCell = _dgvSteps.Rows[newIdx].Cells[1];
         _dgvSteps.Rows[newIdx].Selected = true;
         SaveStepsFromGrid();

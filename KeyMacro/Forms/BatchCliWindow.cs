@@ -14,6 +14,7 @@ public class BatchCliWindow : Form
     private readonly TextBox _txtSpinePath = new();
     private readonly Button _btnDetect = new();
     private readonly Button _btnBrowseSpine = new();
+    private readonly Button _btnCancelCli = new();
     private readonly Label _lblSpineStatus = new();
 
     // ── Tab control ──
@@ -51,6 +52,7 @@ public class BatchCliWindow : Form
     private string _exportConfigName = "export.json";
 
     private readonly BindingList<SpineCliEntry> _exportEntries = [];
+    private CancellationTokenSource? _cliCts;
 
     // ── Progress bar ──
     private readonly ProgressBar _progressBar = new();
@@ -138,7 +140,14 @@ public class BatchCliWindow : Form
         _lblSpineStatus.AutoSize = true;
         _lblSpineStatus.TextAlign = ContentAlignment.MiddleLeft;
 
-        flow.Controls.AddRange([lbl, _txtSpinePath, _btnDetect, _btnBrowseSpine, _lblSpineStatus]);
+        _btnCancelCli.Text = "取消CLI";
+        _btnCancelCli.AutoSize = true;
+        _btnCancelCli.MinimumSize = new Size(70, 28);
+        _btnCancelCli.FlatStyle = FlatStyle.Flat;
+        _btnCancelCli.Enabled = false;
+        _btnCancelCli.Click += (_, _) => CancelCliOperation();
+
+        flow.Controls.AddRange([lbl, _txtSpinePath, _btnDetect, _btnBrowseSpine, _btnCancelCli, _lblSpineStatus]);
         var panel = new Panel { Dock = DockStyle.Fill };
         panel.Controls.Add(flow);
         return panel;
@@ -174,6 +183,27 @@ public class BatchCliWindow : Form
             _txtSpinePath.Text = saved;
             SaveAndValidatePath();
         }
+    }
+
+    private CancellationToken BeginCliOperation()
+    {
+        _cliCts?.Dispose();
+        _cliCts = new CancellationTokenSource();
+        _btnCancelCli.Enabled = true;
+        return _cliCts.Token;
+    }
+
+    private void EndCliOperation()
+    {
+        _btnCancelCli.Enabled = false;
+        _cliCts?.Dispose();
+        _cliCts = null;
+    }
+
+    private void CancelCliOperation()
+    {
+        _cliCts?.Cancel();
+        _lblProgress.Text = "正在取消...";
     }
 
     // ────────────────────── TabControl ──────────────────────
@@ -565,6 +595,7 @@ public class BatchCliWindow : Form
 
         _btnMergeExecute.Enabled = false;
         _btnMergeExecute.Text = "合并中...";
+        var ct = BeginCliOperation();
 
         try
         {
@@ -578,7 +609,8 @@ public class BatchCliWindow : Form
                 var source = _sourceEntries[0];
                 foreach (var target in _targetEntries)
                 {
-                    var result = await MergeOne(source, target, tempDir);
+                    ct.ThrowIfCancellationRequested();
+                    var result = await MergeOne(source, target, tempDir, ct);
                     if (!result.Success) errors.Add($"{target.FileName}: {result.Error}");
                 }
             }
@@ -588,7 +620,8 @@ public class BatchCliWindow : Form
                 var target = _targetEntries[0];
                 foreach (var source in _sourceEntries)
                 {
-                    var result = await MergeOne(source, target, tempDir);
+                    ct.ThrowIfCancellationRequested();
+                    var result = await MergeOne(source, target, tempDir, ct);
                     if (!result.Success) errors.Add($"{source.FileName}: {result.Error}");
                 }
             }
@@ -601,8 +634,13 @@ public class BatchCliWindow : Form
             else
                 MessageBox.Show(this, "合并全部完成！", "合并结果", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
+        catch (OperationCanceledException)
+        {
+            MessageBox.Show(this, "合并已取消，当前临时文件已清理，已完成结果保留。", "已取消", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
         finally
         {
+            EndCliOperation();
             _btnMergeExecute.Enabled = true;
             _btnMergeExecute.Text = "执行合并";
         }
@@ -644,6 +682,7 @@ public class BatchCliWindow : Form
 
         _btnMergeExecute.Enabled = false;
         _btnMergeExecute.Text = "实验合并中...";
+        var ct = BeginCliOperation();
 
         var errors = new List<string>();
         var successes = new List<string>();
@@ -660,9 +699,10 @@ public class BatchCliWindow : Form
                 var source = _sourceEntries[0];
                 foreach (var target in _targetEntries)
                 {
+                    ct.ThrowIfCancellationRequested();
                     currentPair++;
                     SetProgress(currentPair, totalPairs, $"[{currentPair}/{totalPairs}] {target.FileName}");
-                    var result = await ExperimentalMergeOne(source, target);
+                    var result = await ExperimentalMergeOne(source, target, ct);
                     if (result.Success)
                         successes.Add($"{target.FileName} → {result.Output}");
                     else
@@ -675,9 +715,10 @@ public class BatchCliWindow : Form
                 var target = _targetEntries[0];
                 foreach (var source in _sourceEntries)
                 {
+                    ct.ThrowIfCancellationRequested();
                     currentPair++;
                     SetProgress(currentPair, totalPairs, $"[{currentPair}/{totalPairs}] {source.FileName}");
-                    var result = await ExperimentalMergeOne(source, target);
+                    var result = await ExperimentalMergeOne(source, target, ct);
                     if (result.Success)
                         successes.Add($"{source.FileName} → {result.Output}");
                     else
@@ -685,9 +726,14 @@ public class BatchCliWindow : Form
                 }
             }
         }
+        catch (OperationCanceledException)
+        {
+            MessageBox.Show(this, "实验合并已取消，当前临时文件已清理，已完成结果保留。", "已取消", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
         finally
         {
             ShowProgress(false);
+            EndCliOperation();
             _btnMergeExecute.Enabled = true;
             _btnMergeExecute.Text = "执行合并";
         }
@@ -704,7 +750,7 @@ public class BatchCliWindow : Form
     }
 
     /// <summary>Merge one source skeleton into one target's _merged copy.</summary>
-    private async Task<CliResult> ExperimentalMergeOne(SpineCliEntry source, SpineCliEntry target)
+    private async Task<CliResult> ExperimentalMergeOne(SpineCliEntry source, SpineCliEntry target, CancellationToken ct)
     {
         var srcPath = source.FilePath;
         var tgtPath = target.FilePath;
@@ -716,11 +762,12 @@ public class BatchCliWindow : Form
         var tgtDir = Path.GetDirectoryName(tgtPath)!;
         var tgtName = Path.GetFileNameWithoutExtension(tgtPath);
         var mergedPath = Path.Combine(tgtDir, $"{tgtName}_merged.spine");
-        File.Copy(tgtPath, mergedPath, overwrite: true);
+        var tempMergedPath = Path.Combine(tgtDir, $"{tgtName}_merged.{Guid.NewGuid():N}.tmp.spine");
+        File.Copy(tgtPath, tempMergedPath, overwrite: true);
 
         // Step 2: Collect project info
-        var srcInfo = await _cli.GetProjectInfo(srcPath);
-        var tgtInfo = await _cli.GetProjectInfo(mergedPath);
+        var srcInfo = await _cli.GetProjectInfo(srcPath, ct);
+        var tgtInfo = await _cli.GetProjectInfo(tempMergedPath, ct);
 
         // Step 3: Version compatibility check
         var srcVer = ParseVersion(srcInfo.Version);
@@ -728,7 +775,10 @@ public class BatchCliWindow : Form
         var threshold = new Version(4, 3, 6);
 
         if (srcVer == null || tgtVer == null)
+        {
+            TryDeleteFile(tempMergedPath);
             return new CliResult { ExitCode = -1, Error = "无法读取项目版本号" };
+        }
 
         string? versionArg = null;
         bool srcBelow = srcVer < threshold;
@@ -737,7 +787,10 @@ public class BatchCliWindow : Form
         if (srcBelow && tgtBelow)
             versionArg = "4.3.06";
         else if (srcVer != tgtVer)
+        {
+            TryDeleteFile(tempMergedPath);
             return new CliResult { ExitCode = -1, Error = $"版本不一致（源 {srcInfo.Version}，目标 {tgtInfo.Version}）" };
+        }
 
         // Step 4: Resolve --from/--to skeleton names
         string? fromName = null, toName = null;
@@ -755,11 +808,12 @@ public class BatchCliWindow : Form
         }
 
         // Step 5: Execute --merge
-        var mergeResult = await _cli.MergeSkeleton(srcPath, mergedPath, fromName, toName, versionArg);
+        var mergeResult = await _cli.MergeSkeleton(srcPath, tempMergedPath, fromName, toName, versionArg, ct);
         if (!mergeResult.Success)
         {
             var errMsg = mergeResult.Error;
             if (string.IsNullOrEmpty(errMsg)) errMsg = mergeResult.Output;
+            TryDeleteFile(tempMergedPath);
             return new CliResult { ExitCode = -1, Error = $"骨架合并失败：{errMsg}" };
         }
 
@@ -772,17 +826,23 @@ public class BatchCliWindow : Form
         {
             var conflicts = animNames.Intersect(tgtInfo.AnimationNames, StringComparer.OrdinalIgnoreCase).ToList();
             if (conflicts.Count > 0)
+            {
+                TryDeleteFile(tempMergedPath);
                 return new CliResult { ExitCode = -1, Error = $"动画冲突：{string.Join(", ", conflicts)}" };
+            }
 
-            var animResult = await _cli.ImportAnimations(srcPath, mergedPath, animNames, versionArg);
+            var animResult = await _cli.ImportAnimations(srcPath, tempMergedPath, animNames, versionArg, ct);
             if (!animResult.Success)
             {
                 var errMsg = animResult.Error;
                 if (string.IsNullOrEmpty(errMsg)) errMsg = animResult.Output;
+                TryDeleteFile(tempMergedPath);
                 return new CliResult { ExitCode = -1, Error = $"动画导入失败：{errMsg}" };
             }
         }
 
+        if (File.Exists(mergedPath)) File.Delete(mergedPath);
+        File.Move(tempMergedPath, mergedPath);
         return new CliResult { ExitCode = 0, Output = mergedPath };
     }
 
@@ -817,32 +877,76 @@ public class BatchCliWindow : Form
         return null;
     }
 
-    private async Task<CliResult> MergeOne(SpineCliEntry source, SpineCliEntry target, string tempDir)
+    private static void TryDeleteFile(string path)
+    {
+        try { if (File.Exists(path)) File.Delete(path); }
+        catch { }
+    }
+
+    private static void TryDeleteDirectory(string path)
+    {
+        try { if (Directory.Exists(path)) Directory.Delete(path, true); }
+        catch { }
+    }
+
+    private static void MoveDirectoryContents(string sourceDir, string targetDir)
+    {
+        Directory.CreateDirectory(targetDir);
+        foreach (var dir in Directory.GetDirectories(sourceDir, "*", SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(sourceDir, dir);
+            Directory.CreateDirectory(Path.Combine(targetDir, relative));
+        }
+        foreach (var file in Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(sourceDir, file);
+            var dest = Path.Combine(targetDir, relative);
+            var destDir = Path.GetDirectoryName(dest);
+            if (!string.IsNullOrEmpty(destDir))
+                Directory.CreateDirectory(destDir);
+            if (File.Exists(dest)) File.Delete(dest);
+            File.Move(file, dest);
+        }
+    }
+
+    private async Task<CliResult> MergeOne(SpineCliEntry source, SpineCliEntry target, string tempDir, CancellationToken ct)
     {
         var ext = Path.GetExtension(source.FilePath).ToLowerInvariant();
         var targetDir = Path.GetDirectoryName(target.FilePath)!;
         var targetName = Path.GetFileNameWithoutExtension(target.FilePath);
         var outputPath = Path.Combine(targetDir, $"{targetName}_merged.spine");
+        var tempOutputPath = Path.Combine(tempDir, $"{targetName}_{Guid.NewGuid():N}_merged.tmp.spine");
 
         try
         {
             // Step 1: copy target as base for output
-            File.Copy(target.FilePath, outputPath, overwrite: true);
+            File.Copy(target.FilePath, tempOutputPath, overwrite: true);
 
             // Step 2: resolve source data (import json/skel → temp .spine if needed)
             string sourceForImport = source.FilePath;
             if (ext is ".json" or ".skel")
             {
                 sourceForImport = Path.Combine(tempDir, $"{Guid.NewGuid():N}.spine");
-                var importResult = await _cli.ImportToTemp(source.FilePath, sourceForImport);
+                var importResult = await _cli.ImportToTemp(source.FilePath, sourceForImport, ct);
                 if (!importResult.Success) return importResult;
             }
 
             // Step 3: import source data into the target copy (this merges into the existing project)
-            return await _cli.ImportMerge(sourceForImport, outputPath);
+            var result = await _cli.ImportMerge(sourceForImport, tempOutputPath, ct);
+            if (!result.Success) return result;
+
+            if (File.Exists(outputPath)) File.Delete(outputPath);
+            File.Move(tempOutputPath, outputPath);
+            return new CliResult { ExitCode = 0, Output = outputPath };
+        }
+        catch (OperationCanceledException)
+        {
+            TryDeleteFile(tempOutputPath);
+            return new CliResult { ExitCode = -1, Error = "操作已取消。" };
         }
         catch (Exception ex)
         {
+            TryDeleteFile(tempOutputPath);
             return new CliResult { ExitCode = -1, Error = ex.Message };
         }
     }
@@ -987,7 +1091,7 @@ public class BatchCliWindow : Form
         _tabExport.Controls.Add(exportPanel);
     }
 
-    private void ScanSourceDir(object sender, EventArgs e)
+    private void ScanSourceDir(object? sender, EventArgs e)
     {
         var dir = _txtSourceDir.Text.Trim();
         if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
@@ -1036,6 +1140,7 @@ public class BatchCliWindow : Form
 
         _btnExport.Enabled = false;
         _btnExport.Text = "导出中...";
+        var ct = BeginCliOperation();
 
         try
         {
@@ -1047,24 +1152,40 @@ public class BatchCliWindow : Form
 
             foreach (var entry in _exportEntries)
             {
+                ct.ThrowIfCancellationRequested();
+                var tempOutputDir = Path.Combine(Path.GetTempPath(), "KeyMacro", "cli_export", Guid.NewGuid().ToString("N"));
                 try
                 {
+                    Directory.CreateDirectory(tempOutputDir);
                     CliResult result;
                     if (entry.HasExportConfig && entry.ExportConfigPath != null)
-                        result = await _cli.Export(entry.FilePath, outputDir, entry.ExportConfigPath);
+                        result = await _cli.Export(entry.FilePath, tempOutputDir, entry.ExportConfigPath, ct);
                     else
                     {
-                        result = await _cli.ExportDefault(entry.FilePath, outputDir);
+                        result = await _cli.ExportDefault(entry.FilePath, tempOutputDir, ct: ct);
                         missingList.Add(entry.FileName);
                     }
 
-                    if (result.Success) ok++;
+                    if (result.Success)
+                    {
+                        MoveDirectoryContents(tempOutputDir, outputDir);
+                        ok++;
+                    }
                     else { fail++; OperationLogger.Error($"CLI export failed: {entry.FileName}: {result.Error}"); }
+                }
+                catch (OperationCanceledException)
+                {
+                    TryDeleteDirectory(tempOutputDir);
+                    throw;
                 }
                 catch (Exception ex)
                 {
                     fail++;
                     OperationLogger.Error($"CLI export error: {entry.FileName}: {ex.Message}");
+                }
+                finally
+                {
+                    TryDeleteDirectory(tempOutputDir);
                 }
             }
 
@@ -1090,8 +1211,13 @@ public class BatchCliWindow : Form
                     fail > 0 ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
             }
         }
+        catch (OperationCanceledException)
+        {
+            MessageBox.Show(this, "导出已取消，当前临时文件已清理，已完成结果保留。", "已取消", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
         finally
         {
+            EndCliOperation();
             _btnExport.Enabled = true;
             _btnExport.Text = "导出";
         }
@@ -1103,6 +1229,7 @@ public class BatchCliWindow : Form
 
         _btnPack.Enabled = false;
         _btnPack.Text = "打包中...";
+        var ct = BeginCliOperation();
 
         try
         {
@@ -1112,25 +1239,46 @@ public class BatchCliWindow : Form
             int ok = 0, fail = 0;
             foreach (var entry in _exportEntries)
             {
+                ct.ThrowIfCancellationRequested();
+                var tempOutputDir = Path.Combine(Path.GetTempPath(), "KeyMacro", "cli_pack", Guid.NewGuid().ToString("N"));
                 try
                 {
+                    Directory.CreateDirectory(tempOutputDir);
                     var name = Path.GetFileNameWithoutExtension(entry.FileName);
-                    var result = await _cli.Pack(entry.FilePath, outputDir, name);
-                    if (result.Success) ok++;
+                    var result = await _cli.Pack(entry.FilePath, tempOutputDir, name, ct);
+                    if (result.Success)
+                    {
+                        MoveDirectoryContents(tempOutputDir, outputDir);
+                        ok++;
+                    }
                     else { fail++; OperationLogger.Error($"CLI pack failed: {entry.FileName}: {result.Error}"); }
+                }
+                catch (OperationCanceledException)
+                {
+                    TryDeleteDirectory(tempOutputDir);
+                    throw;
                 }
                 catch (Exception ex)
                 {
                     fail++;
                     OperationLogger.Error($"CLI pack error: {entry.FileName}: {ex.Message}");
                 }
+                finally
+                {
+                    TryDeleteDirectory(tempOutputDir);
+                }
             }
 
             MessageBox.Show(this, $"纹理打包完成！成功 {ok}，失败 {fail}", "打包结果", MessageBoxButtons.OK,
                 fail > 0 ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
         }
+        catch (OperationCanceledException)
+        {
+            MessageBox.Show(this, "打包已取消，当前临时文件已清理，已完成结果保留。", "已取消", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
         finally
         {
+            EndCliOperation();
             _btnPack.Enabled = true;
             _btnPack.Text = "单纹理图";
         }

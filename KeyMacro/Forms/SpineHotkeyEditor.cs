@@ -283,7 +283,9 @@ public class SpineHotkeyEditor : Form
     {
         if (_dgv.SelectedRows.Count == 0) return;
         var row = _dgv.SelectedRows[0];
-        if (row.Index >= _entries.Count || _entries[row.Index].Name.StartsWith("---")) return;
+        var name = row.Cells[0].Value?.ToString();
+        var entry = FindEntryByName(name);
+        if (entry == null || entry.Name.StartsWith("---")) return;
 
         using var recorder = new HotkeyRecorderForm(allowNoModifier: true);
         if (recorder.ShowDialog() == DialogResult.OK)
@@ -294,8 +296,9 @@ public class SpineHotkeyEditor : Form
 
     private void Dgv_CellFormatting(object? sender, DataGridViewCellFormattingEventArgs e)
     {
-        if (e.RowIndex < 0 || e.RowIndex >= _entries.Count) return;
-        if (_entries[e.RowIndex].Name.StartsWith("---"))
+        if (e.RowIndex < 0 || e.RowIndex >= _dgv.Rows.Count) return;
+        var name = _dgv.Rows[e.RowIndex].Cells[0].Value?.ToString();
+        if (FindEntryByName(name)?.Name.StartsWith("---") == true)
         {
             e.CellStyle.BackColor = Color.FromArgb(0xE8, 0xE8, 0xE8);
             e.CellStyle.Font = new Font("Microsoft YaHei", 9, FontStyle.Bold);
@@ -304,10 +307,18 @@ public class SpineHotkeyEditor : Form
 
     private void Dgv_CellBeginEdit(object? sender, DataGridViewCellCancelEventArgs e)
     {
-        if (e.RowIndex < 0 || e.RowIndex >= _entries.Count) return;
+        if (e.RowIndex < 0 || e.RowIndex >= _dgv.Rows.Count) return;
+        var name = _dgv.Rows[e.RowIndex].Cells[0].Value?.ToString();
+        var entry = FindEntryByName(name);
         // Name column is read-only
         if (e.ColumnIndex == 0) e.Cancel = true;
         // Section header rows are read-only
-        if (_entries[e.RowIndex].Name.StartsWith("---")) e.Cancel = true;
+        if (entry?.Name.StartsWith("---") == true) e.Cancel = true;
+    }
+
+    private SpineHotkeyEntry? FindEntryByName(string? name)
+    {
+        if (string.IsNullOrEmpty(name)) return null;
+        return _entries.FirstOrDefault(e => e.Name == name);
     }
 }

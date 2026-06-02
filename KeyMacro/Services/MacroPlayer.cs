@@ -25,6 +25,8 @@ public class MacroPlayer
     private volatile bool _isPlaying;
     private volatile int _completedLoops;
     private CancellationTokenSource? _cts;
+    private readonly object _pressedLock = new();
+    private readonly HashSet<byte> _pressedKeys = [];
 
     public bool IsPlaying => _isPlaying;
 
@@ -118,6 +120,7 @@ public class MacroPlayer
     {
         OperationLogger.Info("MacroPlayer.ForceStop: force stopping");
         _cts?.Cancel();
+        ReleaseAllPressedKeys();
     }
 
     // ── PlayToWindow: PostMessage-based playback, no activation needed ──
@@ -224,22 +227,34 @@ public class MacroPlayer
             var (modifiers, keyVk) = ParseCombo(step.Keys);
             if (keyVk == 0) return;
 
-            foreach (var mod in modifiers)
-                PostMessage(hWnd, WM_KEYDOWN, (UIntPtr)mod, MakeLParam(mod, false));
+            try
+            {
+                foreach (var mod in modifiers)
+                    PostMessage(hWnd, WM_KEYDOWN, (UIntPtr)mod, MakeLParam(mod, false));
 
-            PostMessage(hWnd, WM_KEYDOWN, (UIntPtr)keyVk, MakeLParam(keyVk, false));
-            await Task.Delay(duration, ct);
-            PostMessage(hWnd, WM_KEYUP, (UIntPtr)keyVk, MakeLParam(keyVk, true));
+                PostMessage(hWnd, WM_KEYDOWN, (UIntPtr)keyVk, MakeLParam(keyVk, false));
+                await Task.Delay(duration, ct);
+            }
+            finally
+            {
+                PostMessage(hWnd, WM_KEYUP, (UIntPtr)keyVk, MakeLParam(keyVk, true));
 
-            for (int i = modifiers.Length - 1; i >= 0; i--)
-                PostMessage(hWnd, WM_KEYUP, (UIntPtr)modifiers[i], MakeLParam(modifiers[i], true));
+                for (int i = modifiers.Length - 1; i >= 0; i--)
+                    PostMessage(hWnd, WM_KEYUP, (UIntPtr)modifiers[i], MakeLParam(modifiers[i], true));
+            }
         }
         else
         {
             if (!TryGetVk(step.Keys, out var vk)) return;
-            PostMessage(hWnd, WM_KEYDOWN, (UIntPtr)vk, MakeLParam(vk, false));
-            await Task.Delay(duration, ct);
-            PostMessage(hWnd, WM_KEYUP, (UIntPtr)vk, MakeLParam(vk, true));
+            try
+            {
+                PostMessage(hWnd, WM_KEYDOWN, (UIntPtr)vk, MakeLParam(vk, false));
+                await Task.Delay(duration, ct);
+            }
+            finally
+            {
+                PostMessage(hWnd, WM_KEYUP, (UIntPtr)vk, MakeLParam(vk, true));
+            }
         }
     }
 
@@ -307,7 +322,7 @@ public class MacroPlayer
             PostMessage(hWnd, WM_CHAR, (UIntPtr)c, IntPtr.Zero);
     }
 
-    private static async Task PlayHold(MacroStep step, CancellationToken ct)
+    private async Task PlayHold(MacroStep step, CancellationToken ct)
     {
         var duration = step.HoldDurationMs > 0 ? step.HoldDurationMs : 500;
 
@@ -316,22 +331,34 @@ public class MacroPlayer
             var (modifiers, keyVk) = ParseCombo(step.Keys);
             if (keyVk == 0) return;
 
-            foreach (var mod in modifiers)
-                keybd_event(mod, 0, KEYEVENTF_KEYDOWN, UIntPtr.Zero);
+            try
+            {
+                foreach (var mod in modifiers)
+                    PressNativeKey(mod);
 
-            keybd_event(keyVk, 0, KEYEVENTF_KEYDOWN, UIntPtr.Zero);
-            await Task.Delay(duration, ct);
-            keybd_event(keyVk, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                PressNativeKey(keyVk);
+                await Task.Delay(duration, ct);
+            }
+            finally
+            {
+                ReleaseNativeKey(keyVk);
 
-            for (int i = modifiers.Length - 1; i >= 0; i--)
-                keybd_event(modifiers[i], 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                for (int i = modifiers.Length - 1; i >= 0; i--)
+                    ReleaseNativeKey(modifiers[i]);
+            }
         }
         else
         {
             if (!TryGetVk(step.Keys, out var vk)) return;
-            keybd_event(vk, 0, KEYEVENTF_KEYDOWN, UIntPtr.Zero);
-            await Task.Delay(duration, ct);
-            keybd_event(vk, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+            try
+            {
+                PressNativeKey(vk);
+                await Task.Delay(duration, ct);
+            }
+            finally
+            {
+                ReleaseNativeKey(vk);
+            }
         }
     }
 
@@ -407,6 +434,12 @@ public class MacroPlayer
             return;
         }
 
+        if (parts.Take(parts.Length - 1).Any(m => m.Equals("win", StringComparison.OrdinalIgnoreCase)))
+        {
+            SendComboNative(combo);
+            return;
+        }
+
         var prefix = "";
         var key = parts[^1];
 
@@ -427,7 +460,6 @@ public class MacroPlayer
                 "ctrl" => "^",
                 "alt" => "%",
                 "shift" => "+",
-                "win" => "^",
                 _ => ""
             };
         }
@@ -462,6 +494,53 @@ public class MacroPlayer
                 case '}': SendKeys.SendWait("{}}"); break;
                 default: SendKeys.SendWait(s); break;
             }
+        }
+    }
+
+    private void PressNativeKey(byte vk)
+    {
+        keybd_event(vk, 0, KEYEVENTF_KEYDOWN, UIntPtr.Zero);
+        lock (_pressedLock)
+            _pressedKeys.Add(vk);
+    }
+
+    private void ReleaseNativeKey(byte vk)
+    {
+        keybd_event(vk, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+        lock (_pressedLock)
+            _pressedKeys.Remove(vk);
+    }
+
+    private void ReleaseAllPressedKeys()
+    {
+        byte[] keys;
+        lock (_pressedLock)
+        {
+            keys = [.. _pressedKeys];
+            _pressedKeys.Clear();
+        }
+
+        for (int i = keys.Length - 1; i >= 0; i--)
+            keybd_event(keys[i], 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+    }
+
+    private static void SendComboNative(string combo)
+    {
+        var (modifiers, keyVk) = ParseCombo(combo);
+        if (keyVk == 0) return;
+
+        foreach (var mod in modifiers)
+            keybd_event(mod, 0, KEYEVENTF_KEYDOWN, UIntPtr.Zero);
+
+        try
+        {
+            keybd_event(keyVk, 0, KEYEVENTF_KEYDOWN, UIntPtr.Zero);
+            keybd_event(keyVk, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+        }
+        finally
+        {
+            for (int i = modifiers.Length - 1; i >= 0; i--)
+                keybd_event(modifiers[i], 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
         }
     }
 }

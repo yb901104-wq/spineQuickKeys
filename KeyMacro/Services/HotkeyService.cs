@@ -27,7 +27,7 @@ public sealed class HotkeyService : IDisposable
 
     private readonly IntPtr _hWnd;
     private readonly Dictionary<int, string> _hotkeyMap = [];
-    private readonly Dictionary<string, string> _targetApps = [];
+    private readonly Dictionary<string, TargetAppSpec> _targetApps = [];
     private volatile bool _paused;
     private int _nextId = 1;
 
@@ -44,7 +44,7 @@ public sealed class HotkeyService : IDisposable
         int registeredCount = 0;
         foreach (var seq in sequences)
         {
-            _targetApps[seq.Id] = seq.TargetAppPath;
+            _targetApps[seq.Id] = TargetAppSpec.FromSequence(seq);
 
             if (!seq.Enabled || string.IsNullOrWhiteSpace(seq.TriggerHotkey))
                 continue;
@@ -90,9 +90,9 @@ public sealed class HotkeyService : IDisposable
             int id = m.WParam.ToInt32();
             if (_hotkeyMap.TryGetValue(id, out var seqId))
             {
-                if (_targetApps.TryGetValue(seqId, out var targetPath) &&
-                    !string.IsNullOrEmpty(targetPath) &&
-                    !IsForegroundTarget(targetPath))
+                if (_targetApps.TryGetValue(seqId, out var target) &&
+                    target.HasTarget &&
+                    !IsForegroundTarget(target))
                     return false;
 
                 OperationLogger.Info($"HotkeyService: triggered seqId={seqId}");
@@ -106,17 +106,35 @@ public sealed class HotkeyService : IDisposable
     public void SetPaused(bool paused) => _paused = paused;
     public void Dispose() => UnregisterAll();
 
-    private static bool IsForegroundTarget(string targetExePath)
+    private static bool IsForegroundTarget(TargetAppSpec target)
     {
         var hwnd = GetForegroundWindow();
         GetWindowThreadProcessId(hwnd, out var pid);
         try
         {
             using var proc = Process.GetProcessById((int)pid);
+            if (!string.IsNullOrEmpty(target.ProcessName) &&
+                string.Equals(proc.ProcessName, target.ProcessName, StringComparison.OrdinalIgnoreCase))
+                return true;
+
             var fgPath = proc.MainModule?.FileName ?? "";
-            return string.Equals(fgPath, targetExePath, StringComparison.OrdinalIgnoreCase);
+            return !string.IsNullOrEmpty(target.Path) &&
+                string.Equals(fgPath, target.Path, StringComparison.OrdinalIgnoreCase);
         }
         catch { return false; }
+    }
+
+    private sealed record TargetAppSpec(string Path, string ProcessName)
+    {
+        public bool HasTarget => !string.IsNullOrWhiteSpace(Path) || !string.IsNullOrWhiteSpace(ProcessName);
+
+        public static TargetAppSpec FromSequence(MacroSequence seq)
+        {
+            var processName = seq.TargetAppProcessName;
+            if (string.IsNullOrWhiteSpace(processName) && !string.IsNullOrWhiteSpace(seq.TargetAppPath))
+                processName = System.IO.Path.GetFileNameWithoutExtension(seq.TargetAppPath);
+            return new TargetAppSpec(seq.TargetAppPath, processName);
+        }
     }
 
     private static bool TryParseHotkey(string hotkey, out uint modifiers, out uint vk)

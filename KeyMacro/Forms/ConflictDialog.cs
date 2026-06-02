@@ -68,13 +68,24 @@ public partial class ConflictDialog : Form
 
         var btnSkip = new Button
         {
-            Text = "跳过",
+            Text = "跳过冲突",
             AutoSize = true,
             MinimumSize = new Size(100, 36),
             FlatStyle = FlatStyle.Flat,
             BackColor = Color.FromArgb(0xF0, 0xF0, 0xF0)
         };
         btnSkip.Click += (_, _) => { _result = ConflictAction.Skip; DialogResult = DialogResult.No; Close(); };
+
+        var btnCancelAll = new Button
+        {
+            Text = "取消全部复制",
+            AutoSize = true,
+            MinimumSize = new Size(130, 36),
+            FlatStyle = FlatStyle.Flat,
+            BackColor = Color.FromArgb(0xD9, 0x5C, 0x5C),
+            ForeColor = Color.White
+        };
+        btnCancelAll.Click += (_, _) => { _result = ConflictAction.CancelAll; DialogResult = DialogResult.Cancel; Close(); };
 
         var btnOverwrite = new Button
         {
@@ -101,7 +112,7 @@ public partial class ConflictDialog : Form
             catch { }
         };
 
-        btnPanel.Controls.AddRange([btnSkip, btnOverwrite, btnOpenFolder]);
+        btnPanel.Controls.AddRange([btnCancelAll, btnSkip, btnOverwrite, btnOpenFolder]);
         mainPanel.Controls.Add(btnPanel);
 
         Controls.Add(mainPanel);

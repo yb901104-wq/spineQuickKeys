@@ -55,17 +55,17 @@ public class BatchCopyService
                 if (conflicts.Count > 0)
                 {
                     action = await onConflict(targetDir, conflicts, token);
+                    if (action == ConflictAction.CancelAll)
+                    {
+                        Cancel();
+                        break;
+                    }
                     if (token.IsCancellationRequested) break;
                 }
 
-                if (action == ConflictAction.Skip)
-                {
-                    // Skip all files for this target
-                    OperationLogger.Info($"BatchCopy: skipped target {targetDir} ({conflicts.Count} conflicts)");
-                    done += sourceFiles.Count;
-                    ProgressChanged?.Invoke($"已跳过: {targetDir}");
-                    continue;
-                }
+                var conflictSet = action == ConflictAction.Skip
+                    ? conflicts.ToHashSet(StringComparer.OrdinalIgnoreCase)
+                    : [];
 
                 // Copy files
                 foreach (var srcFile in sourceFiles)
@@ -74,10 +74,18 @@ public class BatchCopyService
 
                     try
                     {
-                        var destPath = Path.Combine(targetDir, Path.GetFileName(srcFile));
+                        var fileName = Path.GetFileName(srcFile);
+                        if (conflictSet.Contains(fileName))
+                        {
+                            done++;
+                            ProgressChanged?.Invoke($"跳过冲突文件: {fileName} → {targetDir} ({done}/{total})");
+                            continue;
+                        }
+
+                        var destPath = Path.Combine(targetDir, fileName);
                         File.Copy(srcFile, destPath, overwrite: action == ConflictAction.Overwrite);
                         done++;
-                        ProgressChanged?.Invoke($"复制中: {Path.GetFileName(srcFile)} → {targetDir} ({done}/{total})");
+                        ProgressChanged?.Invoke($"复制中: {fileName} → {targetDir} ({done}/{total})");
                     }
                     catch (Exception ex)
                     {
@@ -114,5 +122,6 @@ public class BatchCopyService
 public enum ConflictAction
 {
     Overwrite,
-    Skip
+    Skip,
+    CancelAll
 }

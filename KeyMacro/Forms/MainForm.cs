@@ -1,5 +1,6 @@
 using KeyMacro.Models;
 using KeyMacro.Services;
+using System.Security.Cryptography;
 
 namespace KeyMacro.Forms;
 
@@ -28,10 +29,11 @@ public partial class MainForm : Form
     private List<VirtualKeyWindow> _vkWindows = [];
     private VkWindowManager? _vkManagerWindow;
     private SequenceEditor? _openEditor;
+    private bool _refreshingGrid;
 
     public MainForm()
     {
-        Text = "spine宏助手（TANRY） V2.77";
+        Text = "spine宏助手（TANRY） V2.78";
         Icon = IconService.AppIcon;
         Size = new Size(900, 600);
         MinimumSize = new Size(600, 400);
@@ -114,6 +116,8 @@ public partial class MainForm : Form
         };
         _dgv.CellDoubleClick += (_, _) => EditSequence();
         _dgv.CellValueChanged += Dgv_CellValueChanged;
+        _dgv.CurrentCellDirtyStateChanged += Dgv_CurrentCellDirtyStateChanged;
+        _dgv.CellEndEdit += Dgv_CellEndEdit;
         _dgv.CellFormatting += Dgv_CellFormatting;
         _dgv.CellClick += Dgv_CellClick;
         dgvPanel.Controls.Add(_dgv);
@@ -179,7 +183,7 @@ public partial class MainForm : Form
 
     private void MainForm_Shown(object? sender, EventArgs e)
     {
-        OperationLogger.Info($"Application started, version 2.77");
+        OperationLogger.Info($"Application started, version 2.78");
         LoadSequences();
 
         // Auto-load spine entries if saved path exists and file is valid
@@ -250,14 +254,20 @@ public partial class MainForm : Form
             if (dialog.ShowDialog() == DialogResult.OK)
             {
                 seq.TargetAppPath = dialog.FileName;
+                seq.TargetAppProcessName = Path.GetFileNameWithoutExtension(dialog.FileName);
+                seq.TargetAppDisplayName = seq.TargetAppProcessName;
                 SaveAndRefresh();
             }
         }
         else if (e.ColumnIndex == 8)
         {
-            if (!string.IsNullOrEmpty(seq.TargetAppPath))
+            if (!string.IsNullOrEmpty(seq.TargetAppPath) ||
+                !string.IsNullOrEmpty(seq.TargetAppProcessName) ||
+                !string.IsNullOrEmpty(seq.TargetAppDisplayName))
             {
                 seq.TargetAppPath = "";
+                seq.TargetAppProcessName = "";
+                seq.TargetAppDisplayName = "";
                 SaveAndRefresh();
             }
         }
@@ -269,6 +279,7 @@ public partial class MainForm : Form
 
     private void Dgv_CellValueChanged(object? sender, DataGridViewCellEventArgs e)
     {
+        if (_refreshingGrid) return;
         if (e.RowIndex < 0 || e.RowIndex >= _sequences.Count) return;
         var seq = _sequences[e.RowIndex];
 
@@ -279,8 +290,7 @@ public partial class MainForm : Form
                 if (seq.Enabled != enabled)
                 {
                     seq.Enabled = enabled;
-                    _config.Save(_sequences);
-                    _hotkeyService.RegisterAll(_sequences);
+                    SaveAndRefresh();
                 }
                 break;
 
@@ -288,15 +298,28 @@ public partial class MainForm : Form
             case 5: // 间隔(ms)
                 int.TryParse(_dgv.Rows[e.RowIndex].Cells[5].Value?.ToString(), out var interval);
                 seq.LoopIntervalMs = interval > 0 ? interval : 200;
-                _config.Save(_sequences);
+                SaveAndRefresh();
                 break;
 
             case 6: // 循环次数
                 int.TryParse(_dgv.Rows[e.RowIndex].Cells[6].Value?.ToString(), out var count);
                 seq.LoopCount = count >= 0 ? count : 0;
-                _config.Save(_sequences);
+                SaveAndRefresh();
                 break;
         }
+    }
+
+    private void Dgv_CurrentCellDirtyStateChanged(object? sender, EventArgs e)
+    {
+        if (_dgv.IsCurrentCellDirty)
+            _dgv.CommitEdit(DataGridViewDataErrorContexts.Commit);
+    }
+
+    private void Dgv_CellEndEdit(object? sender, DataGridViewCellEventArgs e)
+    {
+        if (e.RowIndex < 0) return;
+        if (e.ColumnIndex is 5 or 6)
+            _dgv.CommitEdit(DataGridViewDataErrorContexts.Commit);
     }
 
     private void LoadSequences()
@@ -448,7 +471,9 @@ public partial class MainForm : Form
             LoopIntervalMs = src.LoopIntervalMs,
             LoopCount = src.LoopCount,
             TargetAppPath = src.TargetAppPath,
-            TriggerVkButtonName = src.TriggerVkButtonName,
+            TargetAppProcessName = src.TargetAppProcessName,
+            TargetAppDisplayName = src.TargetAppDisplayName,
+            TriggerVkButtonName = "",
             Steps = src.Steps.Select(s => new MacroStep
             {
                 Type = s.Type, Keys = s.Keys, DelayMs = s.DelayMs,
@@ -634,7 +659,14 @@ public partial class MainForm : Form
         var spinePath = ConfigService.LoadSpinePath();
         if (!string.IsNullOrEmpty(spinePath) && File.Exists(spinePath))
         {
+            bundle.SpineHotkeyRawText = File.ReadAllText(spinePath);
+            bundle.SpineHotkeyFileName = Path.GetFileName(spinePath);
+            bundle.SpineHotkeyHash = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(spinePath)));
             bundle.SpineHotkeys = new SpineHotkeyService(spinePath).Load();
+            bundle.SpineHotkeyNames = bundle.SpineHotkeys
+                .Where(e => !e.Name.StartsWith("---"))
+                .Select(e => e.Name)
+                .ToList();
         }
 
         new DataBundleService().Export(dialog.FileName, bundle);
@@ -662,47 +694,47 @@ public partial class MainForm : Form
         if (bundle.VkDataList == null && bundle.VkData != null)
             bundle.VkDataList = [bundle.VkData];
 
-        // ── 1. Spine hotkey bindings (key-aligned) ──
+        // ── 1. Spine hotkey bindings (raw restore or key-aligned merge) ──
         var spinePath = ConfigService.LoadSpinePath();
         if (bundle.SpineHotkeys?.Count > 0 && !string.IsNullOrEmpty(spinePath) && File.Exists(spinePath))
         {
-            if (MessageBox.Show("是否导入 Spine 快捷键绑定？（将按按键名对位替换，不增删行）",
-                "导入", MessageBoxButtons.YesNo) == DialogResult.Yes)
-            {
-                var importMap = bundle.SpineHotkeys
-                    .Where(e => !e.Name.StartsWith("---"))
-                    .ToDictionary(e => e.Name, e => e.Keys, StringComparer.OrdinalIgnoreCase);
+            var sameStructure = IsSameSpineStructure(bundle, spinePath);
+            var recommendation = sameStructure ? "完整覆盖恢复" : "按名称合并迁移";
+            var prompt = sameStructure
+                ? "检测到目标热键文件与导入包结构基本一致，推荐完整覆盖恢复。\n\n是：完整覆盖恢复\n否：按名称合并迁移\n取消：跳过 Spine 快捷键导入"
+                : "检测到目标热键文件与导入包结构可能不同，推荐按名称合并迁移。\n\n是：按名称合并迁移\n否：完整覆盖恢复\n取消：跳过 Spine 快捷键导入";
+            var choice = MessageBox.Show(prompt, $"导入 Spine 快捷键（推荐：{recommendation}）",
+                MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
 
-                var lines = File.ReadAllLines(spinePath).ToList();
-                bool changed = false;
-                for (int i = 0; i < lines.Count; i++)
+            if (choice != DialogResult.Cancel)
+            {
+                var useFullRestore = sameStructure
+                    ? choice == DialogResult.Yes
+                    : choice == DialogResult.No;
+
+                if (useFullRestore && !string.IsNullOrEmpty(bundle.SpineHotkeyRawText))
                 {
-                    var raw = lines[i].TrimEnd('\r', '\n');
-                    var colonIdx = raw.IndexOf(':');
-                    if (colonIdx > 0)
-                    {
-                        var name = raw[..colonIdx].TrimEnd();
-                        if (importMap.TryGetValue(name, out var newKeys))
-                        {
-                            lines[i] = $"{name}: {newKeys}";
-                            changed = true;
-                        }
-                    }
-                }
-                if (changed)
-                {
-                    File.WriteAllLines(spinePath, lines);
-                    // Reload spine entries in editor if open
-                    if (SpineHotkeyEditor.LastLoadedEntries != null)
-                    {
-                        var svc = new SpineHotkeyService(spinePath);
-                        SpineHotkeyEditor.SetLoadedEntries(svc.Load());
-                    }
-                    MessageBox.Show("Spine 快捷键绑定已导入。", "完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    File.WriteAllText(spinePath, bundle.SpineHotkeyRawText);
+                    var svc = new SpineHotkeyService(spinePath);
+                    SpineHotkeyEditor.SetLoadedEntries(svc.Load());
+                    MessageBox.Show("Spine 快捷键已按原文完整恢复。", "完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 else
                 {
-                    MessageBox.Show("没有匹配的快捷键项可导入。", "完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    var result = MergeSpineHotkeysByName(bundle, spinePath);
+                    if (result.Changed)
+                    {
+                        var svc = new SpineHotkeyService(spinePath);
+                        SpineHotkeyEditor.SetLoadedEntries(svc.Load());
+                        var skipText = result.SkippedRiskNames.Count > 0
+                            ? $"\n\n已跳过重复/近似重复风险项：\n{string.Join("\n", result.SkippedRiskNames)}"
+                            : "";
+                        MessageBox.Show($"Spine 快捷键绑定已按名称合并导入。{skipText}", "完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    else
+                    {
+                        MessageBox.Show("没有匹配的快捷键项可导入。", "完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
                 }
             }
         }
@@ -711,7 +743,7 @@ public partial class MainForm : Form
             MessageBox.Show("Spine 快捷键绑定：未找到 Spine 热键文件，跳过。", "导入", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
-        // ── 2. Spine key descriptions (translations, key-aligned) ──
+        // ── 2. Spine key descriptions (per-hotkey-file annotations) ──
         if (bundle.SpineHotkeys?.Count > 0)
         {
             if (MessageBox.Show("是否导入按键功能说明？（将按按键名对位替换翻译内容）",
@@ -721,29 +753,11 @@ public partial class MainForm : Form
                     .Where(e => !string.IsNullOrEmpty(e.ChineseNote) && !e.Name.StartsWith("---"))
                     .ToDictionary(e => e.Name, e => e.ChineseNote!, StringComparer.OrdinalIgnoreCase);
 
-                var transPath = SpineHotkeyService.GetTranslationPath();
-                if (File.Exists(transPath))
+                if (!string.IsNullOrEmpty(spinePath) && File.Exists(spinePath))
                 {
-                    var lines = File.ReadAllLines(transPath, System.Text.Encoding.UTF8).ToList();
-                    bool changed = false;
-                    for (int i = 0; i < lines.Count; i++)
-                    {
-                        var trimmed = lines[i].Trim();
-                        if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith('#')) continue;
-                        var eqIdx = trimmed.IndexOf('=');
-                        if (eqIdx > 0)
-                        {
-                            var name = trimmed[..eqIdx].Trim();
-                            if (importNoteMap.TryGetValue(name, out var newNote))
-                            {
-                                lines[i] = $"{name}={newNote}";
-                                changed = true;
-                            }
-                        }
-                    }
-                    if (changed)
-                    {
-                        File.WriteAllLines(transPath, lines, System.Text.Encoding.UTF8);
+                    if (importNoteMap.Count > 0)
+                    { 
+                        SpineHotkeyService.SaveAnnotations(spinePath, importNoteMap);
                         MessageBox.Show("按键功能说明已导入。", "完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     else
@@ -753,17 +767,19 @@ public partial class MainForm : Form
                 }
                 else
                 {
-                    MessageBox.Show("翻译文件不存在，跳过。", "导入", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show("Spine 热键文件不存在，功能说明导入跳过。", "导入", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
         }
 
         // ── 3. Sequences ──
+        var sequencesImported = false;
         if (bundle.Sequences?.Count > 0)
         {
             if (MessageBox.Show($"是否导入所有序列？（共 {bundle.Sequences.Count} 个序列）", "导入", MessageBoxButtons.YesNo) == DialogResult.Yes)
             {
                 _sequences = [.. bundle.Sequences];
+                sequencesImported = true;
                 _config.Save(_sequences);
                 _failedHotkeys = [.. _hotkeyService.RegisterAll(_sequences)];
                 SyncVkButtonBindings();
@@ -780,43 +796,34 @@ public partial class MainForm : Form
         {
             var global = _vkSerializer.LoadAll();
             int importedCount = 0;
+            var importedWindows = new List<VirtualLayoutSerializer.WindowLayoutData>();
             foreach (var win in bundle.VkDataList)
             {
-                var newName = win.Name;
-                // Check collision
-                var existingIdx = global.Windows.FindIndex(w =>
-                    w.Name.Equals(newName, StringComparison.OrdinalIgnoreCase));
-                string prompt;
-                if (existingIdx >= 0)
-                {
-                    prompt = $"窗口 \"{newName}\" 已存在，是否覆盖？";
-                }
-                else
-                {
-                    prompt = $"是否导入窗口 \"{newName}\"？（共 {win.Buttons.Count} 个按钮）";
-                }
+                var originalName = win.Name;
+                var newName = GetUniqueWindowName(global.Windows, originalName);
+                var renamed = !newName.Equals(originalName, StringComparison.OrdinalIgnoreCase);
+                var prompt = renamed
+                    ? $"窗口 \"{originalName}\" 已存在，将以 \"{newName}\" 新增导入。是否继续？（共 {win.Buttons.Count} 个按钮）"
+                    : $"是否导入窗口 \"{newName}\"？（共 {win.Buttons.Count} 个按钮）";
 
                 if (MessageBox.Show(prompt, "导入虚拟按键", MessageBoxButtons.YesNo) == DialogResult.Yes)
                 {
+                    win.Name = newName;
                     win.Enabled = true;
-                    if (existingIdx >= 0)
-                        global.Windows[existingIdx] = win;
-                    else
-                        global.Windows.Add(win);
+                    global.Windows.Add(win);
+                    importedWindows.Add(win);
+                    if (renamed && sequencesImported)
+                        RenameImportedVkBindings(originalName, newName);
                     importedCount++;
                 }
             }
             if (importedCount > 0)
             {
                 _vkSerializer.SaveAll(global);
-                // Refresh open VK windows
-                foreach (var vkw in _vkWindows)
-                {
-                    if (!vkw.IsDisposed)
-                        vkw.Close();
-                }
-                _vkWindows.Clear();
-                OpenVirtualKeys();
+                foreach (var winData in importedWindows.Where(w => w.Enabled))
+                    CreateVkWindow(winData);
+                if (sequencesImported)
+                    SaveAndRefresh();
                 MessageBox.Show($"已导入 {importedCount} 个虚拟按键窗口。", "完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
@@ -825,6 +832,138 @@ public partial class MainForm : Form
             MessageBox.Show("虚拟按键布局：文件中无相关数据，跳过。", "导入", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
     }
+
+    private static string GetUniqueWindowName(List<VirtualLayoutSerializer.WindowLayoutData> windows, string preferredName)
+    {
+        var baseName = string.IsNullOrWhiteSpace(preferredName) ? "导入窗口" : preferredName.Trim();
+        if (!windows.Any(w => w.Name.Equals(baseName, StringComparison.OrdinalIgnoreCase)))
+            return baseName;
+
+        var index = 1;
+        string candidate;
+        do
+        {
+            candidate = $"{baseName}_导入{index++}";
+        }
+        while (windows.Any(w => w.Name.Equals(candidate, StringComparison.OrdinalIgnoreCase)));
+        return candidate;
+    }
+
+    private void RenameImportedVkBindings(string oldWindowName, string newWindowName)
+    {
+        var oldPrefix = oldWindowName + "/";
+        var newPrefix = newWindowName + "/";
+        foreach (var seq in _sequences)
+        {
+            if (seq.TriggerVkButtonName.StartsWith(oldPrefix, StringComparison.OrdinalIgnoreCase))
+                seq.TriggerVkButtonName = newPrefix + seq.TriggerVkButtonName[oldPrefix.Length..];
+        }
+    }
+
+    private static bool IsSameSpineStructure(DataBundle bundle, string targetPath)
+    {
+        var sourceNames = bundle.SpineHotkeyNames;
+        if (sourceNames == null || sourceNames.Count == 0)
+            sourceNames = bundle.SpineHotkeys?
+                .Where(e => !e.Name.StartsWith("---"))
+                .Select(e => e.Name)
+                .ToList();
+        if (sourceNames == null || sourceNames.Count == 0) return false;
+
+        var targetNames = ExtractSpineHotkeyNames(File.ReadAllLines(targetPath));
+        if (targetNames.Count == 0 || sourceNames.Count != targetNames.Count) return false;
+
+        for (int i = 0; i < sourceNames.Count; i++)
+        {
+            if (!string.Equals(sourceNames[i], targetNames[i], StringComparison.OrdinalIgnoreCase))
+                return false;
+        }
+        return true;
+    }
+
+    private static SpineMergeResult MergeSpineHotkeysByName(DataBundle bundle, string targetPath)
+    {
+        var importEntries = bundle.SpineHotkeys?
+            .Where(e => !e.Name.StartsWith("---"))
+            .ToList() ?? [];
+
+        var importRiskNames = FindNormalizedDuplicateNames(importEntries.Select(e => e.Name));
+        var lines = File.ReadAllLines(targetPath).ToList();
+        var targetNames = ExtractSpineHotkeyNames(lines);
+        var targetRiskNames = FindNormalizedDuplicateNames(targetNames);
+        var riskNames = new HashSet<string>(importRiskNames.Concat(targetRiskNames), StringComparer.OrdinalIgnoreCase);
+
+        var importMap = importEntries
+            .Where(e => !riskNames.Contains(e.Name))
+            .GroupBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().Keys, StringComparer.OrdinalIgnoreCase);
+
+        var changed = false;
+        var skipped = new HashSet<string>(riskNames, StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < lines.Count; i++)
+        {
+            var raw = lines[i].TrimEnd('\r', '\n');
+            var colonIdx = raw.IndexOf(':');
+            if (colonIdx <= 0) continue;
+
+            var name = raw[..colonIdx].TrimEnd();
+            if (riskNames.Contains(name)) continue;
+
+            if (importMap.TryGetValue(name, out var newKeys))
+            {
+                lines[i] = $"{name}: {newKeys}";
+                changed = true;
+            }
+        }
+
+        if (changed)
+            File.WriteAllLines(targetPath, lines);
+
+        return new SpineMergeResult(changed, [.. skipped]);
+    }
+
+    private static List<string> ExtractSpineHotkeyNames(IEnumerable<string> lines)
+    {
+        var names = new List<string>();
+        foreach (var rawLine in lines)
+        {
+            var line = rawLine.TrimEnd('\r', '\n');
+            if (string.IsNullOrWhiteSpace(line) || line.StartsWith("---")) continue;
+            var colonIdx = line.IndexOf(':');
+            if (colonIdx > 0)
+                names.Add(line[..colonIdx].TrimEnd());
+        }
+        return names;
+    }
+
+    private static HashSet<string> FindNormalizedDuplicateNames(IEnumerable<string> names)
+    {
+        var byNormalized = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var name in names)
+        {
+            var normalized = NormalizeSpineName(name);
+            if (!byNormalized.TryGetValue(normalized, out var list))
+            {
+                list = [];
+                byNormalized[normalized] = list;
+            }
+            list.Add(name);
+        }
+
+        return byNormalized.Values
+            .Where(list => list.Count > 1)
+            .SelectMany(list => list)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizeSpineName(string name)
+    {
+        return string.Join(" ", name.Normalize().Trim()
+            .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
+            .ToLowerInvariant();
+    }
+
+    private sealed record SpineMergeResult(bool Changed, List<string> SkippedRiskNames);
 
     private void ExitApp()
     {
@@ -892,6 +1031,7 @@ public partial class MainForm : Form
 
     private void RefreshGrid()
     {
+        _refreshingGrid = true;
         _dgv.Columns.Clear();
         float ds = DeviceDpi / 96f;
 
@@ -969,9 +1109,7 @@ public partial class MainForm : Form
         _dgv.Rows.Clear();
         foreach (var seq in _sequences)
         {
-            var appName = string.IsNullOrEmpty(seq.TargetAppPath)
-                ? "全局"
-                : Path.GetFileName(seq.TargetAppPath);
+            var appName = GetTargetAppDisplay(seq);
             var idx = _dgv.Rows.Add(
                 seq.Enabled, seq.Name, !string.IsNullOrEmpty(seq.TriggerVkButtonName) ? $"虚拟按键({seq.TriggerVkButtonName})" : seq.TriggerHotkey, appName, seq.Steps.Count,
                 seq.LoopIntervalMs.ToString(), seq.LoopCount.ToString());
@@ -983,6 +1121,15 @@ public partial class MainForm : Form
 
         _btnEdit.Enabled = _sequences.Count > 0;
         _btnDelete.Enabled = _sequences.Count > 0;
+        _refreshingGrid = false;
+    }
+
+    private static string GetTargetAppDisplay(MacroSequence seq)
+    {
+        if (!string.IsNullOrWhiteSpace(seq.TargetAppDisplayName)) return seq.TargetAppDisplayName;
+        if (!string.IsNullOrWhiteSpace(seq.TargetAppProcessName)) return seq.TargetAppProcessName;
+        if (!string.IsNullOrWhiteSpace(seq.TargetAppPath)) return Path.GetFileNameWithoutExtension(seq.TargetAppPath);
+        return "全局";
     }
 
     private void OnHotkeyTriggered(string sequenceId)

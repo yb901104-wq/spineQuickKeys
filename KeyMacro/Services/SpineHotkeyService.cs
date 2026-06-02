@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace KeyMacro.Services;
 
 public class SpineHotkeyEntry
@@ -18,6 +20,8 @@ public class SpineHotkeyService
 
     private static readonly string ProjectTranslationPath =
         Path.Combine(Directory.GetCurrentDirectory(), "spine_translations.txt");
+
+    private string AnnotationPath => GetAnnotationPath(FilePath);
 
     public SpineHotkeyService(string filePath)
     {
@@ -74,8 +78,7 @@ public class SpineHotkeyService
         }
 
         // Load translations from dictionary and apply to matching entries
-        EnsureTranslationFile();
-        var translations = LoadTranslationFile();
+        var translations = LoadAnnotationFile();
         foreach (var entry in entries)
         {
             if (!entry.Name.StartsWith("---") && translations.TryGetValue(entry.Name, out var trans))
@@ -108,27 +111,7 @@ public class SpineHotkeyService
     {
         try
         {
-            var path = File.Exists(ProjectTranslationPath) ? ProjectTranslationPath : TranslationPath;
-
-            // Read existing translations
-            var translations = new Dictionary<string, string>();
-            if (File.Exists(path))
-            {
-                var lines = File.ReadAllLines(path, System.Text.Encoding.UTF8);
-                foreach (var line in lines)
-                {
-                    var trimmed = line.Trim();
-                    if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith('#')) continue;
-                    var eqIdx = trimmed.IndexOf('=');
-                    if (eqIdx > 0)
-                    {
-                        var name = trimmed[..eqIdx].Trim();
-                        var note = trimmed[(eqIdx + 1)..].Trim();
-                        if (name.Length > 0)
-                            translations[name] = note;
-                    }
-                }
-            }
+            var translations = LoadAnnotationFile();
 
             // Update with entries that have non-empty ChineseNote
             foreach (var entry in entries)
@@ -137,11 +120,7 @@ public class SpineHotkeyService
                     translations[entry.Name] = entry.ChineseNote;
             }
 
-            // Write back
-            var writePath = File.Exists(ProjectTranslationPath) ? ProjectTranslationPath : TranslationPath;
-            EnsureDirectory(writePath);
-            var outputLines = translations.Select(kv => $"{kv.Key}={kv.Value}");
-            File.WriteAllLines(writePath, outputLines, System.Text.Encoding.UTF8);
+            SaveAnnotations(FilePath, translations);
         }
         catch { }
     }
@@ -200,6 +179,33 @@ public class SpineHotkeyService
     }
 
     public static string GetTranslationPath() => TranslationPath;
+
+    public static string GetAnnotationPath(string hotkeyFilePath) => hotkeyFilePath + ".annotations.json";
+
+    public static void SaveAnnotations(string hotkeyFilePath, Dictionary<string, string> annotations)
+    {
+        var path = GetAnnotationPath(hotkeyFilePath);
+        EnsureDirectory(path);
+        var json = JsonSerializer.Serialize(annotations, new JsonSerializerOptions { WriteIndented = true });
+        File.WriteAllText(path, json, System.Text.Encoding.UTF8);
+    }
+
+    private Dictionary<string, string> LoadAnnotationFile()
+    {
+        try
+        {
+            if (File.Exists(AnnotationPath))
+            {
+                var json = File.ReadAllText(AnnotationPath, System.Text.Encoding.UTF8);
+                return JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? [];
+            }
+        }
+        catch { }
+
+        // Backward fallback for older builds that used one global translation file.
+        EnsureTranslationFile();
+        return LoadTranslationFile();
+    }
 
     /// <summary>
     /// Convert WinForms key name (e.g. "OemPeriod") to Spine format (e.g. "PERIOD").

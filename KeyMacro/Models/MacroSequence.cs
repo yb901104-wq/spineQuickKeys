@@ -9,6 +9,8 @@ public class MacroSequence
     public int LoopIntervalMs { get; set; } = 100;
     public int LoopCount { get; set; } = 1;
     public string TargetAppPath { get; set; } = "";
+    public string TargetAppProcessName { get; set; } = "";
+    public string TargetAppDisplayName { get; set; } = "";
     public string TriggerVkButtonName { get; set; } = "";
     public List<MacroStep> Steps { get; set; } = [];
 }

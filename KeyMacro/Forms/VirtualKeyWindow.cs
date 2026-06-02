@@ -70,6 +70,7 @@ public class VirtualKeyWindow : Form
         _sequencesChangedCallback = sequencesChangedCallback;
         _bindingManager = new VirtualKeyBindingManager(new HotkeyService(IntPtr.Zero), _btnManager);
         _loopExecutor = new VirtualLoopExecutor(_player);
+        _loopExecutor.LoopEnded += OnLoopEnded;
 
         Text = "虚拟按键";
         Icon = IconService.AppIcon;
@@ -139,7 +140,7 @@ public class VirtualKeyWindow : Form
                 { _btnManager.Clear(); RebuildWidgets(); SaveLayout(); }
         });
         m.Items.Add("-");
-        m.Items.Add("置顶/取消置顶", null, (_, _) => { _topMostState = !_topMostState; TopMost = _topMostState; });
+        m.Items.Add("置顶/取消置顶", null, (_, _) => { _topMostState = !_topMostState; TopMost = _topMostState; SaveLayout(); });
 
         var opMenu = new ToolStripMenuItem("透明度");
         opMenu.DropDownItems.Add("100%", null, (_, _) => SetOpacity(1.0));
@@ -152,6 +153,7 @@ public class VirtualKeyWindow : Form
         {
             _posLocked = !_posLocked;
             foreach (var w in _widgets.Values) w.AllowDragging = !_posLocked;
+            SaveLayout();
         });
         m.Items.Add("-");
         m.Items.Add("捕获目标窗口", null, (_, _) => CaptureTargetWindow());
@@ -268,12 +270,14 @@ public class VirtualKeyWindow : Form
             if (int.TryParse(input, out var val) && val >= 0) { vbtn.ExtraGap = val; SaveLayout(); RecalculateSize(); }
         });
         menu.Items.Add(gapMenu);
-        menu.Items.Add("强制停止", null, (_, _) => _player.ForceStop());
+        menu.Items.Add("强制停止", null, (_, _) => _loopExecutor.ForceStopLoop(vbtn.Id));
         menu.Items.Add("-");
         menu.Items.Add("删除当前按钮", null, (_, _) =>
         {
-            _loopExecutor.StopLoop(vbtn.Id); _btnManager.RemoveButton(vbtn.Id); SaveLayout();
+            _loopExecutor.ForceStopLoop(vbtn.Id); _btnManager.RemoveButton(vbtn.Id); SaveLayout();
         });
+        menu.Opened += (_, _) => _loopExecutor.PauseForMenu(vbtn.Id);
+        menu.Closed += (_, _) => _loopExecutor.ResumeFromMenu(vbtn.Id);
         menu.Show(widget, location);
     }
 
@@ -287,7 +291,7 @@ public class VirtualKeyWindow : Form
 
     // ── Op / Lock ──
 
-    private void SetOpacity(double val) { _opacityValue = val; Opacity = val; }
+    private void SetOpacity(double val) { _opacityValue = val; Opacity = val; SaveLayout(); }
 
     private void ToggleWindowLock()
     {
@@ -304,6 +308,7 @@ public class VirtualKeyWindow : Form
             ControlBox = true;
             UpdateTitle();
         }
+        SaveLayout();
     }
 
     public bool HasBoundButtons() => _btnManager.Buttons.Any(b => !string.IsNullOrEmpty(b.BindActionId));
@@ -598,8 +603,8 @@ public class VirtualKeyWindow : Form
 
         if (vbtn.StyleType == VirtualButtonStyle.LoopIcon && vbtn.LoopEnabled)
         {
-            // LoopIcon: toggle stop
-            if (_player.IsPlaying) { _player.Stop(); return; }
+            // LoopIcon: second click requests outer-loop stop after current round.
+            if (_loopExecutor.IsLooping(vbtn.Id)) { _loopExecutor.StopLoop(vbtn.Id); return; }
             var seq = _bindingManager.ResolveBinding(vbtn, _sequences);
             if (seq != null) { _loopExecutor.StartLoop(vbtn, seq); widget.IsActive = true; }
             return;
@@ -625,6 +630,21 @@ public class VirtualKeyWindow : Form
         await Task.Delay(300);
         OperationLogger.Info($"[DIAG] VKPlay: scheme=ActivateWindow hwnd=0x{hwnd:X8} seq=\"{sequence.Name}\"");
         _ = _player.Play(sequence, skipInitialDelay: true);
+    }
+
+    private void OnLoopEnded(string buttonId)
+    {
+        if (IsDisposed) return;
+        void ClearActive()
+        {
+            if (_widgets.TryGetValue(buttonId, out var widget))
+                widget.IsActive = false;
+        }
+
+        if (InvokeRequired)
+            BeginInvoke((Action)ClearActive);
+        else
+            ClearActive();
     }
 
     private void OnButtonDragged(VirtualButtonWidget widget, int dx, int dy)

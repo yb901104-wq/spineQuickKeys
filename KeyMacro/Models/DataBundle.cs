@@ -8,6 +8,10 @@ public class DataBundle
     public string Version { get; set; } = "1.0";
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public List<SpineHotkeyEntry>? SpineHotkeys { get; set; }
+    public string? SpineHotkeyRawText { get; set; }
+    public string? SpineHotkeyFileName { get; set; }
+    public string? SpineHotkeyHash { get; set; }
+    public List<string>? SpineHotkeyNames { get; set; }
     public List<MacroSequence>? Sequences { get; set; }
 
     // New: export/import all VK windows

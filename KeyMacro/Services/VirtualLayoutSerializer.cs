@@ -55,8 +55,8 @@ public class VirtualLayoutSerializer
 
     private static string? ResolveLoadPath()
     {
-        if (File.Exists(ProjectPath)) return ProjectPath;
         if (File.Exists(AppDataPath)) return AppDataPath;
+        if (File.Exists(ProjectPath)) return ProjectPath;
         return null;
     }
 
@@ -137,7 +137,7 @@ public class VirtualLayoutSerializer
     {
         try
         {
-            var path = _lastLoadPath ?? AppDataPath;
+            var path = AppDataPath;
             var dir = Path.GetDirectoryName(path)!;
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
             var json = JsonSerializer.Serialize(global, JsonOptions);

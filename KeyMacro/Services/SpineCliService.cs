@@ -14,9 +14,8 @@ public class SpineCliService
 
     /// <summary>Detect Spine.com from registry or common install paths.</summary>
     [SupportedOSPlatform("windows")]
-    public string DetectFromRegistry()
+    public string? DetectFromRegistry()
     {
-        // Check registry for Spine install
         try
         {
             using var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall");
@@ -40,7 +39,6 @@ public class SpineCliService
         }
         catch { }
 
-        // Common install paths
         var candidates = new[]
         {
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Spine", "Spine.com"),
@@ -52,14 +50,15 @@ public class SpineCliService
         return candidates.FirstOrDefault(File.Exists);
     }
 
-    public async Task<CliResult> RunAsync(string args)
+    public async Task<CliResult> RunAsync(IEnumerable<string> args, CancellationToken cancellationToken = default)
     {
         if (!IsValid)
             return new CliResult { ExitCode = -1, Error = "Spine.com 路径未设置或文件不存在。" };
 
+        var argList = args.ToList();
         try
         {
-            var psi = new ProcessStartInfo(SpinePath, args)
+            var psi = new ProcessStartInfo(SpinePath)
             {
                 UseShellExecute = false,
                 CreateNoWindow = true,
@@ -68,38 +67,34 @@ public class SpineCliService
                 StandardOutputEncoding = System.Text.Encoding.UTF8,
                 StandardErrorEncoding = System.Text.Encoding.UTF8,
             };
+            foreach (var arg in argList)
+                psi.ArgumentList.Add(arg);
 
-            var process = new Process { StartInfo = psi };
-            CliResult result;
-            try
+            using var process = new Process { StartInfo = psi };
+            process.Start();
+
+            var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+            var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
+            await process.WaitForExitAsync(cancellationToken);
+            await Task.Delay(200, cancellationToken);
+
+            var result = new CliResult
             {
-                process.Start();
+                ExitCode = process.ExitCode,
+                Output = await outputTask,
+                Error = await errorTask
+            };
 
-                var outputTask = process.StandardOutput.ReadToEndAsync();
-                var errorTask = process.StandardError.ReadToEndAsync();
-
-                process.WaitForExit();
-                // Small delay to ensure file handles are released by Spine.com
-                await Task.Delay(200);
-
-                result = new CliResult
-                {
-                    ExitCode = process.ExitCode,
-                    Output = await outputTask,
-                    Error = await errorTask
-                };
-            }
-            finally
-            {
-                process.Close();
-                process.Dispose();
-            }
-
-            OperationLogger.Info($"SpineCliService.Run: exit={result.ExitCode} args={args}");
+            OperationLogger.Info($"SpineCliService.Run: exit={result.ExitCode} args={FormatArgs(argList)}");
             if (!result.Success)
                 OperationLogger.Error($"SpineCliService.Run: {result.Error}");
 
             return result;
+        }
+        catch (OperationCanceledException)
+        {
+            OperationLogger.Warn($"SpineCliService.Run: cancelled args={FormatArgs(argList)}");
+            return new CliResult { ExitCode = -1, Error = "操作已取消。" };
         }
         catch (Exception ex)
         {
@@ -108,65 +103,55 @@ public class SpineCliService
         }
     }
 
-    public Task<CliResult> Export(string project, string outputDir, string exportConfig)
+    public Task<CliResult> Export(string project, string outputDir, string exportConfig, CancellationToken ct = default)
     {
-        return RunAsync($"-i \"{project}\" -o \"{outputDir}\" -e \"{exportConfig}\"");
+        return RunAsync(["-i", project, "-o", outputDir, "-e", exportConfig], ct);
     }
 
-    public Task<CliResult> ExportDefault(string project, string outputDir, string exportType = "json+pack")
+    public Task<CliResult> ExportDefault(string project, string outputDir, string exportType = "json+pack", CancellationToken ct = default)
     {
-        return RunAsync($"-i \"{project}\" -o \"{outputDir}\" -e {exportType}");
+        return RunAsync(["-i", project, "-o", outputDir, "-e", exportType], ct);
     }
 
-    public Task<CliResult> Pack(string project, string outputDir, string packName)
+    public Task<CliResult> Pack(string project, string outputDir, string packName, CancellationToken ct = default)
     {
-        return RunAsync($"-i \"{project}\" -o \"{outputDir}\" -p \"{packName}\"");
+        return RunAsync(["-i", project, "-o", outputDir, "-p", packName], ct);
     }
 
-    public Task<CliResult> ImportMerge(string source, string target)
+    public Task<CliResult> ImportMerge(string source, string target, CancellationToken ct = default)
     {
-        return RunAsync($"-i \"{source}\" -o \"{target}\" -r");
+        return RunAsync(["-i", source, "-o", target, "-r"], ct);
     }
 
-    public Task<CliResult> ImportToTemp(string source, string tempOutput)
+    public Task<CliResult> ImportToTemp(string source, string tempOutput, CancellationToken ct = default)
     {
-        return RunAsync($"-i \"{source}\" -o \"{tempOutput}\" -r");
+        return RunAsync(["-i", source, "-o", tempOutput, "-r"], ct);
     }
 
-    public Task<CliResult> UpdateVersion(string project, string version, string outputPath)
+    public Task<CliResult> UpdateVersion(string project, string version, string outputPath, CancellationToken ct = default)
     {
-        return RunAsync($"-i \"{project}\" --update {version} -o \"{outputPath}\"");
+        return RunAsync(["-i", project, "--update", version, "-o", outputPath], ct);
     }
 
-    // ── Spine 4.3+ 实验功能 ──
-
-    /// <summary>Run Spine -i to collect project version, skeleton names, and animation names.</summary>
-    public async Task<SpineProjectInfo> GetProjectInfo(string path)
+    public async Task<SpineProjectInfo> GetProjectInfo(string path, CancellationToken ct = default)
     {
         var info = new SpineProjectInfo();
-        var result = await RunAsync($"--ignore-unknown-args -i \"{path}\"");
+        var result = await RunAsync(["--ignore-unknown-args", "-i", path], ct);
         if (!result.Success) return info;
 
         var output = result.Output;
         if (string.IsNullOrEmpty(output)) output = result.Error;
 
-        // Parse version line (e.g. "Spine 4.3.06" or "version: 4.3.06")
         var versionMatch = System.Text.RegularExpressions.Regex.Match(output,
             @"(\d+\.\d+(?:\.\d+)?)");
         if (versionMatch.Success)
             info.Version = versionMatch.Groups[1].Value;
 
-        // Parse skeleton names (lines containing "Skeleton:" or quoted names)
         var skelMatches = System.Text.RegularExpressions.Regex.Matches(output,
             @"(?:Skeleton|skeleton)[:\s]+""?([^""\r\n]+)""?");
         foreach (System.Text.RegularExpressions.Match m in skelMatches)
             info.SkeletonNames.Add(m.Groups[1].Value.Trim());
 
-        // Parse animation names from Spine -i output
-        // Format: "Animations: <count>" then indented lines with names:
-        //   Animations: 1
-        //     walk
-        // Or single line: "Animations: walk, run"
         var lines = output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
         for (int i = 0; i < lines.Length; i++)
         {
@@ -177,10 +162,8 @@ public class SpineCliService
             var colonIdx = trimmed.IndexOf(':');
             if (colonIdx >= 0) afterColon = trimmed[(colonIdx + 1)..].Trim();
 
-            // Check if next lines are indented (contain animation names)
             if (i + 1 < lines.Length && lines[i + 1].Length > 0 && char.IsWhiteSpace(lines[i + 1][0]))
             {
-                // Collect indented lines below
                 for (int j = i + 1; j < lines.Length; j++)
                 {
                     if (string.IsNullOrWhiteSpace(lines[j])) break;
@@ -192,7 +175,6 @@ public class SpineCliService
             }
             else if (!string.IsNullOrWhiteSpace(afterColon) && !afterColon.All(char.IsDigit))
             {
-                // Fallback: names on same line
                 var names = afterColon
                     .Split([',', ' ', '\t'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                 info.AnimationNames.AddRange(names);
@@ -203,26 +185,32 @@ public class SpineCliService
         return info;
     }
 
-    /// <summary>Build --merge skeleton merge command.</summary>
     public Task<CliResult> MergeSkeleton(string source, string target,
-        string? fromName = null, string? toName = null, string? version = null)
+        string? fromName = null, string? toName = null, string? version = null, CancellationToken ct = default)
     {
-        var versionArg = !string.IsNullOrEmpty(version) ? $"-u {version} " : "";
-        var fromArg = !string.IsNullOrEmpty(fromName) ? $"--from \"{fromName}\" " : "";
-        var toArg = !string.IsNullOrEmpty(toName) ? $"--to \"{toName}\" " : "";
-        return RunAsync(
-            $"--ignore-unknown-args {versionArg}-i \"{source}\" -o \"{target}\" {fromArg}{toArg}--merge -r");
+        var args = new List<string> { "--ignore-unknown-args" };
+        if (!string.IsNullOrEmpty(version)) { args.Add("-u"); args.Add(version); }
+        args.AddRange(["-i", source, "-o", target]);
+        if (!string.IsNullOrEmpty(fromName)) { args.Add("--from"); args.Add(fromName); }
+        if (!string.IsNullOrEmpty(toName)) { args.Add("--to"); args.Add(toName); }
+        args.AddRange(["--merge", "-r"]);
+        return RunAsync(args, ct);
     }
 
-    /// <summary>Build -a animation import command with individual animation names.</summary>
     public Task<CliResult> ImportAnimations(string source, string target,
-        List<string> animNames, string? version = null)
+        List<string> animNames, string? version = null, CancellationToken ct = default)
     {
-        var versionArg = !string.IsNullOrEmpty(version) ? $"-u {version} " : "";
-        var animArgs = animNames.Count > 0
-            ? string.Join(" ", animNames.Select(n => $"-a \"{n}\"")) + " "
-            : "";
-        return RunAsync(
-            $"--ignore-unknown-args {versionArg}-i \"{source}\" -o \"{target}\" {animArgs}-r");
+        var args = new List<string> { "--ignore-unknown-args" };
+        if (!string.IsNullOrEmpty(version)) { args.Add("-u"); args.Add(version); }
+        args.AddRange(["-i", source, "-o", target]);
+        foreach (var name in animNames)
+            args.AddRange(["-a", name]);
+        args.Add("-r");
+        return RunAsync(args, ct);
+    }
+
+    private static string FormatArgs(IEnumerable<string> args)
+    {
+        return string.Join(" ", args.Select(a => a.Contains(' ') ? $"\"{a}\"" : a));
     }
 }

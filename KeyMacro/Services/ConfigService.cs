@@ -23,6 +23,7 @@ public class ConfigService
 
     private static string ResolveLoadPath()
     {
+        if (File.Exists(AppDataPath)) return AppDataPath;
         if (File.Exists(ProjectPath)) return ProjectPath;
         return AppDataPath;
     }
@@ -39,6 +40,8 @@ public class ConfigService
             }
             var json = File.ReadAllText(path);
             var sequences = JsonSerializer.Deserialize<List<MacroSequence>>(json) ?? [];
+            foreach (var seq in sequences)
+                NormalizeTargetApp(seq);
             OperationLogger.Info($"ConfigService.Load: loaded {sequences.Count} sequences from {path}");
             return sequences;
         }
@@ -152,5 +155,14 @@ public class ConfigService
         {
             OperationLogger.Error($"ConfigService.ClearPathHistory: failed: {ex.Message}");
         }
+    }
+
+    private static void NormalizeTargetApp(MacroSequence seq)
+    {
+        if (string.IsNullOrWhiteSpace(seq.TargetAppPath)) return;
+        if (string.IsNullOrWhiteSpace(seq.TargetAppProcessName))
+            seq.TargetAppProcessName = Path.GetFileNameWithoutExtension(seq.TargetAppPath);
+        if (string.IsNullOrWhiteSpace(seq.TargetAppDisplayName))
+            seq.TargetAppDisplayName = seq.TargetAppProcessName;
     }
 }

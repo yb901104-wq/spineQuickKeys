@@ -373,17 +373,24 @@ public class BatchCopyWindow : Form
         if (middle.Count == 0 && string.IsNullOrEmpty(suffix))
             return !string.IsNullOrEmpty(prefix) ? [prefix] : [];
 
-        var cleanPrefix = prefix.TrimEnd('/', '\\');
-        var cleanSuffix = suffix.TrimStart('/', '\\').TrimEnd('/', '\\');
-
-        return middle.Select(m =>
+        var middleItems = middle.Count > 0 ? middle : [""];
+        return middleItems.Select(m =>
         {
-            var cleanMid = m.Trim('/').Trim('\\').Replace('\\', '/');
-            var path = cleanPrefix + "/" + cleanMid;
-            if (!string.IsNullOrEmpty(cleanSuffix))
-                path += "/" + cleanSuffix;
-            return path;
+            var parts = new List<string>();
+            if (!string.IsNullOrEmpty(prefix))
+                parts.Add(prefix.TrimEnd('/', '\\'));
+            parts.AddRange(SplitRelativePath(m));
+            parts.AddRange(SplitRelativePath(suffix));
+            return Path.Combine([.. parts]);
         }).ToList();
+    }
+
+    private static IEnumerable<string> SplitRelativePath(string value)
+    {
+        return value.Trim()
+            .Trim('/', '\\')
+            .Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(part => part.Length > 0 && !Path.IsPathRooted(part));
     }
 
     // ══════════════════════════════════════════════
@@ -556,6 +563,8 @@ public class BatchCopyWindow : Form
         {
             using var dialog = new ConflictDialog(targetDir, files);
             dialog.ShowDialog(this);
+            if (dialog.Result == ConflictAction.CancelAll)
+                _copyService.Cancel();
             tcs.TrySetResult(dialog.Result);
         }));
         return tcs.Task;
