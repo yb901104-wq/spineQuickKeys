@@ -130,23 +130,24 @@ internal static class Program
         Fill(g, r, App);
         DrawTitleBar(g, r, "序列编辑器");
         PanelBox(g, new Rectangle(24, 50, 1392, 148), "触发与绑定");
-        Label(g, "序列名称", 48, 92, 10, Muted); InputBox(g, new Rectangle(150, 84, 420, 34), "G5 常用绑定");
-        Label(g, "触发方式", 620, 92, 10, Muted); ComboBox(g, new Rectangle(720, 84, 240, 34), "键盘快捷键");
-        Label(g, "触发值", 48, 138, 10, Muted); ComboBox(g, new Rectangle(150, 130, 420, 34), "Ctrl+Shift+G");
-        Button(g, new Rectangle(590, 130, 116, 34), "录入按键", Blue);
-        Button(g, new Rectangle(720, 130, 92, 34), "清除", PanelAlt);
-        Label(g, "可选项", 850, 138, 10, Muted); ComboBox(g, new Rectangle(940, 130, 320, 34), "主窗口/播放");
+        Label(g, "序列名称", 48, 110, 10, Muted); InputBox(g, new Rectangle(150, 102, 420, 34), "G5 常用绑定");
+        Label(g, "触发快捷键", 48, 156, 10, Muted); InputBox(g, new Rectangle(150, 148, 420, 34), "Ctrl+Shift+G");
+        Button(g, new Rectangle(590, 148, 116, 34), "键盘录入", Blue);
+        Button(g, new Rectangle(720, 148, 104, 34), "虚拟按键", PanelAlt);
+        Button(g, new Rectangle(838, 148, 82, 34), "清除", PanelAlt);
+        Label(g, "关联虚拟按键", 850, 110, 10, Muted); InputBox(g, new Rectangle(964, 102, 320, 34), "主窗口/播放");
 
         PanelBox(g, new Rectangle(24, 216, 1392, 660), "步骤列表");
-        ToolStrip(g, new Rectangle(44, 262, 900, 36), ["添加单键", "添加组合键", "添加文本", "录制按键", "删除", "上移", "下移"]);
+        ToolStrip(g, new Rectangle(44, 262, 720, 36), ["添加步骤", "删除步骤", "录制按键", "上移", "下移"]);
         Table(g, new Rectangle(44, 314, 1372, 520),
-            ["序号", "类型", "按键/文本", "延迟(ms)", "长按(ms)", "复制"],
+            ["类型", "按键/文本", "延迟(ms)", "触发方式", "按压时长(ms)", "操作"],
             [
-                ["1", "组合键", "Ctrl+S", "80", "-", "复制"],
-                ["2", "单键", "F5", "120", "-", "复制"],
-                ["3", "文本", "skin_G5", "60", "-", "复制"],
-                ["4", "组合键", "Win+E", "100", "-", "复制"]
-            ]);
+                ["组合键", "Ctrl+S", "80", "点按", "0", "复制"],
+                ["单键", "F5", "120", "点按", "0", "复制"],
+                ["文本", "skin_G5", "60", "点按", "0", "复制"],
+                ["组合键", "Win+E", "100", "长按", "300", "复制"]
+            ],
+            [0.9f, 1.4f, 0.75f, 0.9f, 1.0f, 0.55f]);
         Button(g, new Rectangle(1194, 838, 90, 36), "取消", PanelAlt);
         Button(g, new Rectangle(1296, 838, 90, 36), "确定", Blue);
     }
@@ -167,10 +168,10 @@ internal static class Program
         Fill(g, r, App);
         DrawTitleBar(g, r, "Spine 热键编辑器");
         PanelBox(g, new Rectangle(20, 48, 1400, 92), "TXT 文件");
-        InputBox(g, new Rectangle(42, 88, 720, 32), @"D:\Spine\hotkeys-1.txt");
-        Button(g, new Rectangle(778, 88, 110, 32), "载入文件", Blue);
-        Button(g, new Rectangle(904, 88, 110, 32), "录制按键", PanelAlt);
-        InputBox(g, new Rectangle(1030, 88, 360, 32), "搜索: rotate");
+        InputBox(g, new Rectangle(42, 99, 720, 32), @"D:\Spine\hotkeys-1.txt");
+        Button(g, new Rectangle(778, 99, 110, 32), "载入文件", Blue);
+        Button(g, new Rectangle(904, 99, 110, 32), "录制按键", PanelAlt);
+        InputBox(g, new Rectangle(1030, 99, 360, 32), "搜索: rotate");
 
         PanelBox(g, new Rectangle(20, 156, 1400, 720), "快捷键列表");
         Table(g, new Rectangle(42, 206, 1360, 606),
@@ -245,21 +246,21 @@ internal static class Program
     {
         Fill(g, r, App);
         DrawTitleBar(g, r, "文件批量复制");
-        PanelBox(g, new Rectangle(24, 54, 1392, 176), "源文件");
+        PanelBox(g, new Rectangle(24, 54, 1392, 236), "源文件");
         ToolStrip(g, new Rectangle(44, 92, 520, 34), ["选择文件", "移除选中", "清空列表"]);
-        Table(g, new Rectangle(44, 138, 1368, 82), ["文件名", "路径"], [["201.png", @"source\201.png"], ["zzps-skin.json", @"source\zzps-skin.json"]]);
-        PanelBox(g, new Rectangle(24, 246, 1392, 470), "目标路径");
-        InputBox(g, new Rectangle(116, 300, 600, 32), @"D:\exports");
-        Label(g, "前缀", 46, 307, 10, Muted);
-        Button(g, new Rectangle(730, 300, 92, 32), "选择文件夹", PanelAlt);
-        TextArea(g, new Rectangle(116, 346, 600, 136), "targets1\ntargets2\ntargets3\ntargets4\ntargets5");
-        Label(g, "中间", 46, 354, 10, Muted);
-        Button(g, new Rectangle(730, 346, 92, 32), "添加行", PanelAlt);
-        Button(g, new Rectangle(730, 388, 92, 32), "删除行", PanelAlt);
-        InputBox(g, new Rectangle(116, 500, 600, 32), "images");
-        Label(g, "后缀", 46, 507, 10, Muted);
-        Button(g, new Rectangle(730, 542, 92, 32), "清理历史", PanelAlt);
-        Table(g, new Rectangle(880, 300, 500, 250), ["预览目标"], [[@"D:\exports\targets1\images"], [@"D:\exports\targets2\images"], [@"D:\exports\targets3\images"]]);
+        Table(g, new Rectangle(44, 138, 1368, 136), ["文件名", "路径"], [["201.png", @"source\201.png"], ["zzps-skin.json", @"source\zzps-skin.json"], ["run.atlas", @"source\run.atlas"]]);
+        PanelBox(g, new Rectangle(24, 306, 1392, 410), "目标路径");
+        InputBox(g, new Rectangle(116, 354, 600, 32), @"D:\exports");
+        Label(g, "前缀", 46, 361, 10, Muted);
+        Button(g, new Rectangle(730, 354, 92, 32), "选择文件夹", PanelAlt);
+        TextArea(g, new Rectangle(116, 400, 600, 116), "targets1\ntargets2\ntargets3\ntargets4");
+        Label(g, "中间", 46, 408, 10, Muted);
+        Button(g, new Rectangle(730, 400, 92, 32), "添加行", PanelAlt);
+        Button(g, new Rectangle(730, 442, 92, 32), "删除行", PanelAlt);
+        InputBox(g, new Rectangle(116, 532, 600, 32), "images");
+        Label(g, "后缀", 46, 539, 10, Muted);
+        Button(g, new Rectangle(730, 574, 92, 32), "清理历史", PanelAlt);
+        Table(g, new Rectangle(880, 354, 500, 220), ["预览目标"], [[@"D:\exports\targets1\images"], [@"D:\exports\targets2\images"], [@"D:\exports\targets3\images"]]);
         Button(g, new Rectangle(24, 734, 1368, 42), "开始复制", Green);
         Label(g, "复制中: zzps-skin.json -> targets4", 24, 798, 10, Text, 1368, align: StringAlignment.Center);
         Progress(g, new Rectangle(24, 824, 1368, 26), .4f, "4/10");
@@ -594,13 +595,14 @@ internal static class Program
             ("删除全部", danger),
             ("复制序列", edit),
             ("暂停全部", edit),
-            ("Spine 热键", spine),
+            ("Spine热键编辑", spine),
             ("释放", danger),
-            ("VK 开/关", vk),
-            ("VK 管理", vk),
-            ("批量重命名", batch),
+            ("开启虚拟按键", vk),
+            ("关闭虚拟按键", edit),
+            ("管理虚拟按键", vk),
+            ("批量重命名/spine解包整理", batch),
             ("批量复制", copy),
-            ("CLI", cli),
+            ("CLI批量合并/导出", cli),
             ("导入", edit),
             ("导出", edit)
         };
@@ -608,15 +610,21 @@ internal static class Program
         var x = rect.X + 6;
         foreach (var item in items)
         {
-            var w = Math.Max(58, item.Text.Length * 13 + 24);
-            if (item.Text is "复制序列" or "Spine 热键" or "批量重命名")
-                w += 10;
+            var w = EstimateToolbarButtonWidth(item.Text);
             var available = rect.Right - x - 6;
             if (available < 50) break;
             w = Math.Min(w, available);
             Button(g, new Rectangle(x, rect.Y + 5, w, rect.Height - 10), item.Text, item.Color);
             x += w + 6;
         }
+    }
+
+    private static int EstimateToolbarButtonWidth(string text)
+    {
+        var width = 24;
+        foreach (var ch in text)
+            width += ch < 128 ? 7 : 12;
+        return Math.Max(52, width);
     }
 
     private static void CheckOption(Graphics g, Rectangle rect, string label, bool isChecked, Color color)
