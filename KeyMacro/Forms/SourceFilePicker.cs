@@ -23,13 +23,15 @@ public class SourceFilePicker : Form
     {
         Text = "选择源文件";
         Icon = IconService.AppIcon;
-        Size = new Size(700, 550);
+        Size = new Size(1000, 700);
+        MinimumSize = new Size(760, 520);
         StartPosition = FormStartPosition.CenterParent;
         MinimizeBox = false;
         MaximizeBox = false;
         ShowInTaskbar = false;
 
         BuildUI();
+        UiTheme.Apply(this, UiWindowProfile.SourceFilePicker);
     }
 
     private void BuildUI()
@@ -44,7 +46,7 @@ public class SourceFilePicker : Form
 
         // Toolbar
         var toolbar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true };
-        _txtDir.Size = new Size(380, 24);
+        _txtDir.Size = new Size(620, 24);
         _txtDir.ReadOnly = true;
         _btnBrowse.Text = "浏览";
         _btnBrowse.AutoSize = true;

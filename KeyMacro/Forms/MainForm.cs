@@ -33,16 +33,17 @@ public partial class MainForm : Form
 
     public MainForm()
     {
-        Text = "spine宏助手（TANRY） V2.79";
+        Text = "spine宏助手（TANRY） V2.8";
         Icon = IconService.AppIcon;
-        Size = new Size(900, 600);
-        MinimumSize = new Size(600, 400);
+        Size = new Size(1200, 760);
+        MinimumSize = new Size(900, 560);
         StartPosition = FormStartPosition.CenterScreen;
         FormClosing += MainForm_FormClosing;
         Shown += MainForm_Shown;
 
         BuildUI();
         SetupTray();
+        UiTheme.Apply(this, UiWindowProfile.Main);
 
         _hotkeyService = new HotkeyService(Handle);
         _hotkeyService.HotkeyTriggered += OnHotkeyTriggered;
@@ -52,10 +53,11 @@ public partial class MainForm : Form
     {
         var toolStrip = new FlowLayoutPanel
         {
-            Dock = DockStyle.Top,
+            Dock = DockStyle.Fill,
             AutoSize = true,
-            WrapContents = false,
-            Padding = new Padding(8, 8, 8, 0)
+            WrapContents = true,
+            Padding = new Padding(12, 10, 12, 8),
+            BackColor = Color.FromArgb(0xF0, 0xF0, 0xF0)
         };
 
         _btnAdd = CreateButton("添加", Color.FromArgb(0, 120, 215), Color.White);
@@ -93,13 +95,33 @@ public partial class MainForm : Form
         _btnImport.Click += (_, _) => ImportDataBundle();
         _btnExport.Click += (_, _) => ExportDataBundle();
 
-        toolStrip.Controls.AddRange([_btnAdd, _btnEdit, _btnDelete, _btnDeleteAll, _btnDuplicate, _btnPause, _btnSpine, _btnSpineRelease, _btnVkOpen, _btnVkClose, _btnVkManage, _btnReName, _btnBatchCopy, _btnCli, _btnImport, _btnExport]);
-        Controls.Add(toolStrip);
+        toolStrip.Controls.AddRange([
+            _btnAdd, _btnEdit, _btnDelete, _btnDeleteAll, _btnDuplicate, _btnPause,
+            Spacer(),
+            _btnSpine, _btnSpineRelease,
+            Spacer(),
+            _btnVkOpen, _btnVkClose, _btnVkManage,
+            Spacer(),
+            _btnReName, _btnBatchCopy, _btnCli,
+            Spacer(),
+            _btnImport, _btnExport
+        ]);
+
+        var rootLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            Padding = new Padding(0),
+            Margin = new Padding(0)
+        };
+        rootLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        rootLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         var dgvPanel = new Panel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(0, (int)(48 * DeviceDpi / 96f), 0, 0)
+            Padding = new Padding(12, 8, 12, 12)
         };
 
         _dgv = new DataGridView
@@ -112,8 +134,19 @@ public partial class MainForm : Form
             MultiSelect = false,
             SelectionMode = DataGridViewSelectionMode.FullRowSelect,
             AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None,
-            EditMode = DataGridViewEditMode.EditOnEnter
+            EditMode = DataGridViewEditMode.EditOnEnter,
+            BorderStyle = BorderStyle.FixedSingle,
+            BackgroundColor = Color.White,
+            ColumnHeadersVisible = true,
+            EnableHeadersVisualStyles = false,
+            ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
+            ColumnHeadersHeight = 34,
+            RowTemplate = { Height = 30 }
         };
+        _dgv.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(0xF4, 0xF4, 0xF4);
+        _dgv.ColumnHeadersDefaultCellStyle.ForeColor = Color.Black;
+        _dgv.ColumnHeadersDefaultCellStyle.Font = new Font("Microsoft YaHei UI", 9, FontStyle.Bold);
+        _dgv.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
         _dgv.CellDoubleClick += (_, _) => EditSequence();
         _dgv.CellValueChanged += Dgv_CellValueChanged;
         _dgv.CurrentCellDirtyStateChanged += Dgv_CurrentCellDirtyStateChanged;
@@ -121,7 +154,9 @@ public partial class MainForm : Form
         _dgv.CellFormatting += Dgv_CellFormatting;
         _dgv.CellClick += Dgv_CellClick;
         dgvPanel.Controls.Add(_dgv);
-        Controls.Add(dgvPanel);
+        rootLayout.Controls.Add(toolStrip, 0, 0);
+        rootLayout.Controls.Add(dgvPanel, 0, 1);
+        Controls.Add(rootLayout);
     }
 
     private static Button CreateButton(string text, Color backColor, Color foreColor)
@@ -134,7 +169,21 @@ public partial class MainForm : Form
             FlatStyle = FlatStyle.Flat,
             BackColor = backColor,
             ForeColor = foreColor,
+            Margin = new Padding(3, 3, 3, 5),
+            Padding = new Padding(6, 0, 6, 1),
             FlatAppearance = { BorderColor = Color.Gainsboro }
+        };
+    }
+
+    private static Control Spacer()
+    {
+        return new Panel
+        {
+            AutoSize = false,
+            Width = 10,
+            Height = 30,
+            Margin = new Padding(8, 4, 8, 4),
+            BackColor = Color.Gainsboro
         };
     }
 
@@ -183,7 +232,7 @@ public partial class MainForm : Form
 
     private void MainForm_Shown(object? sender, EventArgs e)
     {
-        OperationLogger.Info($"Application started, version 2.78");
+        OperationLogger.Info($"Application started, version 2.8");
         LoadSequences();
 
         // Auto-load spine entries if saved path exists and file is valid
@@ -218,7 +267,11 @@ public partial class MainForm : Form
     {
         base.OnDpiChanged(e);
         if (_dgv.Parent is Panel p)
-            p.Padding = new Padding(0, (int)(48 * DeviceDpi / 96f), 0, 0);
+        {
+            var padX = (int)(12 * DeviceDpi / 96f);
+            var padTop = (int)(8 * DeviceDpi / 96f);
+            p.Padding = new Padding(padX, padTop, padX, padX);
+        }
         RefreshGrid();
     }
 
@@ -1032,13 +1085,16 @@ public partial class MainForm : Form
     private void RefreshGrid()
     {
         _refreshingGrid = true;
+        _dgv.ColumnHeadersVisible = true;
+        _dgv.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+        _dgv.ColumnHeadersHeight = (int)(34 * DeviceDpi / 96f);
         _dgv.Columns.Clear();
         float ds = DeviceDpi / 96f;
 
         _dgv.Columns.Add(new DataGridViewCheckBoxColumn
         {
             HeaderText = "启用",
-            Width = (int)(50 * ds),
+            Width = (int)(56 * ds),
             AutoSizeMode = DataGridViewAutoSizeColumnMode.None
         });
         _dgv.Columns.Add(new DataGridViewTextBoxColumn
@@ -1046,8 +1102,8 @@ public partial class MainForm : Form
             HeaderText = "序列名称",
             ReadOnly = true,
             AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
-            FillWeight = 28,
-            MinimumWidth = (int)(80 * ds)
+            FillWeight = 26,
+            MinimumWidth = (int)(140 * ds)
         });
         _dgv.Columns.Add(new DataGridViewTextBoxColumn
         {
@@ -1055,7 +1111,7 @@ public partial class MainForm : Form
             ReadOnly = true,
             AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
             FillWeight = 18,
-            MinimumWidth = (int)(60 * ds)
+            MinimumWidth = (int)(120 * ds)
         });
         _dgv.Columns.Add(new DataGridViewTextBoxColumn
         {
@@ -1063,36 +1119,33 @@ public partial class MainForm : Form
             ReadOnly = true,
             AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
             FillWeight = 18,
-            MinimumWidth = (int)(60 * ds)
+            MinimumWidth = (int)(120 * ds)
         });
         _dgv.Columns.Add(new DataGridViewTextBoxColumn
         {
             HeaderText = "步骤数",
             ReadOnly = true,
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
-            FillWeight = 10,
-            MinimumWidth = (int)(40 * ds)
+            Width = (int)(72 * ds),
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.None
         });
         _dgv.Columns.Add(new DataGridViewTextBoxColumn
         {
             HeaderText = "间隔(ms)",
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
-            FillWeight = 12,
-            MinimumWidth = (int)(50 * ds)
+            Width = (int)(90 * ds),
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.None
         });
         _dgv.Columns.Add(new DataGridViewTextBoxColumn
         {
             HeaderText = "循环(次)",
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
-            FillWeight = 12,
-            MinimumWidth = (int)(50 * ds)
+            Width = (int)(90 * ds),
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.None
         });
         _dgv.Columns.Add(new DataGridViewButtonColumn
         {
             HeaderText = "选择",
             Text = "...",
             UseColumnTextForButtonValue = true,
-            Width = (int)(50 * ds),
+            Width = (int)(64 * ds),
             AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
             ReadOnly = true
         });
@@ -1101,8 +1154,8 @@ public partial class MainForm : Form
             HeaderText = "清除",
             Text = "✕",
             UseColumnTextForButtonValue = true,
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
-            FillWeight = 2,
+            Width = (int)(64 * ds),
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
             ReadOnly = true
         });
 
@@ -1118,6 +1171,9 @@ public partial class MainForm : Form
 
         if (_sequences.Count > 0)
             _dgv.Rows[0].Selected = true;
+
+        _dgv.ColumnHeadersVisible = true;
+        _dgv.ColumnHeadersHeight = (int)(34 * DeviceDpi / 96f);
 
         _btnEdit.Enabled = _sequences.Count > 0;
         _btnDelete.Enabled = _sequences.Count > 0;

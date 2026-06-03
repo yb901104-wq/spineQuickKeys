@@ -30,7 +30,10 @@ namespace KeyMacro.Forms.ReNameTool
         {
             InitializeComponent();
             Icon = IconService.AppIcon;
+            Size = new Size(1080, 660);
+            MinimumSize = new Size(980, 600);
             InitializeProgressPanels();
+            UiTheme.Apply(this, UiWindowProfile.ReNameTool);
         }
 
         private void InitializeProgressPanels()

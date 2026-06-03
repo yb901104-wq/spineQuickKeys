@@ -66,8 +66,8 @@ public class BatchCliWindow : Form
     {
         Text = "CLI批量合并/导出";
         Icon = IconService.AppIcon;
-        Size = new Size(900, 650);
-        MinimumSize = new Size(800, 500);
+        Size = new Size(1100, 760);
+        MinimumSize = new Size(880, 620);
         StartPosition = FormStartPosition.CenterParent;
 
         var layout = new TableLayoutPanel
@@ -88,6 +88,7 @@ public class BatchCliWindow : Form
         layout.Controls.Add(progressPanel, 0, 2);
 
         Controls.Add(layout);
+        UiTheme.Apply(this, UiWindowProfile.BatchCli);
         LoadSavedPath();
     }
 
@@ -103,7 +104,7 @@ public class BatchCliWindow : Form
         };
 
         var lbl = new Label { Text = "Spine.com 路径:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft };
-        _txtSpinePath.Size = new Size(350, 24);
+        _txtSpinePath.Size = new Size(520, 24);
         _btnDetect.Text = "检测";
         _btnDetect.AutoSize = true;
         _btnDetect.MinimumSize = new Size(60, 28);
@@ -345,7 +346,7 @@ public class BatchCliWindow : Form
         _btnMergeExecute.FlatStyle = FlatStyle.Flat;
         _btnMergeExecute.Click += async (_, _) => await ExecuteMerge();
 
-        _chkExperimental.Text = "☐ 实验功能：CLI骨架合并(4.3)";
+        _chkExperimental.Text = "实验功能：CLI骨架合并(4.3)";
         _chkExperimental.AutoSize = true;
         _chkExperimental.Margin = new Padding(8, 0, 0, 0);
         _chkExperimental.TextAlign = ContentAlignment.MiddleLeft;
@@ -552,6 +553,7 @@ public class BatchCliWindow : Form
         bottomPanel.Controls.AddRange([btnCancel, btnOk]);
         dialog.Controls.Add(clb);
         dialog.Controls.Add(bottomPanel);
+        UiTheme.Apply(dialog, UiWindowProfile.AnimationSelect);
         dialog.ShowDialog(this);
     }
 
@@ -1005,7 +1007,7 @@ public class BatchCliWindow : Form
         // Row 0: Source dir
         exportPanel.Controls.Add(new Label { Text = "源目录:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft }, 0, 0);
         var srcDirPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true };
-        _txtSourceDir.Size = new Size(350, 24);
+        _txtSourceDir.Size = new Size(520, 24);
         _btnBrowseSource.Text = "浏览";
         _btnBrowseSource.AutoSize = true;
         _btnBrowseSource.MinimumSize = new Size(60, 28);
@@ -1042,21 +1044,24 @@ public class BatchCliWindow : Form
         // Export config selection + refresh button
         _btnRefresh.Text = "刷新状态";
         _btnRefresh.AutoSize = true;
-        _btnRefresh.MinimumSize = new Size(80, 28);
+        _btnRefresh.MinimumSize = new Size(96, 34);
         _btnRefresh.FlatStyle = FlatStyle.Flat;
         _btnRefresh.Click += (_, _) => RefreshExportStatus();
 
         _rbFinish.Text = "finish.export.json";
         _rbFinish.AutoSize = true;
+        _rbFinish.Margin = new Padding(10, 5, 4, 0);
         _rbFinish.Checked = true;
         _rbFinish.CheckedChanged += (_, _) => { if (_rbFinish.Checked) { _exportConfigName = "finish.export.json"; RefreshExportStatus(); } };
 
         _rbDemotion.Text = "demotion.export.json";
         _rbDemotion.AutoSize = true;
+        _rbDemotion.Margin = new Padding(10, 5, 4, 0);
         _rbDemotion.CheckedChanged += (_, _) => { if (_rbDemotion.Checked) { _exportConfigName = "demotion.export.json"; RefreshExportStatus(); } };
 
         _rbOther.Text = "其他";
         _rbOther.AutoSize = true;
+        _rbOther.Margin = new Padding(10, 5, 4, 0);
         _rbOther.CheckedChanged += (_, _) =>
         {
             if (!_rbOther.Checked) return;
@@ -1084,7 +1089,7 @@ public class BatchCliWindow : Form
         // Row 3: Output dir
         exportPanel.Controls.Add(new Label { Text = "输出目录:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft }, 0, 3);
         var outDirPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true };
-        _txtOutputDir.Size = new Size(350, 24);
+        _txtOutputDir.Size = new Size(520, 24);
         _btnBrowseOutput.Text = "浏览";
         _btnBrowseOutput.AutoSize = true;
         _btnBrowseOutput.MinimumSize = new Size(60, 28);

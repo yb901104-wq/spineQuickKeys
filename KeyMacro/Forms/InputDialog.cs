@@ -12,7 +12,8 @@ public class InputDialog : Form
     {
         Text = title;
         Icon = IconService.AppIcon;
-        Size = new Size(400, 160);
+        Size = new Size(520, 220);
+        MinimumSize = new Size(420, 180);
         StartPosition = FormStartPosition.CenterParent;
         MinimizeBox = false;
         MaximizeBox = false;
@@ -26,6 +27,9 @@ public class InputDialog : Form
             RowCount = 3,
             ColumnCount = 1
         };
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
 
         var lblPrompt = new Label
         {
@@ -70,6 +74,7 @@ public class InputDialog : Form
         layout.Controls.Add(btnPanel);
 
         Controls.Add(layout);
+        UiTheme.Apply(this, UiWindowProfile.InputDialog);
         AcceptButton = btnOk;
         CancelButton = btnCancel;
     }

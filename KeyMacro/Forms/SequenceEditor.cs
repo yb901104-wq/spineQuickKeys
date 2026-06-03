@@ -36,6 +36,7 @@ public partial class SequenceEditor : Form
         _sequence = sequence;
         _suppressEvents = true;
         InitializeComponent();
+        UiTheme.Apply(this, UiWindowProfile.SequenceEditor);
         LoadSequence();
         _suppressEvents = false;
     }
@@ -55,25 +56,36 @@ public partial class SequenceEditor : Form
         _topPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Top,
-            Height = 130,
+            Height = 154,
             ColumnCount = 2,
             RowCount = 3,
-            Padding = new Padding(12, 12, 12, 0)
+            Padding = new Padding(14, 16, 14, 6)
         };
         _topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
         _topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        _topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
-        _topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
-        _topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+        _topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+        _topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+        _topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
 
         _topPanel.Controls.Add(new Label { Text = "序列名称:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 0);
         _topPanel.Controls.Add(new Label { Text = "触发快捷键:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 1);
         _topPanel.Controls.Add(new Label { Text = "关联虚拟按键:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 2);
 
-        _txtName = new TextBox { Dock = DockStyle.Fill, Font = new Font("Microsoft YaHei", 10) };
+        _txtName = new TextBox
+        {
+            Anchor = AnchorStyles.Left | AnchorStyles.Right,
+            Font = new Font("Microsoft YaHei", 10),
+            Margin = new Padding(0, 5, 0, 5)
+        };
         _topPanel.Controls.Add(_txtName, 1, 0);
 
-        var hotkeyPanel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 1 };
+        var hotkeyPanel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 4,
+            RowCount = 1,
+            Margin = new Padding(0, 5, 0, 5)
+        };
         hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
         hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
@@ -81,16 +93,17 @@ public partial class SequenceEditor : Form
 
         _txtHotkey = new TextBox
         {
-            Dock = DockStyle.Fill,
+            Anchor = AnchorStyles.Left | AnchorStyles.Right,
             ReadOnly = true,
             Font = new Font("Microsoft YaHei", 10),
-            BackColor = Color.White
+            BackColor = Color.White,
+            Margin = new Padding(0, 4, 4, 4)
         };
-        _btnKeyboardRecord = new Button { Text = "键盘录入", Dock = DockStyle.Fill, FlatStyle = FlatStyle.Flat };
+        _btnKeyboardRecord = new Button { Text = "键盘录入", Dock = DockStyle.Fill, FlatStyle = FlatStyle.Flat, Margin = new Padding(4, 0, 4, 0) };
         _btnKeyboardRecord.Click += BtnKeyboardRecord_Click;
-        _btnVkPick = new Button { Text = "虚拟按键", Dock = DockStyle.Fill, FlatStyle = FlatStyle.Flat };
+        _btnVkPick = new Button { Text = "虚拟按键", Dock = DockStyle.Fill, FlatStyle = FlatStyle.Flat, Margin = new Padding(4, 0, 4, 0) };
         _btnVkPick.Click += BtnVkPick_Click;
-        var btnClearHotkey = new Button { Text = "清除", Dock = DockStyle.Fill, FlatStyle = FlatStyle.Flat };
+        var btnClearHotkey = new Button { Text = "清除", Dock = DockStyle.Fill, FlatStyle = FlatStyle.Flat, Margin = new Padding(4, 0, 0, 0) };
         btnClearHotkey.Click += (_, _) => { _txtHotkey.Text = ""; };
         hotkeyPanel.Controls.Add(_txtHotkey);
         hotkeyPanel.Controls.Add(_btnKeyboardRecord);
@@ -100,9 +113,10 @@ public partial class SequenceEditor : Form
 
         _txtVkBind = new TextBox
         {
-            Dock = DockStyle.Fill,
+            Anchor = AnchorStyles.Left | AnchorStyles.Right,
             Font = new Font("Microsoft YaHei", 10),
-            PlaceholderText = "输入虚拟按键名称（如: 按钮1）"
+            PlaceholderText = "输入虚拟按键名称（如: 按钮1）",
+            Margin = new Padding(0, 5, 0, 5)
         };
         _topPanel.Controls.Add(_txtVkBind, 1, 2);
 
@@ -257,10 +271,10 @@ public partial class SequenceEditor : Form
     {
         float ds = DeviceDpi / 96f;
         if (ds == 1.0f) return;
-        _topPanel.Height = (int)(130 * ds);
-        _topPanel.RowStyles[0].Height = (int)(28 * ds);
-        _topPanel.RowStyles[1].Height = (int)(42 * ds);
-        _topPanel.RowStyles[2].Height = (int)(32 * ds);
+        _topPanel.Height = (int)(154 * ds);
+        _topPanel.RowStyles[0].Height = (int)(36 * ds);
+        _topPanel.RowStyles[1].Height = (int)(48 * ds);
+        _topPanel.RowStyles[2].Height = (int)(36 * ds);
         _topPanel.ColumnStyles[0].Width = (int)(130 * ds);
     }
 
@@ -797,7 +811,8 @@ public class HotkeyRecorderForm : Form
     {
         _allowNoModifier = allowNoModifier;
         Text = "录制快捷键";
-        Size = new Size(400, 200);
+        Size = new Size(580, 360);
+        MinimumSize = new Size(420, 240);
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         ControlBox = false;
@@ -818,6 +833,7 @@ public class HotkeyRecorderForm : Form
             AutoSize = false
         };
         Controls.Add(_lblStatus);
+        UiTheme.Apply(this, UiWindowProfile.HotkeyRecorder);
 
         KeyDown += HotkeyRecorderForm_KeyDown;
         KeyUp += HotkeyRecorderForm_KeyUp;

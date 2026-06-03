@@ -13,6 +13,8 @@
 KeyMacro/
 ├── Program.cs               # 入口
 ├── gen_skin_images.csx      # 皮肤 PNG 状态帧生成脚本
+├── assets/
+│   └── ui/                  # 通用 UI 美术资源（普通窗口/菜单/弹窗，不含 VK 皮肤）
 ├── icons/                   # 应用图标资源
 │   └── app.ico
 ├── skins/                   # 皮肤 PNG 资源目录
@@ -29,6 +31,7 @@ KeyMacro/
 │   ├── IconService.cs       # 应用图标加载（嵌入→磁盘→代码三级回退）
 │   ├── MacroPlayer.cs       # SendKeys 按键序列播放引擎
 │   ├── OperationLogger.cs   # 文件日志系统 (%APPDATA%\KeyMacro\logs\)
+│   ├── UiTheme.cs           # 通用深灰 UI 主题与资源加载（排除 VirtualKeyWindow 本体）
 │   ├── BatchCopyService.cs  # 批量复制执行引擎（冲突检测/进度/日志）
 │   ├── SpineCliService.cs   # Spine.com CLI 进程调用封装
 │   ├── SpineHotkeyService.cs # Spine TXT 文件解析/保存 + 按键名格式转换 + 中文注解
@@ -191,6 +194,13 @@ BaseBtnWidth: SmallIcon=48  LargeIcon=96  LoopIcon=110
 - 窗口背景 9-slice 直接绘制到 panel
 - 皮肤背景图时使用 `skin.json` 中 `window_bg` 颜色作为 Panel 底色
 
+## 通用 UI 资源系统
+- `KeyMacro/assets/ui/` 是普通 WinForms 窗口的 UI 美术资源包，包含按钮多状态、输入框、列表、Tab、进度条、菜单、弹窗、标题栏按钮和图标。
+- `UiTheme.Apply(form, profile)` 负责套用深灰专业软件风格、默认窗口尺寸、按钮状态图、输入框/列表/表格/菜单/进度条配色。
+- `UiTheme` 会优先从磁盘向上查找 `assets/ui`，找不到时回退到嵌入资源；`KeyMacro.csproj` 已将 `assets/ui/**` 作为 `EmbeddedResource`。
+- 主题只服务普通窗口、核心弹窗和菜单；**不得直接套用到 `VirtualKeyWindow` 本体、`VirtualButtonWidget` 或 `KeyMacro/skins/*`**，避免破坏 VK 皮肤和布局算法。
+- UI 重构必须遵守“代码功能为准”：按钮文字、事件绑定、表格列、菜单项以 `KeyMacro/Forms` 真实代码为准；设计图只指导布局和视觉。
+
 ## 问题台账与验证机制（必遵）
 
 ### 代码问题台账
@@ -221,6 +231,7 @@ BaseBtnWidth: SmallIcon=48  LargeIcon=96  LoopIcon=110
 5. 修改完成后导出一个单独的.exe应用供测试，如遇应用已开启导致无法修改就强行终止应用再尝试导出
 
 ## 版本历史
+- **V2.8** (2026-06-03): 启用 UI 资源包与 `UiTheme` 通用主题，普通窗口默认尺寸按 UI 概览图调整，按钮/输入/列表/菜单/进度条切换为深灰专业软件风格；排除 `VirtualKeyWindow` 本体和 VK 皮肤资源
 - **V2.79** (2026-06-02): 修复 AUD-027，统一 CLI 批量合并/导出、批量复制、批量重命名/整理/解包的批量进度显示；新增自绘进度条，当前处理文件文字独立显示在进度条上方，避免被原生 ProgressBar 遮挡
 - **V2.78** (2026-06-02): 修复代码审核台账 AUD-001~AUD-024（单实例唤醒、AppData 配置/布局优先、目标进程绑定、Win 组合键、强制停止释放、VK 循环菜单暂停、Spine 热键原文导入导出、VK 增量导入、CLI 异步取消、批量复制冲突处理等）
 - **V2.77** (2026-05-22): Spine 4.3 CLI 实验合并功能（--merge/-a）、批量导出配置选择、进度条、文件选择过滤修复、排除筛选

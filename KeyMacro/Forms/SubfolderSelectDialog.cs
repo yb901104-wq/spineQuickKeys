@@ -20,8 +20,8 @@ public class SubfolderSelectDialog : Form
         _allItems = items;
         Text = "选择要导入的文件（勾选后确认）";
         Icon = IconService.AppIcon;
-        Size = new Size(700, 550);
-        MinimumSize = new Size(400, 300);
+        Size = new Size(820, 620);
+        MinimumSize = new Size(640, 460);
         StartPosition = FormStartPosition.CenterParent;
         ShowInTaskbar = false;
         FormBorderStyle = FormBorderStyle.Sizable;
@@ -80,10 +80,10 @@ public class SubfolderSelectDialog : Form
 
         // Row 0: search + exclude
         var searchPanel = new FlowLayoutPanel { AutoSize = true, Padding = new Padding(0, 0, 0, 6) };
-        _txtSearch.Size = new Size(200, 24);
+        _txtSearch.Size = new Size(240, 24);
         searchPanel.Controls.Add(new Label { Text = "搜索:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft });
         searchPanel.Controls.Add(_txtSearch);
-        _txtExclude.Size = new Size(200, 24);
+        _txtExclude.Size = new Size(240, 24);
         searchPanel.Controls.Add(new Label { Text = "不包含:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft });
         searchPanel.Controls.Add(_txtExclude);
         mainPanel.Controls.Add(searchPanel, 0, 0);
@@ -126,6 +126,7 @@ public class SubfolderSelectDialog : Form
         // Row 3: bottom buttons
         var bottomPanel = new FlowLayoutPanel
         {
+            Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.RightToLeft,
             AutoSize = true,
             Padding = new Padding(0, 8, 0, 0)
@@ -160,6 +161,7 @@ public class SubfolderSelectDialog : Form
         mainPanel.Controls.Add(bottomPanel, 0, 3);
 
         Controls.Add(mainPanel);
+        UiTheme.Apply(this, UiWindowProfile.SubfolderSelect);
     }
 
     private string GetDisplayText(string path)

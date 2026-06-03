@@ -22,8 +22,8 @@ public class VkWindowManager : Form
 
         Text = "虚拟按键管理";
         Icon = IconService.AppIcon;
-        Size = new Size(600, 400);
-        MinimumSize = new Size(400, 250);
+        Size = new Size(760, 520);
+        MinimumSize = new Size(560, 360);
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.Sizable;
         ShowInTaskbar = false;
@@ -37,7 +37,11 @@ public class VkWindowManager : Form
             AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
             SelectionMode = DataGridViewSelectionMode.FullRowSelect,
             MultiSelect = false,
-            ReadOnly = false
+            ReadOnly = false,
+            BorderStyle = BorderStyle.FixedSingle,
+            ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
+            ColumnHeadersHeight = 32,
+            RowTemplate = { Height = 30 }
         };
 
         var bottomPanel = new FlowLayoutPanel
@@ -70,6 +74,7 @@ public class VkWindowManager : Form
 
         Controls.Add(_dgv);
         Controls.Add(bottomPanel);
+        UiTheme.Apply(this, UiWindowProfile.VkWindowManager);
 
         Shown += (_, _) => RefreshList();
     }
@@ -97,30 +102,30 @@ public class VkWindowManager : Form
         {
             HeaderText = "按钮",
             ReadOnly = true,
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
-            FillWeight = 8
+            Width = 70,
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.None
         });
         _dgv.Columns.Add(new DataGridViewCheckBoxColumn
         {
             HeaderText = "允许显示",
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
-            FillWeight = 10
+            Width = 90,
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.None
         });
         _dgv.Columns.Add(new DataGridViewButtonColumn
         {
             HeaderText = "操作",
             Text = "显示",
             UseColumnTextForButtonValue = false,
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
-            FillWeight = 10
+            Width = 82,
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.None
         });
         _dgv.Columns.Add(new DataGridViewButtonColumn
         {
             HeaderText = "删除",
             Text = "×",
             UseColumnTextForButtonValue = true,
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
-            FillWeight = 7
+            Width = 70,
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.None
         });
 
         var global = _serializer.LoadAll();

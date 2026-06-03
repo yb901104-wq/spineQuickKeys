@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Drawing.Drawing2D;
 
 namespace KeyMacro.Controls;
 
@@ -82,20 +83,30 @@ public class TextProgressBar : Control
         var rect = ClientRectangle;
         if (rect.Width <= 0 || rect.Height <= 0) return;
 
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
         using var bg = new SolidBrush(BackColor);
-        e.Graphics.FillRectangle(bg, rect);
+        using var outer = RoundedRect(new Rectangle(0, 0, rect.Width - 1, rect.Height - 1), 6);
+        e.Graphics.FillPath(bg, outer);
 
         var range = Math.Max(1, _maximum - _minimum);
         var ratio = Math.Clamp((float)(_value - _minimum) / range, 0f, 1f);
-        var fillWidth = (int)Math.Round((rect.Width - 1) * ratio);
+        var innerRect = Rectangle.Inflate(rect, -4, -4);
+        using var innerBg = new SolidBrush(Color.FromArgb(0x19, 0x19, 0x1B));
+        using var inner = RoundedRect(new Rectangle(innerRect.X, innerRect.Y, innerRect.Width - 1, innerRect.Height - 1), 4);
+        e.Graphics.FillPath(innerBg, inner);
+
+        var fillWidth = (int)Math.Round((innerRect.Width - 1) * ratio);
         if (fillWidth > 0)
         {
             using var fill = new SolidBrush(BarColor);
-            e.Graphics.FillRectangle(fill, 0, 0, fillWidth, rect.Height - 1);
+            using var fillPath = RoundedRect(new Rectangle(innerRect.X, innerRect.Y, fillWidth, innerRect.Height - 1), 4);
+            e.Graphics.FillPath(fill, fillPath);
         }
 
         using var border = new Pen(BorderColor);
-        e.Graphics.DrawRectangle(border, 0, 0, rect.Width - 1, rect.Height - 1);
+        e.Graphics.DrawPath(border, outer);
 
         var text = string.IsNullOrWhiteSpace(_progressText)
             ? $"{(int)Math.Round(ratio * 100)}%"
@@ -110,5 +121,17 @@ public class TextProgressBar : Control
                 | TextFormatFlags.VerticalCenter
                 | TextFormatFlags.EndEllipsis
                 | TextFormatFlags.NoPrefix);
+    }
+
+    private static GraphicsPath RoundedRect(Rectangle rect, int radius)
+    {
+        var path = new GraphicsPath();
+        var d = Math.Max(1, radius * 2);
+        path.AddArc(rect.X, rect.Y, d, d, 180, 90);
+        path.AddArc(rect.Right - d, rect.Y, d, d, 270, 90);
+        path.AddArc(rect.Right - d, rect.Bottom - d, d, d, 0, 90);
+        path.AddArc(rect.X, rect.Bottom - d, d, d, 90, 90);
+        path.CloseFigure();
+        return path;
     }
 }

@@ -39,12 +39,13 @@ public class BatchCopyWindow : Form
     {
         Text = "文件批量复制";
         Icon = IconService.AppIcon;
-        Size = new Size(750, 680);
-        MinimumSize = new Size(600, 560);
+        Size = new Size(1100, 760);
+        MinimumSize = new Size(820, 620);
         StartPosition = FormStartPosition.CenterParent;
         ShowInTaskbar = true;
 
         BuildUI();
+        UiTheme.Apply(this, UiWindowProfile.BatchCopy);
         LoadHistory();
 
         _previewDebounce.Interval = 300;
@@ -80,7 +81,7 @@ public class BatchCopyWindow : Form
         _lblStatus.Margin = new Padding(0, 4, 0, 0);
         mainPanel.Controls.Add(_lblStatus, 0, 6);
 
-        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 180));
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 236));
         mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
         mainPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
@@ -97,10 +98,19 @@ public class BatchCopyWindow : Form
 
     private Panel BuildSourcePanel()
     {
-        var panel = new Panel { Dock = DockStyle.Fill };
+        var panel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 3,
+            Padding = new Padding(0)
+        };
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
 
         // Toolbar
-        var toolbar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(0, 0, 0, 4) };
+        var toolbar = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = false, Padding = new Padding(0, 2, 0, 4) };
         _btnSelectFiles.Text = "选择文件";
         _btnSelectFiles.AutoSize = true;
         _btnSelectFiles.MinimumSize = new Size(90, 28);
@@ -133,21 +143,21 @@ public class BatchCopyWindow : Form
         _btnClearFiles.Click += (_, _) => { _sourceFiles.Clear(); RefreshSourceList(); };
         toolbar.Controls.Add(_btnClearFiles);
 
-        panel.Controls.Add(toolbar);
+        panel.Controls.Add(toolbar, 0, 0);
 
         // File list
         _lbSourceFiles.Dock = DockStyle.Fill;
         _lbSourceFiles.Font = new Font("Consolas", 10);
         _lbSourceFiles.IntegralHeight = false;
         _lbSourceFiles.SelectionMode = SelectionMode.MultiExtended;
-        panel.Controls.Add(_lbSourceFiles);
+        panel.Controls.Add(_lbSourceFiles, 0, 1);
 
         // Count label
         _lblSourceCount.Dock = DockStyle.Bottom;
         _lblSourceCount.Text = "已选 0 个文件";
         _lblSourceCount.Height = 20;
         _lblSourceCount.ForeColor = Color.Gray;
-        panel.Controls.Add(_lblSourceCount);
+        panel.Controls.Add(_lblSourceCount, 0, 2);
 
         return panel;
     }
@@ -224,6 +234,8 @@ public class BatchCopyWindow : Form
         layout.Controls.Add(new Label { Text = "前缀", TextAlign = ContentAlignment.MiddleLeft, Height = 28 }, 0, 0);
         _cmbPrefix.DropDownStyle = ComboBoxStyle.DropDown;
         _cmbPrefix.Font = new Font("微软雅黑", 9);
+        _cmbPrefix.Dock = DockStyle.Fill;
+        _cmbPrefix.Margin = new Padding(0, 3, 0, 3);
         _cmbPrefix.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
         _cmbPrefix.AutoCompleteSource = AutoCompleteSource.ListItems;
         _cmbPrefix.TextUpdate += (_, _) => DebouncePreview();
@@ -231,7 +243,8 @@ public class BatchCopyWindow : Form
         layout.Controls.Add(_cmbPrefix, 1, 0);
 
         _btnBrowsePrefix.Text = "•••";
-        _btnBrowsePrefix.AutoSize = true;
+        _btnBrowsePrefix.Dock = DockStyle.Fill;
+        _btnBrowsePrefix.AutoSize = false;
         _btnBrowsePrefix.MinimumSize = new Size(36, 28);
         _btnBrowsePrefix.FlatStyle = FlatStyle.Flat;
         _btnBrowsePrefix.Click += BtnBrowsePrefix_Click;
@@ -240,7 +253,6 @@ public class BatchCopyWindow : Form
         // Row 1: Middle label
         layout.Controls.Add(new Label { Text = "中间", TextAlign = ContentAlignment.MiddleLeft, Height = 28 }, 0, 1);
 
-        var middlePanel = new Panel { Dock = DockStyle.Fill };
         _txtMiddle.Multiline = true;
         _txtMiddle.Dock = DockStyle.Fill;
         _txtMiddle.Font = new Font("Consolas", 10);
@@ -248,14 +260,14 @@ public class BatchCopyWindow : Form
         _txtMiddle.AcceptsReturn = true;
         _txtMiddle.WordWrap = false;
         _txtMiddle.TextChanged += (_, _) => DebouncePreview();
-        middlePanel.Controls.Add(_txtMiddle);
 
         var middleBtnCol = new FlowLayoutPanel
         {
-            Dock = DockStyle.Right,
+            Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.TopDown,
-            AutoSize = true,
-            Padding = new Padding(4, 0, 0, 0)
+            AutoSize = false,
+            Padding = new Padding(4, 0, 0, 0),
+            WrapContents = false
         };
         _btnAddMiddle.Text = "添加行";
         _btnAddMiddle.AutoSize = true;
@@ -271,14 +283,15 @@ public class BatchCopyWindow : Form
         _btnDelMiddle.Click += BtnDelMiddle_Click;
         middleBtnCol.Controls.Add(_btnDelMiddle);
 
-        middlePanel.Controls.Add(middleBtnCol);
-        layout.Controls.Add(middlePanel, 1, 1);
-        layout.Controls.Add(new Panel(), 2, 1); // empty spacer
+        layout.Controls.Add(_txtMiddle, 1, 1);
+        layout.Controls.Add(middleBtnCol, 2, 1);
 
         // Row 2: Suffix
         layout.Controls.Add(new Label { Text = "后缀", TextAlign = ContentAlignment.MiddleLeft, Height = 28 }, 0, 2);
         _cmbSuffix.DropDownStyle = ComboBoxStyle.DropDown;
         _cmbSuffix.Font = new Font("微软雅黑", 9);
+        _cmbSuffix.Dock = DockStyle.Fill;
+        _cmbSuffix.Margin = new Padding(0, 3, 0, 3);
         _cmbSuffix.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
         _cmbSuffix.AutoCompleteSource = AutoCompleteSource.ListItems;
         _cmbSuffix.TextUpdate += (_, _) => DebouncePreview();
@@ -297,7 +310,7 @@ public class BatchCopyWindow : Form
 
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 50));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 44));
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 86));
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));

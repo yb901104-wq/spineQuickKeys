@@ -12,7 +12,8 @@ public partial class ConflictDialog : Form
     {
         Text = "同名文件冲突";
         Icon = IconService.AppIcon;
-        Size = new Size(500, 350);
+        Size = new Size(620, 430);
+        MinimumSize = new Size(520, 360);
         StartPosition = FormStartPosition.CenterParent;
         MinimizeBox = false;
         MaximizeBox = false;
@@ -26,6 +27,10 @@ public partial class ConflictDialog : Form
             RowCount = 4,
             ColumnCount = 1
         };
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
 
         // Title label
         var lblTitle = new Label
@@ -116,5 +121,6 @@ public partial class ConflictDialog : Form
         mainPanel.Controls.Add(btnPanel);
 
         Controls.Add(mainPanel);
+        UiTheme.Apply(this, UiWindowProfile.ConflictDialog);
     }
 }

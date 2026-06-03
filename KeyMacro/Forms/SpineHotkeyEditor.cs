@@ -32,21 +32,20 @@ public class SpineHotkeyEditor : Form
 
         Text = "Spine 快捷键编辑";
         Icon = IconService.AppIcon;
-        Size = new Size(1000, 700);
-        MinimumSize = new Size(700, 400);
+        Size = new Size(1100, 720);
+        MinimumSize = new Size(820, 520);
         StartPosition = FormStartPosition.CenterParent;
 
         // ── Top: file path display + load button ──
         var topPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Top,
-            Height = 38,
-            Padding = new Padding(12, 6, 12, 0),
-            ColumnCount = 3,
+            Height = 52,
+            Padding = new Padding(14, 10, 14, 8),
+            ColumnCount = 2,
             RowCount = 1
         };
         topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
         _lblFilePath = new Label
@@ -65,34 +64,42 @@ public class SpineHotkeyEditor : Form
         topPanel.Controls.Add(_btnLoad, 1, 0);
 
         // ── Toolbar: record button + search ──
-        var toolbar = new FlowLayoutPanel
+        var toolbar = new TableLayoutPanel
         {
             Dock = DockStyle.Top,
-            Height = 36,
-            Padding = new Padding(12, 4, 12, 0)
+            Height = 44,
+            Padding = new Padding(14, 6, 14, 6),
+            ColumnCount = 4,
+            RowCount = 1
         };
+        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 280));
+        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
         _btnRecord = new Button { Text = "录制按键", AutoSize = true, MinimumSize = new Size(80, 28), FlatStyle = FlatStyle.Flat };
         _btnRecord.Click += BtnRecord_Click;
-        toolbar.Controls.Add(_btnRecord);
+        toolbar.Controls.Add(_btnRecord, 0, 0);
 
         toolbar.Controls.Add(new Label
         {
-            Text = " 搜索:",
+            Text = "搜索:",
             AutoSize = true,
             TextAlign = ContentAlignment.MiddleLeft,
-            Margin = new Padding(20, 0, 0, 0)
-        });
+            Anchor = AnchorStyles.Left,
+            Margin = new Padding(20, 0, 6, 0)
+        }, 1, 0);
         _txtSearch = new TextBox
         {
-            Width = 200,
-            Margin = new Padding(4, 2, 0, 0)
+            Dock = DockStyle.Fill,
+            Margin = new Padding(0, 4, 0, 4)
         };
         _txtSearch.TextChanged += (_, _) =>
         {
             _searchFilter = _txtSearch.Text.Trim();
             RefreshGrid();
         };
-        toolbar.Controls.Add(_txtSearch);
+        toolbar.Controls.Add(_txtSearch, 2, 0);
 
         // ── DataGridView ──
         _dgv = new DataGridView
@@ -142,6 +149,7 @@ public class SpineHotkeyEditor : Form
         Controls.Add(_dgv);
         Controls.Add(toolbar);
         Controls.Add(topPanel);
+        UiTheme.Apply(this, UiWindowProfile.SpineHotkeyEditor);
 
         // Keep LastLoadedEntries after close for other forms (SequenceEditor autocomplete).
         // Only clear on explicit file close (BtnLoad_Click will overwrite with new data).
