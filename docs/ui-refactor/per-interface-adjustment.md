@@ -151,6 +151,12 @@
 - 真实功能为键盘事件录制，没有确认/取消按钮；Esc 取消，松开按键确认。
 - 已用 `runtime-hotkey-recorder-check.png` 截图确认：提示文字居中显示，未出现文字溢出或遮挡。
 
+### HotkeyRecorderForm 第二轮可识别性调整
+
+- 弹窗背景改为浅灰，提示文字区域使用白底固定边框，避免和窗口背景融为一体。
+- 提示文字仍保持居中显示，不增加按钮，不改变关闭方式。
+- 已用最新 `runtime-hotkey-recorder-round2-check.png` 截图确认：提示区域和文字均可见，没有遮挡或出框。
+
 ## 04 SpineHotkeyEditor Spine 热键编辑器
 
 ### 本次核对结论
@@ -294,20 +300,7 @@
 - 三页进度区继续保持“当前处理文字在上方，进度条在下方”的结构。
 - 已用最新 `runtime-rename-tool-rename-round2-check.png`、`runtime-rename-tool-organize-round2-check.png`、`runtime-rename-tool-unpack-round2-check.png` 截图确认：三页真实入口均可见，没有遮挡或出框。
 
-## 13 HotkeyRecorderForm 热键录制弹窗
-
-### 本次核对结论
-
-- 真实功能为键盘按下/松开录制，不提供确认/取消按钮；Esc 取消，合法按键松开后返回结果。
-- 不改变 `KeyDown` / `KeyUp` 录制逻辑，不改变是否允许无修饰键的判断。
-
-### HotkeyRecorderForm 第二轮可识别性调整
-
-- 弹窗背景改为浅灰，提示文字区域使用白底固定边框，避免和窗口背景融为一体。
-- 提示文字仍保持居中显示，不增加按钮，不改变关闭方式。
-- 已用最新 `runtime-hotkey-recorder-round2-check.png` 截图确认：提示区域和文字均可见，没有遮挡或出框。
-
-## 14 BatchCliWindow 动画选择弹窗
+## 13 BatchCliWindow 动画选择弹窗
 
 ### 本次核对结论
 
@@ -320,7 +313,7 @@
 - 底部按钮区使用浅灰背景；`确认` 使用蓝色主按钮，`取消` 使用中性按钮。
 - 代码已处理；截图需在真实 Spine 文件触发动画选择后补充到本表。
 
-## 15 VirtualKeyWindow 右键菜单与托盘菜单
+## 14 VirtualKeyWindow 右键菜单与托盘菜单
 
 ### 本次核对结论
 
@@ -344,7 +337,9 @@
 - 搜索区改为固定表格布局，搜索框宽度受列约束，不再因为 FlowLayout 横向溢出到窗口边缘外。
 - 已用 `runtime-spine-hotkey-editor-check.png` 截图确认：文件路径、载入文件、录制按键、搜索、热键表格、保存/取消均可见，无多余分组列表/状态列表。
 
-## 06 BatchCopyWindow 批量复制
+## 附录：第一轮尺寸/布局核对记录
+
+### BatchCopyWindow 批量复制
 
 ### 本次核对结论
 
@@ -355,7 +350,7 @@
 - 源文件区高度保留为较大固定区，目标路径下方空白由目标路径区和预览区吸收。
 - 已用 `runtime-batch-copy-check.png` 截图确认：前缀/中间/后缀主输入列对齐，右侧“添加行/删除行”完整可见，进度条未遮挡当前文件文字区域。
 
-## 05 VkWindowManager VK 管理器
+### VkWindowManager VK 管理器
 
 ### 本次核对结论
 
@@ -366,7 +361,7 @@
 - 新增窗口按钮保留在底部关闭按钮前方，符合当前即时保存逻辑。
 - 已用 `runtime-vk-manager-check.png` 截图确认：真实列和“新增窗口/关闭”按钮均可见，无概览图中多余的保存/显示全部/隐藏全部入口。
 
-## 09/10 BatchCliWindow CLI 批量合并/导出
+### BatchCliWindow CLI 批量合并/导出
 
 ### 本次核对结论
 
@@ -378,7 +373,7 @@
 - 已用 `runtime-cli-merge-check.png` 截图确认：合并源/目标列表、添加/删除、动画选择、from/to、实验功能勾选、执行合并均可见。
 - 已用 `runtime-cli-export-check.png` 截图确认：源目录、浏览/扫描、导出列表、刷新状态、finish/demotion/其他导出配置、输出目录、导出/单纹理图均可见。
 
-## 12/13/14 ReNameTool 批量重命名/整理/解包
+### ReNameTool 批量重命名/整理/解包
 
 ### 本次核对结论
 
@@ -390,7 +385,7 @@
 - 已用 `runtime-rename-tool-organize-check.png` 截图确认：整理页的说明、`.bytes及.txt后缀` 勾选、源/保存位置、清空列表、开始整理均可见。
 - 已用 `runtime-rename-tool-unpack-check.png` 截图确认：解包页的目标文件夹、选择目标文件夹、清空列表、开始解包均可见。
 
-## 07 SourceFilePicker 源文件选择器
+### SourceFilePicker 源文件选择器
 
 ### 本次核对结论
 
@@ -399,7 +394,7 @@
 - 目录输入框加宽，减少长路径被截断。
 - 已用 `runtime-source-file-picker-check.png` 截图确认：顶部目录输入和按钮、缩略图列表、底部数量/确认/取消均在窗口内且未遮挡。
 
-## 08/15/16 Dialogs 核心弹窗
+### Dialogs 核心弹窗
 
 ### 本次核对结论
 
