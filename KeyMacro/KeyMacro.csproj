@@ -16,6 +16,7 @@
   <ItemGroup>
     <EmbeddedResource Include="skins\**" />
     <EmbeddedResource Include="icons\**" />
+    <EmbeddedResource Include="assets\ui\**" />
     <EmbeddedResource Include="virtual_layout.json" />
   </ItemGroup>
 

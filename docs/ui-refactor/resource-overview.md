@@ -29,6 +29,30 @@ KeyMacro/
 
 如实际实现选择纯 GDI+ 绘制，可保留该目录只放图标、特殊纹理和文档样张。
 
+## 已制作资源包
+
+第一批资源已落地到 `KeyMacro/assets/ui/`，并通过 `KeyMacro/KeyMacro.csproj` 作为嵌入资源纳入项目，但尚未接入任何真实窗口逻辑。
+
+生成器路径：`docs/ui-refactor/tools/ResourceGenerator/`
+
+预览图路径：`docs/ui-refactor/resource-preview.png`
+
+当前资源范围：
+
+- `buttons/`：普通、主操作、危险、成功、工具、Spine、CLI 七类按钮，每类包含 `normal / hover / pressed / active / disabled`。
+- `inputs/`：输入框、聚焦输入框、只读/禁用输入框、下拉框、搜索框。
+- `panels/`：普通面板、带标题面板、工具栏底座。
+- `lists/`：列表容器、表头、普通/交替/选中/悬停行。
+- `tabs/`：活动与非活动 Tab。
+- `progress/`：idle、running、complete、error 四类进度条。
+- `checks/`：勾选框选中、未选中、禁用态。
+- `menus/`：右键菜单外框、普通/悬停/危险菜单项、分隔线。
+- `dialogs/`：弹窗外框、警告/错误/成功提示条。
+- `titlebar/`：最小化、最大化、关闭按钮的 normal / hover / pressed 状态。
+- `icons/`：常用操作和模块入口小图标，含普通与 active 色彩版本。
+
+这些 PNG 均不包含真实按钮文字；真实文字、按钮语义和事件绑定仍以 `KeyMacro/Forms` 代码为准。
+
 ## 通用控件资源
 
 | 资源类别 | 建议形式 | 状态 | 用途 | 备注 |

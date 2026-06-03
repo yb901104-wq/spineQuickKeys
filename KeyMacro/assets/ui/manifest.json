@@ -1,0 +1,809 @@
+﻿{
+  "version": "ui-refactor-draft-001",
+  "generatedBy": "docs/ui-refactor/tools/ResourceGenerator",
+  "excluded": [
+    "KeyMacro/skins/*",
+    "VirtualKeyWindow body",
+    "VirtualButtonWidget skin states"
+  ],
+  "assets": [
+    {
+      "Path": "buttons/button_neutral_normal.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_neutral_hover.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_neutral_pressed.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_neutral_active.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_neutral_disabled.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_primary_normal.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_primary_hover.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_primary_pressed.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_primary_active.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_primary_disabled.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_danger_normal.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_danger_hover.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_danger_pressed.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_danger_active.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_danger_disabled.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_success_normal.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_success_hover.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_success_pressed.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_success_active.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_success_disabled.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_tool_normal.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_tool_hover.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_tool_pressed.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_tool_active.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_tool_disabled.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_spine_normal.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_spine_hover.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_spine_pressed.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_spine_active.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_spine_disabled.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_cli_normal.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_cli_hover.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_cli_pressed.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_cli_active.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "buttons/button_cli_disabled.png",
+      "Category": "buttons",
+      "Width": 160,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "inputs/input_normal.png",
+      "Category": "inputs",
+      "Width": 360,
+      "Height": 36,
+      "Note": ""
+    },
+    {
+      "Path": "inputs/input_focused.png",
+      "Category": "inputs",
+      "Width": 360,
+      "Height": 36,
+      "Note": ""
+    },
+    {
+      "Path": "inputs/input_readonly.png",
+      "Category": "inputs",
+      "Width": 360,
+      "Height": 36,
+      "Note": ""
+    },
+    {
+      "Path": "inputs/input_disabled.png",
+      "Category": "inputs",
+      "Width": 360,
+      "Height": 36,
+      "Note": ""
+    },
+    {
+      "Path": "inputs/combo_normal.png",
+      "Category": "inputs",
+      "Width": 360,
+      "Height": 36,
+      "Note": ""
+    },
+    {
+      "Path": "inputs/search_normal.png",
+      "Category": "inputs",
+      "Width": 360,
+      "Height": 36,
+      "Note": ""
+    },
+    {
+      "Path": "panels/panel_section.png",
+      "Category": "panels",
+      "Width": 480,
+      "Height": 220,
+      "Note": ""
+    },
+    {
+      "Path": "panels/panel_plain.png",
+      "Category": "panels",
+      "Width": 480,
+      "Height": 220,
+      "Note": ""
+    },
+    {
+      "Path": "panels/toolbar_well.png",
+      "Category": "panels",
+      "Width": 520,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "lists/list_container.png",
+      "Category": "lists",
+      "Width": 640,
+      "Height": 260,
+      "Note": ""
+    },
+    {
+      "Path": "lists/table_header.png",
+      "Category": "lists",
+      "Width": 640,
+      "Height": 34,
+      "Note": ""
+    },
+    {
+      "Path": "lists/row_normal.png",
+      "Category": "lists",
+      "Width": 640,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "lists/row_alt.png",
+      "Category": "lists",
+      "Width": 640,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "lists/row_selected.png",
+      "Category": "lists",
+      "Width": 640,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "lists/row_hover.png",
+      "Category": "lists",
+      "Width": 640,
+      "Height": 40,
+      "Note": ""
+    },
+    {
+      "Path": "tabs/tab_active.png",
+      "Category": "tabs",
+      "Width": 150,
+      "Height": 34,
+      "Note": ""
+    },
+    {
+      "Path": "tabs/tab_inactive.png",
+      "Category": "tabs",
+      "Width": 150,
+      "Height": 34,
+      "Note": ""
+    },
+    {
+      "Path": "progress/progress_running.png",
+      "Category": "progress",
+      "Width": 520,
+      "Height": 28,
+      "Note": ""
+    },
+    {
+      "Path": "progress/progress_complete.png",
+      "Category": "progress",
+      "Width": 520,
+      "Height": 28,
+      "Note": ""
+    },
+    {
+      "Path": "progress/progress_error.png",
+      "Category": "progress",
+      "Width": 520,
+      "Height": 28,
+      "Note": ""
+    },
+    {
+      "Path": "progress/progress_idle.png",
+      "Category": "progress",
+      "Width": 520,
+      "Height": 28,
+      "Note": ""
+    },
+    {
+      "Path": "checks/checkbox_unchecked.png",
+      "Category": "checks",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "checks/checkbox_checked.png",
+      "Category": "checks",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "checks/checkbox_disabled.png",
+      "Category": "checks",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "menus/context_menu_shell.png",
+      "Category": "menus",
+      "Width": 280,
+      "Height": 360,
+      "Note": ""
+    },
+    {
+      "Path": "menus/menu_item_normal.png",
+      "Category": "menus",
+      "Width": 260,
+      "Height": 30,
+      "Note": ""
+    },
+    {
+      "Path": "menus/menu_item_hover.png",
+      "Category": "menus",
+      "Width": 260,
+      "Height": 30,
+      "Note": ""
+    },
+    {
+      "Path": "menus/menu_item_danger.png",
+      "Category": "menus",
+      "Width": 260,
+      "Height": 30,
+      "Note": ""
+    },
+    {
+      "Path": "menus/menu_separator.png",
+      "Category": "menus",
+      "Width": 260,
+      "Height": 8,
+      "Note": ""
+    },
+    {
+      "Path": "dialogs/dialog_shell.png",
+      "Category": "dialogs",
+      "Width": 520,
+      "Height": 280,
+      "Note": ""
+    },
+    {
+      "Path": "dialogs/warning_strip.png",
+      "Category": "dialogs",
+      "Width": 520,
+      "Height": 44,
+      "Note": ""
+    },
+    {
+      "Path": "dialogs/error_strip.png",
+      "Category": "dialogs",
+      "Width": 520,
+      "Height": 44,
+      "Note": ""
+    },
+    {
+      "Path": "dialogs/success_strip.png",
+      "Category": "dialogs",
+      "Width": 520,
+      "Height": 44,
+      "Note": ""
+    },
+    {
+      "Path": "titlebar/window_minimize_normal.png",
+      "Category": "titlebar",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "titlebar/window_maximize_normal.png",
+      "Category": "titlebar",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "titlebar/window_close_normal.png",
+      "Category": "titlebar",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "titlebar/window_minimize_hover.png",
+      "Category": "titlebar",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "titlebar/window_maximize_hover.png",
+      "Category": "titlebar",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "titlebar/window_close_hover.png",
+      "Category": "titlebar",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "titlebar/window_minimize_pressed.png",
+      "Category": "titlebar",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "titlebar/window_maximize_pressed.png",
+      "Category": "titlebar",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "titlebar/window_close_pressed.png",
+      "Category": "titlebar",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/add.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/add_active.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/edit.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/edit_active.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/delete.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/delete_active.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/delete_all.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/delete_all_active.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/copy.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/copy_active.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/pause.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/pause_active.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/release.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/release_active.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/folder.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/folder_active.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/file.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/file_active.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/search.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/search_active.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/refresh.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/refresh_active.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/spine.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/spine_active.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/vk.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/vk_active.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/cli.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/cli_active.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/batch.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/batch_active.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/warning.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/warning_active.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/success.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/success_active.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/error.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "icons/error_active.png",
+      "Category": "icons",
+      "Width": 24,
+      "Height": 24,
+      "Note": ""
+    },
+    {
+      "Path": "README.md",
+      "Category": "docs",
+      "Width": 0,
+      "Height": 0,
+      "Note": "usage notes"
+    }
+  ]
+}
