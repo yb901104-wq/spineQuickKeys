@@ -928,10 +928,18 @@ public class HotkeyRecorderForm : Form
         ControlBox = false;
         KeyPreview = true;
         TopMost = true;
+        BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA);
 
         var msg = allowNoModifier
             ? "请按下要录制的按键或组合键...\n\n支持的修饰键: Ctrl, Alt, Shift, Win\n仅按单键也可录制（如 A, Enter, F1）"
             : "请按下你要设置的快捷键组合...\n\n必须包含至少一个修饰键 (Ctrl/Alt/Shift/Win)";
+
+        var panel = new Panel
+        {
+            Dock = DockStyle.Fill,
+            Padding = new Padding(18),
+            BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA)
+        };
 
         _lblStatus = new Label
         {
@@ -940,9 +948,12 @@ public class HotkeyRecorderForm : Form
             Dock = DockStyle.Fill,
             Font = new Font("Microsoft YaHei", 11),
             ForeColor = Color.FromArgb(0x33, 0x33, 0x33),
-            AutoSize = false
+            AutoSize = false,
+            BorderStyle = BorderStyle.FixedSingle,
+            BackColor = Color.White
         };
-        Controls.Add(_lblStatus);
+        panel.Controls.Add(_lblStatus);
+        Controls.Add(panel);
         UiTheme.Apply(this, UiWindowProfile.HotkeyRecorder);
 
         KeyDown += HotkeyRecorderForm_KeyDown;

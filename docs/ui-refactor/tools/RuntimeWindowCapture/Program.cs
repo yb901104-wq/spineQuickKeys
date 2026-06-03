@@ -2,6 +2,7 @@
 using System.Drawing.Imaging;
 using System.Windows.Forms;
 using KeyMacro.Forms;
+using KeyMacro.Forms.ReNameTool;
 using KeyMacro.Models;
 using KeyMacro.Services;
 
@@ -23,6 +24,7 @@ internal static class Program
         var key = args[0].Trim().ToLowerInvariant();
         var output = Path.GetFullPath(args[1]);
         using var form = CreateForm(key);
+        form.Shown += (_, _) => PrepareWindow(form, key);
         form.StartPosition = FormStartPosition.Manual;
         form.Location = new Point(80, 80);
 
@@ -47,8 +49,37 @@ internal static class Program
             "vk-manager" => new VkWindowManager(new VirtualLayoutSerializer(), 2),
             "batch-copy" => new BatchCopyWindow(),
             "source-file-picker" => new SourceFilePicker(),
+            "conflict-dialog" => new ConflictDialog(@"D:\test\targets1\images", ["body.png", "head.png", "weapon.png"]),
+            "input-dialog" => new InputDialog("修改按钮名称", "输入新的按钮名称:", "按钮1"),
+            "subfolder-select" => new SubfolderSelectDialog(["targets1", "targets2", "targets3", "targets4", "targets5", @"images\角色A", @"images\角色B", "demotion.export.json"]),
+            "batch-cli-merge" => new BatchCliWindow(),
+            "batch-cli-export" => new BatchCliWindow(),
+            "rename-tool-rename" => new Form1(),
+            "rename-tool-organize" => new Form1(),
+            "rename-tool-unpack" => new Form1(),
+            "hotkey-recorder" => new HotkeyRecorderForm(allowNoModifier: true),
             _ => throw new ArgumentException($"Unsupported window key: {key}")
         };
+    }
+
+    private static void PrepareWindow(Form form, string key)
+    {
+        var tab = FindControl<TabControl>(form);
+        if (tab == null) return;
+        if (key == "batch-cli-export" && tab.TabPages.Count > 1) tab.SelectedIndex = 1;
+        if (key == "rename-tool-organize" && tab.TabPages.Count > 1) tab.SelectedIndex = 1;
+        if (key == "rename-tool-unpack" && tab.TabPages.Count > 2) tab.SelectedIndex = 2;
+    }
+
+    private static T? FindControl<T>(Control root) where T : Control
+    {
+        if (root is T matched) return matched;
+        foreach (Control child in root.Controls)
+        {
+            var result = FindControl<T>(child);
+            if (result != null) return result;
+        }
+        return null;
     }
 
     private static MacroSequence CreateSampleSequence()
@@ -103,6 +134,12 @@ internal static class Program
         bitmap.Save(output, ImageFormat.Png);
     }
 }
+
+
+
+
+
+
 
 
 

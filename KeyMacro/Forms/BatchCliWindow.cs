@@ -69,12 +69,14 @@ public class BatchCliWindow : Form
         Size = new Size(1100, 760);
         MinimumSize = new Size(880, 620);
         StartPosition = FormStartPosition.CenterParent;
+        BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA);
 
         var layout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 3
+            RowCount = 3,
+            BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA)
         };
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -100,21 +102,26 @@ public class BatchCliWindow : Form
         {
             Dock = DockStyle.Fill,
             WrapContents = false,
-            Padding = new Padding(10, 6, 10, 0)
+            Padding = new Padding(10, 6, 10, 0),
+            BackColor = Color.FromArgb(0xE4, 0xE4, 0xE4)
         };
 
         var lbl = new Label { Text = "Spine.com 路径:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft };
         _txtSpinePath.Size = new Size(520, 24);
+        _txtSpinePath.BorderStyle = BorderStyle.FixedSingle;
+        _txtSpinePath.BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6);
         _btnDetect.Text = "检测";
         _btnDetect.AutoSize = true;
         _btnDetect.MinimumSize = new Size(60, 28);
         _btnDetect.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnDetect);
         _btnDetect.Click += (_, _) => DetectSpine();
 
         _btnBrowseSpine.Text = "选择";
         _btnBrowseSpine.AutoSize = true;
         _btnBrowseSpine.MinimumSize = new Size(60, 28);
         _btnBrowseSpine.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnBrowseSpine);
         _btnBrowseSpine.Click += (_, _) =>
         {
             using var dlg = new OpenFileDialog
@@ -138,10 +145,11 @@ public class BatchCliWindow : Form
         _btnCancelCli.MinimumSize = new Size(70, 28);
         _btnCancelCli.FlatStyle = FlatStyle.Flat;
         _btnCancelCli.Enabled = false;
+        StyleButton(_btnCancelCli, Color.FromArgb(0xD9, 0x5C, 0x5C), Color.White);
         _btnCancelCli.Click += (_, _) => CancelCliOperation();
 
         flow.Controls.AddRange([lbl, _txtSpinePath, _btnDetect, _btnBrowseSpine, _btnCancelCli, _lblSpineStatus]);
-        var panel = new Panel { Dock = DockStyle.Fill };
+        var panel = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(0xE4, 0xE4, 0xE4) };
         panel.Controls.Add(flow);
         return panel;
     }
@@ -205,6 +213,7 @@ public class BatchCliWindow : Form
     {
         _tabControl.Dock = DockStyle.Fill;
         _tabControl.Padding = new Point(10, 10);
+        _tabControl.BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA);
         BuildMergeTab();
         BuildExportTab();
         _tabControl.TabPages.Add(_tabMerge);
@@ -220,13 +229,15 @@ public class BatchCliWindow : Form
     {
         _tabMerge.Text = "合并";
         _tabMerge.Padding = new Padding(10);
+        _tabMerge.BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA);
 
         var mergePanel = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 3,
             RowCount = 6,
-            Padding = new Padding(10)
+            Padding = new Padding(10),
+            BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3)
         };
         mergePanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 48));
         mergePanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 20));
@@ -249,6 +260,7 @@ public class BatchCliWindow : Form
         _lvSource.FullRowSelect = true;
         _lvSource.MultiSelect = true;
         _lvSource.Dock = DockStyle.Fill;
+        StyleListView(_lvSource);
         _lvSource.Columns.Add("文件名", 170);
         _lvSource.Columns.Add("动画", 150);
         _lvSource.Columns.Add("路径", 260);
@@ -259,6 +271,7 @@ public class BatchCliWindow : Form
         _lvTarget.FullRowSelect = true;
         _lvTarget.MultiSelect = true;
         _lvTarget.Dock = DockStyle.Fill;
+        StyleListView(_lvTarget);
         _lvTarget.Columns.Add("文件名", 220);
         _lvTarget.Columns.Add("路径", 380);
         mergePanel.Controls.Add(_lvTarget, 2, 1);
@@ -279,35 +292,40 @@ public class BatchCliWindow : Form
         _btnSourceAdd.AutoSize = true;
         _btnSourceAdd.MinimumSize = new Size(100, 30);
         _btnSourceAdd.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnSourceAdd);
         _btnSourceAdd.Click += (_, _) => AddSourceFile();
 
         _btnSourceRemove.Text = "删除源文件";
         _btnSourceRemove.AutoSize = true;
         _btnSourceRemove.MinimumSize = new Size(100, 30);
         _btnSourceRemove.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnSourceRemove);
         _btnSourceRemove.Click += (_, _) => RemoveSelected(_lvSource, _sourceEntries);
 
         _btnAnimSelect.Text = "动画选择";
         _btnAnimSelect.AutoSize = true;
         _btnAnimSelect.MinimumSize = new Size(80, 30);
         _btnAnimSelect.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnAnimSelect, Color.FromArgb(0x14, 0x87, 0x92), Color.White);
         _btnAnimSelect.Click += (_, _) => ShowAnimSelectForSource();
 
         _btnTargetAdd.Text = "添加目标文件";
         _btnTargetAdd.AutoSize = true;
         _btnTargetAdd.MinimumSize = new Size(100, 30);
         _btnTargetAdd.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnTargetAdd);
         _btnTargetAdd.Click += (_, _) => AddTargetFiles();
 
         _btnTargetRemove.Text = "删除目标文件";
         _btnTargetRemove.AutoSize = true;
         _btnTargetRemove.MinimumSize = new Size(100, 30);
         _btnTargetRemove.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnTargetRemove);
         _btnTargetRemove.Click += (_, _) => RemoveSelected(_lvTarget, _targetEntries);
 
-        var leftBtns = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
+        var leftBtns = new FlowLayoutPanel { AutoSize = true, WrapContents = false, BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3) };
         leftBtns.Controls.AddRange([_btnSourceAdd, _btnSourceRemove, _btnAnimSelect]);
-        var rightBtns = new FlowLayoutPanel { AutoSize = true, WrapContents = false, FlowDirection = FlowDirection.RightToLeft };
+        var rightBtns = new FlowLayoutPanel { AutoSize = true, WrapContents = false, FlowDirection = FlowDirection.RightToLeft, BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3) };
         rightBtns.Controls.AddRange([_btnTargetRemove, _btnTargetAdd]);
 
         btnRow.Controls.Add(leftBtns, 0, 0);
@@ -320,6 +338,8 @@ public class BatchCliWindow : Form
         fromPanel.Controls.Add(new Label { Text = "--from:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft });
         _txtFromName.Size = new Size(140, 24);
         _txtFromName.PlaceholderText = "默认";
+        _txtFromName.BorderStyle = BorderStyle.FixedSingle;
+        _txtFromName.BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6);
         fromPanel.Controls.Add(_txtFromName);
         mergePanel.Controls.Add(fromPanel, 0, 3);
 
@@ -327,6 +347,8 @@ public class BatchCliWindow : Form
         toPanel.Controls.Add(new Label { Text = "--to:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft });
         _txtToName.Size = new Size(140, 24);
         _txtToName.PlaceholderText = "默认";
+        _txtToName.BorderStyle = BorderStyle.FixedSingle;
+        _txtToName.BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6);
         toPanel.Controls.Add(_txtToName);
         mergePanel.Controls.Add(toPanel, 2, 3);
 
@@ -344,6 +366,7 @@ public class BatchCliWindow : Form
         _btnMergeExecute.BackColor = Color.FromArgb(0x00, 0x78, 0xD7);
         _btnMergeExecute.ForeColor = Color.White;
         _btnMergeExecute.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnMergeExecute, Color.FromArgb(0x00, 0x78, 0xD7), Color.White);
         _btnMergeExecute.Click += async (_, _) => await ExecuteMerge();
 
         _chkExperimental.Text = "实验功能：CLI骨架合并(4.3)";
@@ -512,13 +535,16 @@ public class BatchCliWindow : Form
             MinimizeBox = false,
             MaximizeBox = false,
             ShowInTaskbar = false,
-            FormBorderStyle = FormBorderStyle.Sizable
+            FormBorderStyle = FormBorderStyle.Sizable,
+            BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA)
         };
 
         var clb = new CheckedListBox
         {
             Dock = DockStyle.Fill,
-            CheckOnClick = true
+            CheckOnClick = true,
+            BorderStyle = BorderStyle.FixedSingle,
+            BackColor = Color.White
         };
         for (int i = 0; i < info.AnimationNames.Count; i++)
             clb.Items.Add(info.AnimationNames[i],
@@ -528,10 +554,12 @@ public class BatchCliWindow : Form
         {
             Dock = DockStyle.Bottom,
             FlowDirection = FlowDirection.RightToLeft,
-            Padding = new Padding(8)
+            Padding = new Padding(8),
+            BackColor = Color.FromArgb(0xE4, 0xE4, 0xE4)
         };
 
         var btnCancel = new Button { Text = "取消", AutoSize = true, MinimumSize = new Size(80, 32), FlatStyle = FlatStyle.Flat };
+        StyleButton(btnCancel);
         btnCancel.Click += (_, _) => { dialog.DialogResult = DialogResult.Cancel; dialog.Close(); };
 
         var btnOk = new Button
@@ -539,6 +567,7 @@ public class BatchCliWindow : Form
             Text = "确认", AutoSize = true, MinimumSize = new Size(80, 32), FlatStyle = FlatStyle.Flat,
             BackColor = Color.FromArgb(0x00, 0x78, 0xD7), ForeColor = Color.White
         };
+        StyleButton(btnOk, Color.FromArgb(0x00, 0x78, 0xD7), Color.White);
         btnOk.Click += (_, _) =>
         {
             entry.SelectedAnimations = clb.CheckedItems.Cast<string>().ToList();
@@ -878,7 +907,8 @@ public class BatchCliWindow : Form
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 2,
-            Padding = new Padding(10, 3, 10, 4)
+            Padding = new Padding(10, 3, 10, 4),
+            BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA)
         };
         progressPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 20));
         progressPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -895,6 +925,44 @@ public class BatchCliWindow : Form
         progressPanel.Controls.Add(_lblProgressCurrent, 0, 0);
         progressPanel.Controls.Add(_progressBar, 0, 1);
         return progressPanel;
+    }
+
+    private static void StyleListView(ListView listView)
+    {
+        listView.BorderStyle = BorderStyle.FixedSingle;
+        listView.BackColor = Color.White;
+        listView.ForeColor = Color.Black;
+    }
+
+    private static void StyleButton(Button button)
+    {
+        StyleButton(button, Color.FromArgb(0xF2, 0xF2, 0xF2), Color.Black);
+    }
+
+    private static void StyleButton(Button button, Color backColor, Color foreColor)
+    {
+        button.BackColor = backColor;
+        button.ForeColor = foreColor;
+        button.Cursor = Cursors.Hand;
+        button.FlatAppearance.BorderColor = Color.FromArgb(0x8A, 0x8A, 0x8A);
+        button.FlatAppearance.MouseOverBackColor = Lighten(backColor);
+        button.FlatAppearance.MouseDownBackColor = Darken(backColor);
+    }
+
+    private static Color Lighten(Color color)
+    {
+        return Color.FromArgb(
+            Math.Min(255, color.R + 20),
+            Math.Min(255, color.G + 20),
+            Math.Min(255, color.B + 20));
+    }
+
+    private static Color Darken(Color color)
+    {
+        return Color.FromArgb(
+            Math.Max(0, color.R - 25),
+            Math.Max(0, color.G - 25),
+            Math.Max(0, color.B - 25));
     }
 
     private static Version? ParseVersion(string? version)
@@ -990,13 +1058,15 @@ public class BatchCliWindow : Form
     {
         _tabExport.Text = "批量导出";
         _tabExport.Padding = new Padding(10);
+        _tabExport.BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA);
 
         var exportPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 2,
             RowCount = 5,
-            Padding = new Padding(10)
+            Padding = new Padding(10),
+            BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3)
         };
         exportPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         exportPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -1006,11 +1076,15 @@ public class BatchCliWindow : Form
 
         // Row 0: Source dir
         exportPanel.Controls.Add(new Label { Text = "源目录:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft }, 0, 0);
-        var srcDirPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true };
+        var srcDirPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3) };
         _txtSourceDir.Size = new Size(520, 24);
+        _txtSourceDir.BorderStyle = BorderStyle.FixedSingle;
+        _txtSourceDir.BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6);
         _btnBrowseSource.Text = "浏览";
         _btnBrowseSource.AutoSize = true;
         _btnBrowseSource.MinimumSize = new Size(60, 28);
+        _btnBrowseSource.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnBrowseSource);
         _btnBrowseSource.Click += (_, _) =>
         {
             using var dlg = new FolderBrowserDialog();
@@ -1023,6 +1097,7 @@ public class BatchCliWindow : Form
         _btnScan.BackColor = Color.FromArgb(0x00, 0x78, 0xD7);
         _btnScan.ForeColor = Color.White;
         _btnScan.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnScan, Color.FromArgb(0x00, 0x78, 0xD7), Color.White);
         _btnScan.Click += ScanSourceDir;
         srcDirPanel.Controls.AddRange([_txtSourceDir, _btnBrowseSource, _btnScan]);
         exportPanel.Controls.Add(srcDirPanel, 1, 0);
@@ -1031,6 +1106,7 @@ public class BatchCliWindow : Form
         _lvExportFiles.View = View.Details;
         _lvExportFiles.FullRowSelect = true;
         _lvExportFiles.Dock = DockStyle.Fill;
+        StyleListView(_lvExportFiles);
         _lvExportFiles.Columns.Add("文件名", 200);
         _lvExportFiles.Columns.Add("export.json", 100);
         _lvExportFiles.Columns.Add("路径", 400);
@@ -1046,6 +1122,7 @@ public class BatchCliWindow : Form
         _btnRefresh.AutoSize = true;
         _btnRefresh.MinimumSize = new Size(96, 34);
         _btnRefresh.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnRefresh);
         _btnRefresh.Click += (_, _) => RefreshExportStatus();
 
         _rbFinish.Text = "finish.export.json";
@@ -1078,7 +1155,7 @@ public class BatchCliWindow : Form
             }
         };
 
-        var refreshPanel = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(0, 2, 0, 0) };
+        var refreshPanel = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(0, 2, 0, 0), BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3) };
         refreshPanel.Controls.Add(_btnRefresh);
         refreshPanel.Controls.Add(new Label { Text = "  |  导出配置:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft });
         refreshPanel.Controls.Add(_rbFinish);
@@ -1088,11 +1165,15 @@ public class BatchCliWindow : Form
 
         // Row 3: Output dir
         exportPanel.Controls.Add(new Label { Text = "输出目录:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft }, 0, 3);
-        var outDirPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true };
+        var outDirPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3) };
         _txtOutputDir.Size = new Size(520, 24);
+        _txtOutputDir.BorderStyle = BorderStyle.FixedSingle;
+        _txtOutputDir.BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6);
         _btnBrowseOutput.Text = "浏览";
         _btnBrowseOutput.AutoSize = true;
         _btnBrowseOutput.MinimumSize = new Size(60, 28);
+        _btnBrowseOutput.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnBrowseOutput);
         _btnBrowseOutput.Click += (_, _) =>
         {
             using var dlg = new FolderBrowserDialog();
@@ -1103,7 +1184,7 @@ public class BatchCliWindow : Form
         exportPanel.Controls.Add(outDirPanel, 1, 3);
 
         // Row 4: Action buttons
-        var actionPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, Padding = new Padding(0, 8, 0, 0) };
+        var actionPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, Padding = new Padding(0, 8, 0, 0), BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3) };
 
         _btnExport.Text = "导出";
         _btnExport.AutoSize = true;
@@ -1111,6 +1192,7 @@ public class BatchCliWindow : Form
         _btnExport.BackColor = Color.FromArgb(0x00, 0x78, 0xD7);
         _btnExport.ForeColor = Color.White;
         _btnExport.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnExport, Color.FromArgb(0x00, 0x78, 0xD7), Color.White);
         _btnExport.Click += async (_, _) => await ExecuteExport();
 
         _btnPack.Text = "单纹理图";
@@ -1119,6 +1201,7 @@ public class BatchCliWindow : Form
         _btnPack.BackColor = Color.FromArgb(0x6B, 0x46, 0xC3);
         _btnPack.ForeColor = Color.White;
         _btnPack.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnPack, Color.FromArgb(0x6B, 0x46, 0xC3), Color.White);
         _btnPack.Click += async (_, _) => await ExecutePack();
 
         actionPanel.Controls.AddRange([_btnExport, _btnPack]);

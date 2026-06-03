@@ -226,6 +226,7 @@ public partial class MainForm : Form
         _trayMenu.Items.Add(_pauseTrayItem);
         _trayMenu.Items.Add(new ToolStripSeparator());
         _trayMenu.Items.Add("退出", null, (_, _) => ExitApp());
+        UiTheme.Apply(_trayMenu);
 
         _trayIcon = new NotifyIcon
         {

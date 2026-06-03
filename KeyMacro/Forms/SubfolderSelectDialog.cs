@@ -25,6 +25,7 @@ public class SubfolderSelectDialog : Form
         StartPosition = FormStartPosition.CenterParent;
         ShowInTaskbar = false;
         FormBorderStyle = FormBorderStyle.Sizable;
+        BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA);
 
         // Search box
         _txtSearch = new TextBox
@@ -32,7 +33,9 @@ public class SubfolderSelectDialog : Form
             Dock = DockStyle.Fill,
             Font = new Font("微软雅黑", 10),
             Text = "",
-            ForeColor = Color.Gray
+            ForeColor = Color.Gray,
+            BorderStyle = BorderStyle.FixedSingle,
+            BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6)
         };
         _txtSearch.Enter += (_, _) => { if (_txtSearch.ForeColor == Color.Gray) { _txtSearch.Text = ""; _txtSearch.ForeColor = Color.Black; } };
         _txtSearch.Leave += (_, _) => { if (string.IsNullOrWhiteSpace(_txtSearch.Text)) { _txtSearch.Text = ""; _txtSearch.ForeColor = Color.Gray; } };
@@ -44,7 +47,9 @@ public class SubfolderSelectDialog : Form
             Dock = DockStyle.Fill,
             Font = new Font("微软雅黑", 10),
             Text = "",
-            ForeColor = Color.Gray
+            ForeColor = Color.Gray,
+            BorderStyle = BorderStyle.FixedSingle,
+            BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6)
         };
         _txtExclude.Enter += (_, _) => { if (_txtExclude.ForeColor == Color.Gray) { _txtExclude.Text = ""; _txtExclude.ForeColor = Color.Black; } };
         _txtExclude.Leave += (_, _) => { if (string.IsNullOrWhiteSpace(_txtExclude.Text)) { _txtExclude.Text = ""; _txtExclude.ForeColor = Color.Gray; } };
@@ -57,7 +62,9 @@ public class SubfolderSelectDialog : Form
             Font = new Font("微软雅黑", 10),
             CheckOnClick = true,
             HorizontalScrollbar = true,
-            IntegralHeight = false
+            IntegralHeight = false,
+            BorderStyle = BorderStyle.FixedSingle,
+            BackColor = Color.White
         };
         _clb.ItemCheck += _clb_ItemCheck;
 
@@ -71,7 +78,8 @@ public class SubfolderSelectDialog : Form
             Dock = DockStyle.Fill,
             Padding = new Padding(12),
             RowCount = 4,
-            ColumnCount = 1
+            ColumnCount = 1,
+            BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA)
         };
         mainPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         mainPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -79,7 +87,12 @@ public class SubfolderSelectDialog : Form
         mainPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
         // Row 0: search + exclude
-        var searchPanel = new FlowLayoutPanel { AutoSize = true, Padding = new Padding(0, 0, 0, 6) };
+        var searchPanel = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            Padding = new Padding(6, 4, 6, 6),
+            BackColor = Color.FromArgb(0xE4, 0xE4, 0xE4)
+        };
         _txtSearch.Size = new Size(240, 24);
         searchPanel.Controls.Add(new Label { Text = "搜索:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft });
         searchPanel.Controls.Add(_txtSearch);
@@ -89,7 +102,12 @@ public class SubfolderSelectDialog : Form
         mainPanel.Controls.Add(searchPanel, 0, 0);
 
         // Row 1: 全选 / 全不选
-        var topPanel = new FlowLayoutPanel { AutoSize = true, Padding = new Padding(0, 0, 0, 6) };
+        var topPanel = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            Padding = new Padding(0, 0, 0, 6),
+            BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA)
+        };
 
         var btnSelectAll = new Button
         {
@@ -98,6 +116,7 @@ public class SubfolderSelectDialog : Form
             MinimumSize = new Size(80, 30),
             FlatStyle = FlatStyle.Flat
         };
+        StyleButton(btnSelectAll, Color.FromArgb(0xF2, 0xF2, 0xF2), Color.Black);
         btnSelectAll.Click += (_, _) =>
         {
             for (int i = 0; i < _clb.Items.Count; i++)
@@ -111,6 +130,7 @@ public class SubfolderSelectDialog : Form
             MinimumSize = new Size(80, 30),
             FlatStyle = FlatStyle.Flat
         };
+        StyleButton(btnDeselectAll, Color.FromArgb(0xF2, 0xF2, 0xF2), Color.Black);
         btnDeselectAll.Click += (_, _) =>
         {
             for (int i = 0; i < _clb.Items.Count; i++)
@@ -129,7 +149,8 @@ public class SubfolderSelectDialog : Form
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.RightToLeft,
             AutoSize = true,
-            Padding = new Padding(0, 8, 0, 0)
+            Padding = new Padding(0, 8, 0, 0),
+            BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA)
         };
 
         var btnCancel = new Button
@@ -139,6 +160,7 @@ public class SubfolderSelectDialog : Form
             MinimumSize = new Size(80, 32),
             FlatStyle = FlatStyle.Flat
         };
+        StyleButton(btnCancel, Color.FromArgb(0xF2, 0xF2, 0xF2), Color.Black);
         btnCancel.Click += (_, _) => { DialogResult = DialogResult.Cancel; Close(); };
 
         var btnOk = new Button
@@ -150,6 +172,7 @@ public class SubfolderSelectDialog : Form
             BackColor = Color.FromArgb(0x00, 0x78, 0xD7),
             ForeColor = Color.White
         };
+        StyleButton(btnOk, Color.FromArgb(0x00, 0x78, 0xD7), Color.White);
         btnOk.Click += (_, _) =>
         {
             SelectedFolders = _checkedIndices.Select(i => _allItems[i]).ToList();
@@ -162,6 +185,32 @@ public class SubfolderSelectDialog : Form
 
         Controls.Add(mainPanel);
         UiTheme.Apply(this, UiWindowProfile.SubfolderSelect);
+    }
+
+    private static void StyleButton(Button button, Color backColor, Color foreColor)
+    {
+        button.BackColor = backColor;
+        button.ForeColor = foreColor;
+        button.Cursor = Cursors.Hand;
+        button.FlatAppearance.BorderColor = Color.FromArgb(0x8A, 0x8A, 0x8A);
+        button.FlatAppearance.MouseOverBackColor = Lighten(backColor);
+        button.FlatAppearance.MouseDownBackColor = Darken(backColor);
+    }
+
+    private static Color Lighten(Color color)
+    {
+        return Color.FromArgb(
+            Math.Min(255, color.R + 20),
+            Math.Min(255, color.G + 20),
+            Math.Min(255, color.B + 20));
+    }
+
+    private static Color Darken(Color color)
+    {
+        return Color.FromArgb(
+            Math.Max(0, color.R - 25),
+            Math.Max(0, color.G - 25),
+            Math.Max(0, color.B - 25));
     }
 
     private string GetDisplayText(string path)

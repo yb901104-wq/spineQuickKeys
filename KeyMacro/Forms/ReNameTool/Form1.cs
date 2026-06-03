@@ -33,7 +33,69 @@ namespace KeyMacro.Forms.ReNameTool
             Size = new Size(1080, 660);
             MinimumSize = new Size(980, 600);
             InitializeProgressPanels();
+            ApplyVisualStyles();
             UiTheme.Apply(this, UiWindowProfile.ReNameTool);
+        }
+
+        private void ApplyVisualStyles()
+        {
+            BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA);
+            tabControl1.BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA);
+
+            foreach (var page in new[] { tabPage1, tabPage2, tabPage3 })
+            {
+                page.BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3);
+            }
+
+            foreach (var list in new[] { listBox1, listBox2, listBox3 })
+            {
+                list.BorderStyle = BorderStyle.FixedSingle;
+                list.BackColor = Color.White;
+                list.ForeColor = Color.Black;
+            }
+
+            foreach (var textBox in new[] { textBox1, textBox2, textBox3, textBox4, textBox5, textBox6, textBox7 })
+            {
+                textBox.BorderStyle = BorderStyle.FixedSingle;
+                textBox.BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6);
+            }
+
+            foreach (var button in new[] { button1, button2, button4, button6, button7, button9, button10, button11 })
+            {
+                StyleButton(button, Color.FromArgb(0xF2, 0xF2, 0xF2), Color.Black);
+            }
+
+            StyleButton(button3, Color.FromArgb(0x14, 0x87, 0x92), Color.White);
+            StyleButton(button5, Color.FromArgb(0x00, 0x78, 0xD7), Color.White);
+            StyleButton(button8, Color.FromArgb(0x00, 0x78, 0xD7), Color.White);
+            StyleButton(button13, Color.FromArgb(0x00, 0x78, 0xD7), Color.White);
+        }
+
+        private static void StyleButton(Button button, Color backColor, Color foreColor)
+        {
+            button.FlatStyle = FlatStyle.Flat;
+            button.BackColor = backColor;
+            button.ForeColor = foreColor;
+            button.Cursor = Cursors.Hand;
+            button.FlatAppearance.BorderColor = Color.FromArgb(0x8A, 0x8A, 0x8A);
+            button.FlatAppearance.MouseOverBackColor = Lighten(backColor);
+            button.FlatAppearance.MouseDownBackColor = Darken(backColor);
+        }
+
+        private static Color Lighten(Color color)
+        {
+            return Color.FromArgb(
+                Math.Min(255, color.R + 20),
+                Math.Min(255, color.G + 20),
+                Math.Min(255, color.B + 20));
+        }
+
+        private static Color Darken(Color color)
+        {
+            return Color.FromArgb(
+                Math.Max(0, color.R - 25),
+                Math.Max(0, color.G - 25),
+                Math.Max(0, color.B - 25));
         }
 
         private void InitializeProgressPanels()

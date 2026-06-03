@@ -64,6 +64,15 @@ powershell -ExecutionPolicy Bypass -File docs/ui-refactor/tools/capture-window.p
 | `vk-manager` | `VkWindowManager` | 使用当前布局数据，便于检查窗口名称、目标、按钮数、允许显示、显示/隐藏、删除列 |
 | `batch-copy` | `BatchCopyWindow` | 打开批量复制主界面，便于检查源文件、目标路径、预览、进度条和底部状态区 |
 | `source-file-picker` | `SourceFilePicker` | 打开源文件选择器，便于检查目录输入、浏览/刷新、缩略图列表、确认/取消 |
+| `conflict-dialog` | `ConflictDialog` | 使用示例冲突文件，便于检查冲突列表和打开文件夹/覆盖/跳过/取消全部复制按钮 |
+| `input-dialog` | `InputDialog` | 使用修改按钮名称示例，便于检查提示、输入框、确定/取消 |
+| `subfolder-select` | `SubfolderSelectDialog` | 使用示例条目，便于检查搜索、不包含、全选/全不选、勾选列表、确认/取消 |
+| `batch-cli-merge` | `BatchCliWindow` | 打开合并页，便于检查 CLI 路径、源/目标列表、动画选择、from/to、实验合并、进度区 |
+| `batch-cli-export` | `BatchCliWindow` | 打开导出页，便于检查源目录、扫描、文件列表、导出配置、输出目录、导出/单纹理图、进度区 |
+| `rename-tool-rename` | `ReNameTool.Form1` | 打开重命名页，便于检查文件列表、全名替换、关键词替换、清空、选择文件/文件夹和进度区 |
+| `rename-tool-organize` | `ReNameTool.Form1` | 打开 Spine 文件整理页，便于检查列表、bytes/txt 勾选、源/保存位置、清空、开始整理和进度区 |
+| `rename-tool-unpack` | `ReNameTool.Form1` | 打开 Spine 图集自动解包页，便于检查列表、目标文件夹、清空、开始解包和进度区 |
+| `hotkey-recorder` | `HotkeyRecorderForm` | 打开热键录制弹窗，便于检查提示区域和录制状态文字 |
 
 示例：
 
@@ -81,3 +90,4 @@ dotnet run --project docs/ui-refactor/tools/RuntimeWindowCapture/RuntimeWindowCa
 - 截图脚本只负责捕获窗口，不负责修改应用状态。
 - 如果应用已有托盘实例导致新实例无法显示，应先确认是否需要关闭旧实例，再截图。
 - 虚拟按键窗口本体不纳入普通 UI 重构截图；只截图右键菜单和相关输入弹窗。
+- 右键菜单/托盘菜单截图需要真实触发菜单后执行 `capture-window.ps1 -ActiveWindow`，不要为菜单临时改代码或改交互逻辑。

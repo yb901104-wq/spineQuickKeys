@@ -208,6 +208,7 @@ public class VirtualKeyWindow : Form
             if (_orientMenuItem != null) _orientMenuItem.Checked = _vertical;
             lockItem.Text = _winLocked ? "✓ 窗口已锁定" : "窗口锁定/解锁";
         };
+        UiTheme.Apply(m);
         return m;
     }
 
@@ -278,6 +279,7 @@ public class VirtualKeyWindow : Form
         });
         menu.Opened += (_, _) => _loopExecutor.PauseForMenu(vbtn.Id);
         menu.Closed += (_, _) => _loopExecutor.ResumeFromMenu(vbtn.Id);
+        UiTheme.Apply(menu);
         menu.Show(widget, location);
     }
 
