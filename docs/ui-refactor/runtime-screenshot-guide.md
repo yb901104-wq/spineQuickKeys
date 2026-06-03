@@ -73,6 +73,9 @@ powershell -ExecutionPolicy Bypass -File docs/ui-refactor/tools/capture-window.p
 | `rename-tool-organize` | `ReNameTool.Form1` | 打开 Spine 文件整理页，便于检查列表、bytes/txt 勾选、源/保存位置、清空、开始整理和进度区 |
 | `rename-tool-unpack` | `ReNameTool.Form1` | 打开 Spine 图集自动解包页，便于检查列表、目标文件夹、清空、开始解包和进度区 |
 | `hotkey-recorder` | `HotkeyRecorderForm` | 打开热键录制弹窗，便于检查提示区域和录制状态文字 |
+| `vk-blank-menu` | `VirtualKeyWindow` | 打开测试 VK 窗口并弹出空白区域右键菜单，便于检查新增按钮、窗口控制、目标窗口、缩放等菜单项 |
+| `vk-button-menu` | `VirtualKeyWindow` | 打开测试 VK 窗口并弹出按钮右键菜单，便于检查修改名称、按钮间距、强制停止、删除当前按钮 |
+| `tray-menu` | `MainForm` | 打开主窗口并弹出托盘菜单对象，便于检查打开主窗口、暂停全部、退出 |
 
 示例：
 
@@ -90,4 +93,4 @@ dotnet run --project docs/ui-refactor/tools/RuntimeWindowCapture/RuntimeWindowCa
 - 截图脚本只负责捕获窗口，不负责修改应用状态。
 - 如果应用已有托盘实例导致新实例无法显示，应先确认是否需要关闭旧实例，再截图。
 - 虚拟按键窗口本体不纳入普通 UI 重构截图；只截图右键菜单和相关输入弹窗。
-- 右键菜单/托盘菜单截图需要真实触发菜单后执行 `capture-window.ps1 -ActiveWindow`，不要为菜单临时改代码或改交互逻辑。
+- 右键菜单/托盘菜单可用 `RuntimeWindowCapture` 的菜单入口截图；若需人工复核，再真实触发菜单后执行 `capture-window.ps1 -ActiveWindow`。

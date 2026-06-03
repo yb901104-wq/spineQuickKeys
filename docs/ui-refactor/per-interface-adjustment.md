@@ -334,7 +334,9 @@
 - `VirtualKeyWindow.OnWidgetContextMenu()` 创建完按钮菜单后显式调用 `UiTheme.Apply(menu)`。
 - `MainForm.SetupTray()` 创建托盘菜单后显式调用 `UiTheme.Apply(_trayMenu)`。
 - 菜单样式使用深灰背景、悬停高亮、危险项红色文字；不改菜单项、不改事件绑定、不改 VK 窗口本体。
-- 代码已构建通过；菜单截图需通过真实右键触发后使用 `capture-window.ps1 -ActiveWindow` 补拍。
+- 已用最新 `runtime-vk-blank-menu-round2-check.png` 截图确认：空白区域菜单的新增按钮、删除所有、置顶、透明度、目标窗口、方向、缩放、锁定、关闭/删除窗口均可见。
+- 已用最新 `runtime-vk-button-menu-round2-check.png` 截图确认：按钮菜单的标题、修改名称、按钮间距、强制停止、删除当前按钮均可见；危险项红色显示。
+- 已用最新 `runtime-tray-menu-round2-check.png` 截图确认：托盘菜单的打开主窗口、暂停全部、退出均可见。
 
 - 真实界面只有文件路径、载入文件、录制按键、搜索、热键表格、取消、保存；没有独立分组列表或状态列表。
 - 分组文字仍按原逻辑保留在 `快捷键名称` 列中，以 `---` 分隔行显示，不新增额外列表。

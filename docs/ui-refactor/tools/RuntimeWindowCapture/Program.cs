@@ -32,8 +32,8 @@ internal static class Program
         timer.Tick += (_, _) =>
         {
             timer.Stop();
-            Capture(form, output);
-            form.Close();
+            Capture(form, output, key);
+            CloseForm(form, key);
         };
 
         form.Shown += (_, _) => timer.Start();
@@ -58,6 +58,9 @@ internal static class Program
             "rename-tool-organize" => new Form1(),
             "rename-tool-unpack" => new Form1(),
             "hotkey-recorder" => new HotkeyRecorderForm(allowNoModifier: true),
+            "vk-blank-menu" => CreateSampleVirtualKeyWindow(),
+            "vk-button-menu" => CreateSampleVirtualKeyWindow(),
+            "tray-menu" => new MainForm(),
             _ => throw new ArgumentException($"Unsupported window key: {key}")
         };
     }
@@ -65,10 +68,37 @@ internal static class Program
     private static void PrepareWindow(Form form, string key)
     {
         var tab = FindControl<TabControl>(form);
-        if (tab == null) return;
-        if (key == "batch-cli-export" && tab.TabPages.Count > 1) tab.SelectedIndex = 1;
-        if (key == "rename-tool-organize" && tab.TabPages.Count > 1) tab.SelectedIndex = 1;
-        if (key == "rename-tool-unpack" && tab.TabPages.Count > 2) tab.SelectedIndex = 2;
+        if (tab != null)
+        {
+            if (key == "batch-cli-export" && tab.TabPages.Count > 1) tab.SelectedIndex = 1;
+            if (key == "rename-tool-organize" && tab.TabPages.Count > 1) tab.SelectedIndex = 1;
+            if (key == "rename-tool-unpack" && tab.TabPages.Count > 2) tab.SelectedIndex = 2;
+        }
+
+        if (key == "vk-blank-menu")
+        {
+            var panel = FindControl<FlowLayoutPanel>(form);
+            panel?.ContextMenuStrip?.Show(panel, new Point(20, 20));
+        }
+
+        if (key == "vk-button-menu")
+        {
+            var widget = FindControl<VirtualButtonWidget>(form);
+            var method = form.GetType().GetMethod("OnWidgetContextMenu", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            if (widget != null && method != null)
+            {
+                method.Invoke(form, [widget, new Point(8, 8)]);
+            }
+        }
+
+        if (key == "tray-menu")
+        {
+            var field = form.GetType().GetField("_trayMenu", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            if (field?.GetValue(form) is ContextMenuStrip menu)
+            {
+                menu.Show(form, new Point(20, 20));
+            }
+        }
     }
 
     private static T? FindControl<T>(Control root) where T : Control
@@ -121,17 +151,54 @@ internal static class Program
         ];
     }
 
-    private static void Capture(Form form, string output)
+    private static VirtualKeyWindow CreateSampleVirtualKeyWindow()
+    {
+        var data = new VirtualLayoutSerializer.WindowLayoutData
+        {
+            Name = "截图测试",
+            Enabled = true,
+            Buttons =
+            [
+                new VirtualButton { Name = "按钮1", StyleType = VirtualButtonStyle.SmallIcon },
+                new VirtualButton { Name = "循环按钮", StyleType = VirtualButtonStyle.LoopIcon, LoopInterval = 100 }
+            ]
+        };
+        return new VirtualKeyWindow(new VirtualLayoutSerializer(), data, [], null);
+    }
+
+    private static void Capture(Form form, string output, string key)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(output)!);
         form.Activate();
         Application.DoEvents();
 
         var bounds = form.Bounds;
+        if (key.Contains("menu", StringComparison.OrdinalIgnoreCase))
+        {
+            bounds = new Rectangle(bounds.Left, bounds.Top, Math.Max(bounds.Width, 420), Math.Max(bounds.Height, 560));
+        }
+
         using var bitmap = new Bitmap(bounds.Width, bounds.Height);
         using var graphics = Graphics.FromImage(bitmap);
         graphics.CopyFromScreen(bounds.Left, bounds.Top, 0, 0, bitmap.Size);
         bitmap.Save(output, ImageFormat.Png);
+    }
+
+    private static void CloseForm(Form form, string key)
+    {
+        if (key.Contains("menu", StringComparison.OrdinalIgnoreCase))
+        {
+            Environment.Exit(0);
+        }
+
+        if (form is MainForm)
+        {
+            var method = form.GetType().GetMethod("ExitApp", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            method?.Invoke(form, null);
+            return;
+        }
+
+        form.Close();
     }
 }
 
