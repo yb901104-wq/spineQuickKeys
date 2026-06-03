@@ -43,6 +43,7 @@ public class BatchCopyWindow : Form
         MinimumSize = new Size(820, 620);
         StartPosition = FormStartPosition.CenterParent;
         ShowInTaskbar = true;
+        BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA);
 
         BuildUI();
         UiTheme.Apply(this, UiWindowProfile.BatchCopy);
@@ -59,7 +60,8 @@ public class BatchCopyWindow : Form
             Dock = DockStyle.Fill,
             Padding = new Padding(8),
             ColumnCount = 1,
-            RowCount = 7
+            RowCount = 7,
+            BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA)
         };
 
         mainPanel.Controls.Add(BuildSourcePanel(), 0, 0);
@@ -103,20 +105,23 @@ public class BatchCopyWindow : Form
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 3,
-            Padding = new Padding(0)
+            Padding = new Padding(8),
+            BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3),
+            CellBorderStyle = TableLayoutPanelCellBorderStyle.Single
         };
         panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
 
         // Toolbar
-        var toolbar = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = false, Padding = new Padding(0, 2, 0, 4) };
+        var toolbar = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = false, Padding = new Padding(0, 2, 0, 4), BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3) };
         _btnSelectFiles.Text = "选择文件";
         _btnSelectFiles.AutoSize = true;
         _btnSelectFiles.MinimumSize = new Size(90, 28);
         _btnSelectFiles.FlatStyle = FlatStyle.Flat;
         _btnSelectFiles.BackColor = Color.FromArgb(0x00, 0x78, 0xD7);
         _btnSelectFiles.ForeColor = Color.White;
+        StyleButton(_btnSelectFiles);
         _btnSelectFiles.Click += BtnSelectFiles_Click;
         toolbar.Controls.Add(_btnSelectFiles);
 
@@ -124,6 +129,7 @@ public class BatchCopyWindow : Form
         _btnRemoveSelected.AutoSize = true;
         _btnRemoveSelected.MinimumSize = new Size(80, 28);
         _btnRemoveSelected.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnRemoveSelected);
         _btnRemoveSelected.Click += (_, _) =>
         {
             var indices = _lbSourceFiles.SelectedIndices.Cast<int>().OrderByDescending(i => i).ToList();
@@ -140,6 +146,7 @@ public class BatchCopyWindow : Form
         _btnClearFiles.AutoSize = true;
         _btnClearFiles.MinimumSize = new Size(80, 28);
         _btnClearFiles.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnClearFiles);
         _btnClearFiles.Click += (_, _) => { _sourceFiles.Clear(); RefreshSourceList(); };
         toolbar.Controls.Add(_btnClearFiles);
 
@@ -150,6 +157,8 @@ public class BatchCopyWindow : Form
         _lbSourceFiles.Font = new Font("Consolas", 10);
         _lbSourceFiles.IntegralHeight = false;
         _lbSourceFiles.SelectionMode = SelectionMode.MultiExtended;
+        _lbSourceFiles.BorderStyle = BorderStyle.FixedSingle;
+        _lbSourceFiles.BackColor = Color.White;
         panel.Controls.Add(_lbSourceFiles, 0, 1);
 
         // Count label
@@ -169,7 +178,8 @@ public class BatchCopyWindow : Form
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 2,
-            Padding = new Padding(0, 2, 0, 2)
+            Padding = new Padding(0, 2, 0, 2),
+            BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA)
         };
         panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 20));
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -221,13 +231,14 @@ public class BatchCopyWindow : Form
 
     private Panel BuildTargetPanel()
     {
-        var panel = new Panel { Dock = DockStyle.Fill };
+        var panel = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3), Padding = new Padding(8) };
         var layout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 3,
             RowCount = 5,
-            Padding = new Padding(0)
+            Padding = new Padding(0),
+            BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3)
         };
 
         // Row 0: Prefix
@@ -236,6 +247,7 @@ public class BatchCopyWindow : Form
         _cmbPrefix.Font = new Font("微软雅黑", 9);
         _cmbPrefix.Dock = DockStyle.Fill;
         _cmbPrefix.Margin = new Padding(0, 3, 0, 3);
+        _cmbPrefix.BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6);
         _cmbPrefix.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
         _cmbPrefix.AutoCompleteSource = AutoCompleteSource.ListItems;
         _cmbPrefix.TextUpdate += (_, _) => DebouncePreview();
@@ -247,6 +259,7 @@ public class BatchCopyWindow : Form
         _btnBrowsePrefix.AutoSize = false;
         _btnBrowsePrefix.MinimumSize = new Size(36, 28);
         _btnBrowsePrefix.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnBrowsePrefix, Color.FromArgb(0xF2, 0xF2, 0xF2), Color.Black);
         _btnBrowsePrefix.Click += BtnBrowsePrefix_Click;
         layout.Controls.Add(_btnBrowsePrefix, 2, 0);
 
@@ -259,6 +272,8 @@ public class BatchCopyWindow : Form
         _txtMiddle.ScrollBars = ScrollBars.Vertical;
         _txtMiddle.AcceptsReturn = true;
         _txtMiddle.WordWrap = false;
+        _txtMiddle.BorderStyle = BorderStyle.FixedSingle;
+        _txtMiddle.BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6);
         _txtMiddle.TextChanged += (_, _) => DebouncePreview();
 
         var middleBtnCol = new FlowLayoutPanel
@@ -273,6 +288,7 @@ public class BatchCopyWindow : Form
         _btnAddMiddle.AutoSize = true;
         _btnAddMiddle.MinimumSize = new Size(60, 26);
         _btnAddMiddle.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnAddMiddle);
         _btnAddMiddle.Click += BtnAddMiddle_Click;
         middleBtnCol.Controls.Add(_btnAddMiddle);
 
@@ -280,6 +296,7 @@ public class BatchCopyWindow : Form
         _btnDelMiddle.AutoSize = true;
         _btnDelMiddle.MinimumSize = new Size(60, 26);
         _btnDelMiddle.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnDelMiddle);
         _btnDelMiddle.Click += BtnDelMiddle_Click;
         middleBtnCol.Controls.Add(_btnDelMiddle);
 
@@ -292,6 +309,7 @@ public class BatchCopyWindow : Form
         _cmbSuffix.Font = new Font("微软雅黑", 9);
         _cmbSuffix.Dock = DockStyle.Fill;
         _cmbSuffix.Margin = new Padding(0, 3, 0, 3);
+        _cmbSuffix.BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6);
         _cmbSuffix.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
         _cmbSuffix.AutoCompleteSource = AutoCompleteSource.ListItems;
         _cmbSuffix.TextUpdate += (_, _) => DebouncePreview();
@@ -306,6 +324,8 @@ public class BatchCopyWindow : Form
         _lbPreview.Font = new Font("Consolas", 10);
         _lbPreview.IntegralHeight = false;
         _lbPreview.SelectionMode = SelectionMode.None;
+        _lbPreview.BorderStyle = BorderStyle.FixedSingle;
+        _lbPreview.BackColor = Color.White;
         layout.Controls.Add(_lbPreview, 1, 4);
 
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 50));
@@ -450,13 +470,15 @@ public class BatchCopyWindow : Form
         {
             Dock = DockStyle.Fill,
             AutoSize = true,
-            Padding = new Padding(0, 4, 0, 0)
+            Padding = new Padding(0, 4, 0, 0),
+            BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA)
         };
 
         _btnClearHistory.Text = "清理历史记录";
         _btnClearHistory.AutoSize = true;
         _btnClearHistory.MinimumSize = new Size(110, 28);
         _btnClearHistory.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnClearHistory);
         _btnClearHistory.Click += (_, _) =>
         {
             var result = MessageBox.Show(this, "确定要清理前缀和后缀的历史记录吗？",
@@ -539,9 +561,41 @@ public class BatchCopyWindow : Form
         _btnStartCopy.FlatStyle = FlatStyle.Flat;
         _btnStartCopy.BackColor = Color.FromArgb(0x00, 0xC8, 0x53);
         _btnStartCopy.ForeColor = Color.White;
+        StyleButton(_btnStartCopy, Color.FromArgb(0x00, 0xC8, 0x53), Color.White);
         _btnStartCopy.Click += BtnStartCopy_Click;
         panel.Controls.Add(_btnStartCopy);
         return panel;
+    }
+
+    private static void StyleButton(Button button)
+    {
+        StyleButton(button, button.BackColor == default ? Color.FromArgb(0xF2, 0xF2, 0xF2) : button.BackColor, button.ForeColor);
+    }
+
+    private static void StyleButton(Button button, Color backColor, Color foreColor)
+    {
+        button.BackColor = backColor;
+        button.ForeColor = foreColor;
+        button.Cursor = Cursors.Hand;
+        button.FlatAppearance.BorderColor = Color.FromArgb(0x8A, 0x8A, 0x8A);
+        button.FlatAppearance.MouseOverBackColor = Lighten(backColor);
+        button.FlatAppearance.MouseDownBackColor = Darken(backColor);
+    }
+
+    private static Color Lighten(Color color)
+    {
+        return Color.FromArgb(
+            Math.Min(255, color.R + 20),
+            Math.Min(255, color.G + 20),
+            Math.Min(255, color.B + 20));
+    }
+
+    private static Color Darken(Color color)
+    {
+        return Color.FromArgb(
+            Math.Max(0, color.R - 25),
+            Math.Max(0, color.G - 25),
+            Math.Max(0, color.B - 25));
     }
 
     private async void BtnStartCopy_Click(object? sender, EventArgs e)

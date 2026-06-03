@@ -51,6 +51,7 @@ public partial class SequenceEditor : Form
         FormBorderStyle = FormBorderStyle.Sizable;
         MaximizeBox = true;
         MinimizeBox = true;
+        BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA);
 
         // ── Top: Name + Hotkey + VK Bind ──
         _topPanel = new TableLayoutPanel
@@ -59,7 +60,8 @@ public partial class SequenceEditor : Form
             Height = 154,
             ColumnCount = 2,
             RowCount = 3,
-            Padding = new Padding(14, 16, 14, 6)
+            Padding = new Padding(14, 16, 14, 6),
+            BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3)
         };
         _topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
         _topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -75,7 +77,8 @@ public partial class SequenceEditor : Form
         {
             Anchor = AnchorStyles.Left | AnchorStyles.Right,
             Font = new Font("Microsoft YaHei", 10),
-            Margin = new Padding(0, 5, 0, 5)
+            Margin = new Padding(0, 5, 0, 5),
+            BorderStyle = BorderStyle.FixedSingle
         };
         _topPanel.Controls.Add(_txtName, 1, 0);
 
@@ -84,7 +87,8 @@ public partial class SequenceEditor : Form
             Dock = DockStyle.Fill,
             ColumnCount = 4,
             RowCount = 1,
-            Margin = new Padding(0, 5, 0, 5)
+            Margin = new Padding(0, 5, 0, 5),
+            BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3)
         };
         hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
@@ -96,14 +100,16 @@ public partial class SequenceEditor : Form
             Anchor = AnchorStyles.Left | AnchorStyles.Right,
             ReadOnly = true,
             Font = new Font("Microsoft YaHei", 10),
-            BackColor = Color.White,
+            BackColor = Color.FromArgb(0xF8, 0xFB, 0xFE),
             Margin = new Padding(0, 4, 4, 4)
         };
-        _btnKeyboardRecord = new Button { Text = "键盘录入", Dock = DockStyle.Fill, FlatStyle = FlatStyle.Flat, Margin = new Padding(4, 0, 4, 0) };
+        _txtHotkey.BorderStyle = BorderStyle.FixedSingle;
+        _btnKeyboardRecord = MakeActionButton("键盘录入", Color.FromArgb(0x1D, 0x6F, 0xB8), Color.White);
         _btnKeyboardRecord.Click += BtnKeyboardRecord_Click;
-        _btnVkPick = new Button { Text = "虚拟按键", Dock = DockStyle.Fill, FlatStyle = FlatStyle.Flat, Margin = new Padding(4, 0, 4, 0) };
+        _btnVkPick = MakeActionButton("虚拟按键", Color.FromArgb(0x14, 0x87, 0x92), Color.White);
         _btnVkPick.Click += BtnVkPick_Click;
-        var btnClearHotkey = new Button { Text = "清除", Dock = DockStyle.Fill, FlatStyle = FlatStyle.Flat, Margin = new Padding(4, 0, 0, 0) };
+        var btnClearHotkey = MakeActionButton("清除", Color.FromArgb(0xB8, 0x42, 0x42), Color.White);
+        btnClearHotkey.Margin = new Padding(4, 0, 0, 0);
         btnClearHotkey.Click += (_, _) => { _txtHotkey.Text = ""; };
         hotkeyPanel.Controls.Add(_txtHotkey);
         hotkeyPanel.Controls.Add(_btnKeyboardRecord);
@@ -116,7 +122,8 @@ public partial class SequenceEditor : Form
             Anchor = AnchorStyles.Left | AnchorStyles.Right,
             Font = new Font("Microsoft YaHei", 10),
             PlaceholderText = "输入虚拟按键名称（如: 按钮1）",
-            Margin = new Padding(0, 5, 0, 5)
+            Margin = new Padding(0, 5, 0, 5),
+            BorderStyle = BorderStyle.FixedSingle
         };
         _topPanel.Controls.Add(_txtVkBind, 1, 2);
 
@@ -125,12 +132,13 @@ public partial class SequenceEditor : Form
         {
             Dock = DockStyle.Top,
             Height = 38,
-            Padding = new Padding(12, 4, 12, 0)
+            Padding = new Padding(12, 4, 12, 0),
+            BackColor = Color.FromArgb(0xE4, 0xE4, 0xE4)
         };
 
         _btnAddStep = MakeStepButton("添加步骤");
         _btnDelStep = MakeStepButton("删除步骤");
-        _btnRecordKey = MakeStepButton("录制按键");
+        _btnRecordKey = MakeStepButton("录制按键", Color.FromArgb(0x1D, 0x6F, 0xB8), Color.White);
         _btnMoveUp = MakeStepButton("上移");
         _btnMoveDown = MakeStepButton("下移");
 
@@ -152,8 +160,22 @@ public partial class SequenceEditor : Form
             AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
             Padding = new Padding(12, 0, 12, 0),
             SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-            MultiSelect = false
+            MultiSelect = false,
+            BorderStyle = BorderStyle.FixedSingle,
+            BackgroundColor = Color.White,
+            GridColor = Color.FromArgb(0xB8, 0xB8, 0xB8),
+            EnableHeadersVisualStyles = false,
+            ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
+            ColumnHeadersHeight = 32
         };
+        _dgvSteps.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(0xE1, 0xE7, 0xEA);
+        _dgvSteps.ColumnHeadersDefaultCellStyle.ForeColor = Color.Black;
+        _dgvSteps.ColumnHeadersDefaultCellStyle.Font = new Font("Microsoft YaHei UI", 9, FontStyle.Bold);
+        _dgvSteps.DefaultCellStyle.BackColor = Color.White;
+        _dgvSteps.DefaultCellStyle.ForeColor = Color.Black;
+        _dgvSteps.DefaultCellStyle.SelectionBackColor = Color.FromArgb(0x0B, 0x78, 0xD0);
+        _dgvSteps.DefaultCellStyle.SelectionForeColor = Color.White;
+        _dgvSteps.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(0xF7, 0xF7, 0xF7);
         _dgvSteps.CellValueChanged += DgvSteps_CellValueChanged;
         _dgvSteps.CellBeginEdit += DgvSteps_CellBeginEdit;
         _dgvSteps.CellEndEdit += (_, _) => { OperationLogger.Info("Suggest: CellEndEdit"); BeginInvoke(HideSuggestion); };
@@ -231,10 +253,13 @@ public partial class SequenceEditor : Form
             Dock = DockStyle.Bottom,
             Height = 48,
             Padding = new Padding(12, 8, 12, 8),
-            FlowDirection = FlowDirection.RightToLeft
+            FlowDirection = FlowDirection.RightToLeft,
+            BackColor = Color.FromArgb(0xE4, 0xE4, 0xE4)
         };
 
         _btnCancel = new Button { Text = "取消", AutoSize = true, MinimumSize = new Size(70, 30), FlatStyle = FlatStyle.Flat };
+        _btnCancel.Cursor = Cursors.Hand;
+        _btnCancel.FlatAppearance.BorderColor = Color.FromArgb(0x7A, 0x7A, 0x7A);
         _btnCancel.Click += (_, _) => { DialogResult = DialogResult.Cancel; Close(); };
 
         _btnOk = new Button
@@ -247,6 +272,8 @@ public partial class SequenceEditor : Form
             ForeColor = Color.White,
             FlatStyle = FlatStyle.Flat
         };
+        _btnOk.Cursor = Cursors.Hand;
+        _btnOk.FlatAppearance.BorderColor = Color.FromArgb(0x0A, 0x5F, 0xA8);
         _btnOk.Click += (_, _) => { SaveToSequence(); DialogResult = DialogResult.OK; Close(); };
 
         bottomPanel.Controls.Add(_btnCancel);
@@ -290,15 +317,61 @@ public partial class SequenceEditor : Form
         ApplyDpiScale();
     }
 
+    private static Button MakeActionButton(string text, Color backColor, Color foreColor)
+    {
+        var button = new Button
+        {
+            Text = text,
+            Dock = DockStyle.Fill,
+            FlatStyle = FlatStyle.Flat,
+            Margin = new Padding(4, 0, 4, 0),
+            BackColor = backColor,
+            ForeColor = foreColor,
+            Cursor = Cursors.Hand
+        };
+        button.FlatAppearance.BorderColor = Color.FromArgb(0x76, 0x76, 0x76);
+        button.FlatAppearance.MouseOverBackColor = Lighten(backColor);
+        button.FlatAppearance.MouseDownBackColor = Darken(backColor);
+        return button;
+    }
+
     private static Button MakeStepButton(string text)
     {
-        return new Button
+        return MakeStepButton(text, Color.FromArgb(0xF2, 0xF2, 0xF2), Color.Black);
+    }
+
+    private static Button MakeStepButton(string text, Color backColor, Color foreColor)
+    {
+        var button = new Button
         {
             Text = text,
             AutoSize = true,
             MinimumSize = new Size(70, 28),
-            FlatStyle = FlatStyle.Flat
+            FlatStyle = FlatStyle.Flat,
+            BackColor = backColor,
+            ForeColor = foreColor,
+            Cursor = Cursors.Hand
         };
+        button.FlatAppearance.BorderColor = Color.FromArgb(0x8A, 0x8A, 0x8A);
+        button.FlatAppearance.MouseOverBackColor = Lighten(backColor);
+        button.FlatAppearance.MouseDownBackColor = Darken(backColor);
+        return button;
+    }
+
+    private static Color Lighten(Color color)
+    {
+        return Color.FromArgb(
+            Math.Min(255, color.R + 20),
+            Math.Min(255, color.G + 20),
+            Math.Min(255, color.B + 20));
+    }
+
+    private static Color Darken(Color color)
+    {
+        return Color.FromArgb(
+            Math.Max(0, color.R - 25),
+            Math.Max(0, color.G - 25),
+            Math.Max(0, color.B - 25));
     }
 
     private void LoadSequence()
@@ -326,6 +399,7 @@ public partial class SequenceEditor : Form
         {
             HeaderText = "类型",
             Width = 90,
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
             DisplayStyle = DataGridViewComboBoxDisplayStyle.ComboBox
         };
         typeCol.Items.AddRange("单键", "组合键", "文本");
@@ -333,21 +407,25 @@ public partial class SequenceEditor : Form
         _dgvSteps.Columns.Add(new DataGridViewTextBoxColumn
         {
             HeaderText = "按键/文本",
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
+            FillWeight = 170,
             DefaultCellStyle = new DataGridViewCellStyle { WrapMode = DataGridViewTriState.True }
         });
         _dgvSteps.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
-        _dgvSteps.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "延迟(ms)", Width = 80 });
+        _dgvSteps.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "延迟(ms)", Width = 90, AutoSizeMode = DataGridViewAutoSizeColumnMode.None });
 
         var pressCol = new DataGridViewComboBoxColumn
         {
             HeaderText = "触发方式",
-            Width = 90,
+            Width = 110,
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
             DisplayStyle = DataGridViewComboBoxDisplayStyle.ComboBox
         };
         pressCol.Items.AddRange("点按", "长按");
         _dgvSteps.Columns.Add(pressCol);
-        _dgvSteps.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "按压时长(ms)", Width = 100 });
-        _dgvSteps.Columns.Add(new DataGridViewButtonColumn { HeaderText = "操作", Text = "复制", UseColumnTextForButtonValue = true, Width = 50 });
+        _dgvSteps.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "按压时长(ms)", Width = 120, AutoSizeMode = DataGridViewAutoSizeColumnMode.None });
+        _dgvSteps.Columns.Add(new DataGridViewButtonColumn { HeaderText = "操作", Text = "复制", UseColumnTextForButtonValue = true, Width = 80, AutoSizeMode = DataGridViewAutoSizeColumnMode.None });
+        ApplyStepsGridColumnStyles();
 
         _dgvSteps.Rows.Clear();
         foreach (var step in _sequence.Steps)
@@ -367,6 +445,38 @@ public partial class SequenceEditor : Form
             );
         }
         _suppressEvents = false;
+    }
+
+    private void ApplyStepsGridColumnStyles()
+    {
+        if (_dgvSteps.Columns.Count < 6) return;
+
+        var optionStyle = new DataGridViewCellStyle
+        {
+            BackColor = Color.FromArgb(0xE7, 0xF1, 0xFB),
+            SelectionBackColor = Color.FromArgb(0x1D, 0x6F, 0xB8),
+            SelectionForeColor = Color.White
+        };
+        _dgvSteps.Columns[0].DefaultCellStyle = optionStyle;
+        _dgvSteps.Columns[3].DefaultCellStyle = optionStyle.Clone();
+
+        var editableStyle = new DataGridViewCellStyle
+        {
+            BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6),
+            SelectionBackColor = Color.FromArgb(0xC7, 0x8F, 0x24),
+            SelectionForeColor = Color.White
+        };
+        _dgvSteps.Columns[1].DefaultCellStyle = editableStyle;
+        _dgvSteps.Columns[2].DefaultCellStyle = editableStyle.Clone();
+        _dgvSteps.Columns[4].DefaultCellStyle = editableStyle.Clone();
+
+        _dgvSteps.Columns[5].DefaultCellStyle = new DataGridViewCellStyle
+        {
+            BackColor = Color.FromArgb(0xE7, 0xF1, 0xFB),
+            SelectionBackColor = Color.FromArgb(0x1D, 0x6F, 0xB8),
+            SelectionForeColor = Color.White,
+            Alignment = DataGridViewContentAlignment.MiddleCenter
+        };
     }
 
     private void SaveStepsFromGrid()

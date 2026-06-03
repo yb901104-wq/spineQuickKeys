@@ -27,6 +27,7 @@ public class VkWindowManager : Form
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.Sizable;
         ShowInTaskbar = false;
+        BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA);
 
         _dgv = new DataGridView
         {
@@ -39,31 +40,35 @@ public class VkWindowManager : Form
             MultiSelect = false,
             ReadOnly = false,
             BorderStyle = BorderStyle.FixedSingle,
+            BackgroundColor = Color.White,
+            GridColor = Color.FromArgb(0xB8, 0xB8, 0xB8),
+            EnableHeadersVisualStyles = false,
             ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
             ColumnHeadersHeight = 32,
             RowTemplate = { Height = 30 }
         };
+        _dgv.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(0xE1, 0xE7, 0xEA);
+        _dgv.ColumnHeadersDefaultCellStyle.ForeColor = Color.Black;
+        _dgv.ColumnHeadersDefaultCellStyle.Font = new Font("Microsoft YaHei UI", 9, FontStyle.Bold);
+        _dgv.DefaultCellStyle.BackColor = Color.White;
+        _dgv.DefaultCellStyle.ForeColor = Color.Black;
+        _dgv.DefaultCellStyle.SelectionBackColor = Color.FromArgb(0x0B, 0x78, 0xD0);
+        _dgv.DefaultCellStyle.SelectionForeColor = Color.White;
+        _dgv.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(0xF7, 0xF7, 0xF7);
 
         var bottomPanel = new FlowLayoutPanel
         {
             Dock = DockStyle.Bottom,
             Height = 48,
             Padding = new Padding(12, 8, 12, 8),
-            FlowDirection = FlowDirection.RightToLeft
+            FlowDirection = FlowDirection.RightToLeft,
+            BackColor = Color.FromArgb(0xE4, 0xE4, 0xE4)
         };
 
-        _btnClose = new Button { Text = "关闭", AutoSize = true, MinimumSize = new Size(70, 30), FlatStyle = FlatStyle.Flat };
+        _btnClose = MakeButton("关闭", Color.FromArgb(0xF2, 0xF2, 0xF2), Color.Black, new Size(70, 30));
         _btnClose.Click += (_, _) => Close();
 
-        _btnAdd = new Button
-        {
-            Text = "+ 添加新窗口",
-            AutoSize = true,
-            MinimumSize = new Size(100, 30),
-            BackColor = Color.FromArgb(0, 120, 215),
-            ForeColor = Color.White,
-            FlatStyle = FlatStyle.Flat
-        };
+        _btnAdd = MakeButton("+ 添加新窗口", Color.FromArgb(0, 120, 215), Color.White, new Size(110, 30));
         _btnAdd.Click += (_, _) => AddWindow();
 
         bottomPanel.Controls.Add(_btnClose);
@@ -77,6 +82,40 @@ public class VkWindowManager : Form
         UiTheme.Apply(this, UiWindowProfile.VkWindowManager);
 
         Shown += (_, _) => RefreshList();
+    }
+
+    private static Button MakeButton(string text, Color backColor, Color foreColor, Size minimumSize)
+    {
+        var button = new Button
+        {
+            Text = text,
+            AutoSize = true,
+            MinimumSize = minimumSize,
+            BackColor = backColor,
+            ForeColor = foreColor,
+            FlatStyle = FlatStyle.Flat,
+            Cursor = Cursors.Hand
+        };
+        button.FlatAppearance.BorderColor = Color.FromArgb(0x8A, 0x8A, 0x8A);
+        button.FlatAppearance.MouseOverBackColor = Lighten(backColor);
+        button.FlatAppearance.MouseDownBackColor = Darken(backColor);
+        return button;
+    }
+
+    private static Color Lighten(Color color)
+    {
+        return Color.FromArgb(
+            Math.Min(255, color.R + 20),
+            Math.Min(255, color.G + 20),
+            Math.Min(255, color.B + 20));
+    }
+
+    private static Color Darken(Color color)
+    {
+        return Color.FromArgb(
+            Math.Max(0, color.R - 25),
+            Math.Max(0, color.G - 25),
+            Math.Max(0, color.B - 25));
     }
 
     private void RefreshList()
@@ -127,6 +166,7 @@ public class VkWindowManager : Form
             Width = 70,
             AutoSizeMode = DataGridViewAutoSizeColumnMode.None
         });
+        ApplyGridColumnStyles();
 
         var global = _serializer.LoadAll();
         OperationLogger.Info($"VkWindowManager.RefreshList: loaded {global.Windows.Count} windows");
@@ -139,6 +179,51 @@ public class VkWindowManager : Form
             OperationLogger.Info($"VkWindowManager.RefreshList: row added name={w.Name} buttons={w.Buttons.Count} enabled={w.Enabled}");
         }
 
+    }
+
+    private void ApplyGridColumnStyles()
+    {
+        if (_dgv.Columns.Count < 6) return;
+
+        _dgv.Columns[0].DefaultCellStyle = new DataGridViewCellStyle
+        {
+            BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6),
+            SelectionBackColor = Color.FromArgb(0xC7, 0x8F, 0x24),
+            SelectionForeColor = Color.White
+        };
+
+        var readOnlyStyle = new DataGridViewCellStyle
+        {
+            BackColor = Color.FromArgb(0xF2, 0xF4, 0xF5),
+            SelectionBackColor = Color.FromArgb(0x5B, 0x73, 0x84),
+            SelectionForeColor = Color.White
+        };
+        _dgv.Columns[1].DefaultCellStyle = readOnlyStyle;
+        _dgv.Columns[2].DefaultCellStyle = readOnlyStyle.Clone();
+
+        _dgv.Columns[3].DefaultCellStyle = new DataGridViewCellStyle
+        {
+            BackColor = Color.FromArgb(0xE7, 0xF1, 0xFB),
+            SelectionBackColor = Color.FromArgb(0x1D, 0x6F, 0xB8),
+            SelectionForeColor = Color.White,
+            Alignment = DataGridViewContentAlignment.MiddleCenter
+        };
+
+        _dgv.Columns[4].DefaultCellStyle = new DataGridViewCellStyle
+        {
+            BackColor = Color.FromArgb(0xE7, 0xF1, 0xFB),
+            SelectionBackColor = Color.FromArgb(0x1D, 0x6F, 0xB8),
+            SelectionForeColor = Color.White,
+            Alignment = DataGridViewContentAlignment.MiddleCenter
+        };
+
+        _dgv.Columns[5].DefaultCellStyle = new DataGridViewCellStyle
+        {
+            BackColor = Color.FromArgb(0xFA, 0xE6, 0xE6),
+            SelectionBackColor = Color.FromArgb(0xB8, 0x42, 0x42),
+            SelectionForeColor = Color.White,
+            Alignment = DataGridViewContentAlignment.MiddleCenter
+        };
     }
 
     private void Dgv_CellValueChanged(object? sender, DataGridViewCellEventArgs e)

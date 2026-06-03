@@ -35,6 +35,7 @@ public class SpineHotkeyEditor : Form
         Size = new Size(1100, 720);
         MinimumSize = new Size(820, 520);
         StartPosition = FormStartPosition.CenterParent;
+        BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA);
 
         // ── Top: file path display + load button ──
         var topPanel = new TableLayoutPanel
@@ -43,7 +44,8 @@ public class SpineHotkeyEditor : Form
             Height = 52,
             Padding = new Padding(14, 10, 14, 8),
             ColumnCount = 2,
-            RowCount = 1
+            RowCount = 1,
+            BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3)
         };
         topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
@@ -57,7 +59,7 @@ public class SpineHotkeyEditor : Form
             ForeColor = Color.Gray,
             AutoEllipsis = true
         };
-        _btnLoad = new Button { Text = "载入文件", AutoSize = true, MinimumSize = new Size(80, 28), FlatStyle = FlatStyle.Flat };
+        _btnLoad = MakeButton("载入文件", Color.FromArgb(0xF2, 0xF2, 0xF2), Color.Black, new Size(80, 28));
         _btnLoad.Click += BtnLoad_Click;
 
         topPanel.Controls.Add(_lblFilePath);
@@ -70,14 +72,15 @@ public class SpineHotkeyEditor : Form
             Height = 44,
             Padding = new Padding(14, 6, 14, 6),
             ColumnCount = 4,
-            RowCount = 1
+            RowCount = 1,
+            BackColor = Color.FromArgb(0xE4, 0xE4, 0xE4)
         };
         toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 280));
         toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
-        _btnRecord = new Button { Text = "录制按键", AutoSize = true, MinimumSize = new Size(80, 28), FlatStyle = FlatStyle.Flat };
+        _btnRecord = MakeButton("录制按键", Color.FromArgb(0x1D, 0x6F, 0xB8), Color.White, new Size(80, 28));
         _btnRecord.Click += BtnRecord_Click;
         toolbar.Controls.Add(_btnRecord, 0, 0);
 
@@ -92,7 +95,9 @@ public class SpineHotkeyEditor : Form
         _txtSearch = new TextBox
         {
             Dock = DockStyle.Fill,
-            Margin = new Padding(0, 4, 0, 4)
+            Margin = new Padding(0, 4, 0, 4),
+            BorderStyle = BorderStyle.FixedSingle,
+            BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6)
         };
         _txtSearch.TextChanged += (_, _) =>
         {
@@ -111,10 +116,23 @@ public class SpineHotkeyEditor : Form
             AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
             SelectionMode = DataGridViewSelectionMode.FullRowSelect,
             MultiSelect = false,
-            BorderStyle = BorderStyle.Fixed3D,
+            BorderStyle = BorderStyle.FixedSingle,
+            BackgroundColor = Color.White,
+            GridColor = Color.FromArgb(0xB8, 0xB8, 0xB8),
+            EnableHeadersVisualStyles = false,
+            ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
+            ColumnHeadersHeight = 32,
             AllowUserToOrderColumns = false,
             ClipboardCopyMode = DataGridViewClipboardCopyMode.Disable
         };
+        _dgv.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(0xE1, 0xE7, 0xEA);
+        _dgv.ColumnHeadersDefaultCellStyle.ForeColor = Color.Black;
+        _dgv.ColumnHeadersDefaultCellStyle.Font = new Font("Microsoft YaHei UI", 9, FontStyle.Bold);
+        _dgv.DefaultCellStyle.BackColor = Color.White;
+        _dgv.DefaultCellStyle.ForeColor = Color.Black;
+        _dgv.DefaultCellStyle.SelectionBackColor = Color.FromArgb(0x0B, 0x78, 0xD0);
+        _dgv.DefaultCellStyle.SelectionForeColor = Color.White;
+        _dgv.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(0xF7, 0xF7, 0xF7);
         _dgv.CellFormatting += Dgv_CellFormatting;
         _dgv.CellBeginEdit += Dgv_CellBeginEdit;
 
@@ -124,22 +142,15 @@ public class SpineHotkeyEditor : Form
             Dock = DockStyle.Bottom,
             Height = 48,
             Padding = new Padding(12, 8, 12, 8),
-            FlowDirection = FlowDirection.RightToLeft
+            FlowDirection = FlowDirection.RightToLeft,
+            BackColor = Color.FromArgb(0xE4, 0xE4, 0xE4)
         };
 
-        _btnCancel = new Button { Text = "取消", AutoSize = true, MinimumSize = new Size(70, 30), FlatStyle = FlatStyle.Flat };
+        _btnCancel = MakeButton("取消", Color.FromArgb(0xF2, 0xF2, 0xF2), Color.Black, new Size(70, 30));
         _btnCancel.Click += (_, _) => Close();
 
-        _btnSave = new Button
-        {
-            Text = "保存",
-            AutoSize = true,
-            MinimumSize = new Size(70, 30),
-            Margin = new Padding(0, 0, 8, 0),
-            BackColor = Color.FromArgb(0, 120, 215),
-            ForeColor = Color.White,
-            FlatStyle = FlatStyle.Flat
-        };
+        _btnSave = MakeButton("保存", Color.FromArgb(0, 120, 215), Color.White, new Size(70, 30));
+        _btnSave.Margin = new Padding(0, 0, 8, 0);
         _btnSave.Click += BtnSave_Click;
 
         bottomPanel.Controls.Add(_btnCancel);
@@ -167,6 +178,40 @@ public class SpineHotkeyEditor : Form
     }
 
     public List<SpineHotkeyEntry>? GetCurrentEntries() => _entries.Count > 0 ? [.. _entries] : null;
+
+    private static Button MakeButton(string text, Color backColor, Color foreColor, Size minimumSize)
+    {
+        var button = new Button
+        {
+            Text = text,
+            AutoSize = true,
+            MinimumSize = minimumSize,
+            FlatStyle = FlatStyle.Flat,
+            BackColor = backColor,
+            ForeColor = foreColor,
+            Cursor = Cursors.Hand
+        };
+        button.FlatAppearance.BorderColor = Color.FromArgb(0x8A, 0x8A, 0x8A);
+        button.FlatAppearance.MouseOverBackColor = Lighten(backColor);
+        button.FlatAppearance.MouseDownBackColor = Darken(backColor);
+        return button;
+    }
+
+    private static Color Lighten(Color color)
+    {
+        return Color.FromArgb(
+            Math.Min(255, color.R + 20),
+            Math.Min(255, color.G + 20),
+            Math.Min(255, color.B + 20));
+    }
+
+    private static Color Darken(Color color)
+    {
+        return Color.FromArgb(
+            Math.Max(0, color.R - 25),
+            Math.Max(0, color.G - 25),
+            Math.Max(0, color.B - 25));
+    }
 
     private void LoadEntries()
     {
@@ -211,6 +256,7 @@ public class SpineHotkeyEditor : Form
             HeaderText = "功能说明",
             AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill
         });
+        ApplyGridColumnStyles();
 
         var filter = _searchFilter;
         var hasFilter = filter.Length > 0;
@@ -311,6 +357,27 @@ public class SpineHotkeyEditor : Form
             e.CellStyle.BackColor = Color.FromArgb(0xE8, 0xE8, 0xE8);
             e.CellStyle.Font = new Font("Microsoft YaHei", 9, FontStyle.Bold);
         }
+    }
+
+    private void ApplyGridColumnStyles()
+    {
+        if (_dgv.Columns.Count < 3) return;
+
+        _dgv.Columns[0].DefaultCellStyle = new DataGridViewCellStyle
+        {
+            BackColor = Color.FromArgb(0xF2, 0xF4, 0xF5),
+            SelectionBackColor = Color.FromArgb(0x5B, 0x73, 0x84),
+            SelectionForeColor = Color.White
+        };
+
+        var editableStyle = new DataGridViewCellStyle
+        {
+            BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6),
+            SelectionBackColor = Color.FromArgb(0xC7, 0x8F, 0x24),
+            SelectionForeColor = Color.White
+        };
+        _dgv.Columns[1].DefaultCellStyle = editableStyle;
+        _dgv.Columns[2].DefaultCellStyle = editableStyle.Clone();
     }
 
     private void Dgv_CellBeginEdit(object? sender, DataGridViewCellCancelEventArgs e)

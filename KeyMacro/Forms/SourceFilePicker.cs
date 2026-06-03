@@ -29,6 +29,7 @@ public class SourceFilePicker : Form
         MinimizeBox = false;
         MaximizeBox = false;
         ShowInTaskbar = false;
+        BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA);
 
         BuildUI();
         UiTheme.Apply(this, UiWindowProfile.SourceFilePicker);
@@ -41,22 +42,33 @@ public class SourceFilePicker : Form
             Dock = DockStyle.Fill,
             Padding = new Padding(8),
             ColumnCount = 1,
-            RowCount = 3
+            RowCount = 3,
+            BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA)
         };
 
         // Toolbar
-        var toolbar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true };
+        var toolbar = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            BackColor = Color.FromArgb(0xE4, 0xE4, 0xE4),
+            Padding = new Padding(6, 4, 6, 4)
+        };
         _txtDir.Size = new Size(620, 24);
         _txtDir.ReadOnly = true;
+        _txtDir.BorderStyle = BorderStyle.FixedSingle;
+        _txtDir.BackColor = Color.FromArgb(0xF8, 0xFB, 0xFE);
         _btnBrowse.Text = "浏览";
         _btnBrowse.AutoSize = true;
         _btnBrowse.MinimumSize = new Size(60, 28);
         _btnBrowse.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnBrowse);
         _btnBrowse.Click += (_, _) => BrowseDir();
         _btnRefresh.Text = "刷新";
         _btnRefresh.AutoSize = true;
         _btnRefresh.MinimumSize = new Size(60, 28);
         _btnRefresh.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnRefresh);
         _btnRefresh.Click += async (_, _) => await LoadThumbnailsAsync();
         toolbar.Controls.AddRange([_txtDir, _btnBrowse, _btnRefresh]);
         layout.Controls.Add(toolbar, 0, 0);
@@ -67,6 +79,8 @@ public class SourceFilePicker : Form
         _lvThumbnails.LargeImageList = _imageList;
         _lvThumbnails.CheckBoxes = true;
         _lvThumbnails.MultiSelect = false;
+        _lvThumbnails.BorderStyle = BorderStyle.FixedSingle;
+        _lvThumbnails.BackColor = Color.White;
         _lvThumbnails.ItemCheck += (_, _) =>
             BeginInvoke(new Action(() =>
                 _lblCount.Text = $"已选 {_lvThumbnails.CheckedItems.Count} 个文件"));
@@ -80,7 +94,9 @@ public class SourceFilePicker : Form
         {
             Dock = DockStyle.Bottom,
             AutoSize = true,
-            FlowDirection = FlowDirection.RightToLeft
+            FlowDirection = FlowDirection.RightToLeft,
+            BackColor = Color.FromArgb(0xE4, 0xE4, 0xE4),
+            Padding = new Padding(8, 4, 8, 4)
         };
         _lblCount.Text = "已选 0 个文件";
         _lblCount.AutoSize = true;
@@ -90,6 +106,7 @@ public class SourceFilePicker : Form
         _btnCancel.AutoSize = true;
         _btnCancel.MinimumSize = new Size(80, 32);
         _btnCancel.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnCancel);
         _btnCancel.Click += (_, _) => { DialogResult = DialogResult.Cancel; Close(); };
 
         _btnOk.Text = "确认选择";
@@ -98,6 +115,7 @@ public class SourceFilePicker : Form
         _btnOk.FlatStyle = FlatStyle.Flat;
         _btnOk.BackColor = Color.FromArgb(0x00, 0x78, 0xD7);
         _btnOk.ForeColor = Color.White;
+        StyleButton(_btnOk, Color.FromArgb(0x00, 0x78, 0xD7), Color.White);
         _btnOk.Click += (_, _) =>
         {
             SelectedFiles = _lvThumbnails.CheckedItems
@@ -118,6 +136,37 @@ public class SourceFilePicker : Form
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
 
         Controls.Add(layout);
+    }
+
+    private static void StyleButton(Button button)
+    {
+        StyleButton(button, Color.FromArgb(0xF2, 0xF2, 0xF2), Color.Black);
+    }
+
+    private static void StyleButton(Button button, Color backColor, Color foreColor)
+    {
+        button.BackColor = backColor;
+        button.ForeColor = foreColor;
+        button.Cursor = Cursors.Hand;
+        button.FlatAppearance.BorderColor = Color.FromArgb(0x8A, 0x8A, 0x8A);
+        button.FlatAppearance.MouseOverBackColor = Lighten(backColor);
+        button.FlatAppearance.MouseDownBackColor = Darken(backColor);
+    }
+
+    private static Color Lighten(Color color)
+    {
+        return Color.FromArgb(
+            Math.Min(255, color.R + 20),
+            Math.Min(255, color.G + 20),
+            Math.Min(255, color.B + 20));
+    }
+
+    private static Color Darken(Color color)
+    {
+        return Color.FromArgb(
+            Math.Max(0, color.R - 25),
+            Math.Max(0, color.G - 25),
+            Math.Max(0, color.B - 25));
     }
 
     private void BrowseDir()

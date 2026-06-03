@@ -57,7 +57,7 @@ public partial class MainForm : Form
             AutoSize = true,
             WrapContents = true,
             Padding = new Padding(12, 10, 12, 8),
-            BackColor = Color.FromArgb(0xF0, 0xF0, 0xF0)
+            BackColor = Color.FromArgb(0xE4, 0xE4, 0xE4)
         };
 
         _btnAdd = CreateButton("添加", Color.FromArgb(0, 120, 215), Color.White);
@@ -121,7 +121,8 @@ public partial class MainForm : Form
         var dgvPanel = new Panel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(12, 8, 12, 12)
+            Padding = new Padding(12, 8, 12, 12),
+            BackColor = Color.FromArgb(0xD7, 0xD7, 0xD7)
         };
 
         _dgv = new DataGridView
@@ -143,7 +144,13 @@ public partial class MainForm : Form
             ColumnHeadersHeight = 34,
             RowTemplate = { Height = 30 }
         };
-        _dgv.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(0xF4, 0xF4, 0xF4);
+        _dgv.GridColor = Color.FromArgb(0xB8, 0xB8, 0xB8);
+        _dgv.DefaultCellStyle.BackColor = Color.White;
+        _dgv.DefaultCellStyle.ForeColor = Color.Black;
+        _dgv.DefaultCellStyle.SelectionBackColor = Color.FromArgb(0x0B, 0x78, 0xD0);
+        _dgv.DefaultCellStyle.SelectionForeColor = Color.White;
+        _dgv.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(0xF7, 0xF7, 0xF7);
+        _dgv.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(0xE1, 0xE7, 0xEA);
         _dgv.ColumnHeadersDefaultCellStyle.ForeColor = Color.Black;
         _dgv.ColumnHeadersDefaultCellStyle.Font = new Font("Microsoft YaHei UI", 9, FontStyle.Bold);
         _dgv.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
@@ -171,8 +178,30 @@ public partial class MainForm : Form
             ForeColor = foreColor,
             Margin = new Padding(3, 3, 3, 5),
             Padding = new Padding(6, 0, 6, 1),
-            FlatAppearance = { BorderColor = Color.Gainsboro }
+            Cursor = Cursors.Hand,
+            FlatAppearance =
+            {
+                BorderColor = Color.FromArgb(0xA8, 0xA8, 0xA8),
+                MouseOverBackColor = Lighten(backColor),
+                MouseDownBackColor = Darken(backColor)
+            }
         };
+    }
+
+    private static Color Lighten(Color color)
+    {
+        return Color.FromArgb(
+            Math.Min(255, color.R + 20),
+            Math.Min(255, color.G + 20),
+            Math.Min(255, color.B + 20));
+    }
+
+    private static Color Darken(Color color)
+    {
+        return Color.FromArgb(
+            Math.Max(0, color.R - 25),
+            Math.Max(0, color.G - 25),
+            Math.Max(0, color.B - 25));
     }
 
     private static Control Spacer()
@@ -1158,6 +1187,7 @@ public partial class MainForm : Form
             AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
             ReadOnly = true
         });
+        ApplyMainGridColumnStyles();
 
         _dgv.Rows.Clear();
         foreach (var seq in _sequences)
@@ -1178,6 +1208,38 @@ public partial class MainForm : Form
         _btnEdit.Enabled = _sequences.Count > 0;
         _btnDelete.Enabled = _sequences.Count > 0;
         _refreshingGrid = false;
+    }
+
+    private void ApplyMainGridColumnStyles()
+    {
+        if (_dgv.Columns.Count < 9) return;
+
+        var editableStyle = new DataGridViewCellStyle
+        {
+            BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6),
+            SelectionBackColor = Color.FromArgb(0xC7, 0x8F, 0x24),
+            SelectionForeColor = Color.White
+        };
+        _dgv.Columns[5].DefaultCellStyle = editableStyle;
+        _dgv.Columns[6].DefaultCellStyle = editableStyle.Clone();
+
+        var chooseStyle = new DataGridViewCellStyle
+        {
+            BackColor = Color.FromArgb(0xE7, 0xF1, 0xFB),
+            SelectionBackColor = Color.FromArgb(0x1D, 0x6F, 0xB8),
+            SelectionForeColor = Color.White,
+            Alignment = DataGridViewContentAlignment.MiddleCenter
+        };
+        _dgv.Columns[7].DefaultCellStyle = chooseStyle;
+
+        var clearStyle = new DataGridViewCellStyle
+        {
+            BackColor = Color.FromArgb(0xFA, 0xE6, 0xE6),
+            SelectionBackColor = Color.FromArgb(0xB8, 0x42, 0x42),
+            SelectionForeColor = Color.White,
+            Alignment = DataGridViewContentAlignment.MiddleCenter
+        };
+        _dgv.Columns[8].DefaultCellStyle = clearStyle;
     }
 
     private static string GetTargetAppDisplay(MacroSequence seq)
