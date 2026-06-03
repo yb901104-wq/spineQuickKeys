@@ -111,16 +111,17 @@ internal static class Program
     {
         Fill(g, r, App);
         DrawTitleBar(g, r, "spine宏助手 (TANRY) V3 UI Concept");
-        ToolStrip(g, new Rectangle(18, 46, 1404, 42), ["添加", "编辑", "删除", "复制序列", "暂停全部", "Spine 热键", "VK 开/关", "VK 管理", "批量重命名", "批量复制", "CLI", "导入", "导出"]);
+        MainToolbar(g, new Rectangle(18, 46, 1404, 42));
         PanelBox(g, new Rectangle(18, 104, 1404, 758), "宏序列列表");
         Table(g, new Rectangle(38, 154, 1364, 650),
-            ["启用", "名称", "触发快捷键", "目标软件", "循环(次)", "间隔(ms)", "步骤"],
+            ["启用", "选择", "名称", "触发快捷键", "目标软件", "间隔(ms)", "循环(次)", "步骤", "清除"],
             [
-                ["●", "G5 常用绑定", "Ctrl+Shift+G", "Spine.exe", "1", "0", "5"],
-                ["●", "循环预览", "虚拟按键/播放", "Spine.exe", "无限", "120", "3"],
-                ["", "导出准备", "-", "不限", "1", "0", "4"],
-                ["●", "清理 UI", "Alt+Q", "Spine.exe", "2", "80", "6"]
-            ]);
+                ["✓", "选择", "G5 常用绑定", "Ctrl+Shift+G", "Spine.exe", "0", "1", "5", "清除"],
+                ["✓", "选择", "循环预览", "虚拟按键/播放", "Spine.exe", "120", "无限", "3", "清除"],
+                ["", "选择", "导出准备", "-", "不限", "0", "1", "4", "清除"],
+                ["✓", "选择", "清理 UI", "Alt+Q", "Spine.exe", "80", "2", "6", "清除"]
+            ],
+            [0.45f, 0.55f, 1.35f, 1.35f, 1.15f, 0.85f, 0.85f, 0.5f, 0.6f]);
         Status(g, new Rectangle(18, 870, 1404, 20), "就绪 | 配置: AppData | VK 窗口: 2 | 热键: 4");
     }
 
@@ -130,12 +131,11 @@ internal static class Program
         DrawTitleBar(g, r, "序列编辑器");
         PanelBox(g, new Rectangle(24, 50, 1392, 148), "触发与绑定");
         Label(g, "序列名称", 48, 92, 10, Muted); InputBox(g, new Rectangle(150, 84, 420, 34), "G5 常用绑定");
-        Label(g, "触发快捷键", 48, 138, 10, Muted); InputBox(g, new Rectangle(150, 130, 280, 34), "Ctrl+Shift+G");
-        Button(g, new Rectangle(444, 130, 116, 34), "键盘录入", Blue);
-        Button(g, new Rectangle(574, 130, 116, 34), "虚拟按键", PanelAlt);
-        Button(g, new Rectangle(704, 130, 88, 34), "清除", PanelAlt);
-        Label(g, "VK 绑定", 850, 92, 10, Muted); InputBox(g, new Rectangle(940, 84, 320, 34), "主窗口/播放");
-        Label(g, "目标软件", 850, 138, 10, Muted); InputBox(g, new Rectangle(940, 130, 320, 34), "Spine.exe");
+        Label(g, "触发方式", 620, 92, 10, Muted); ComboBox(g, new Rectangle(720, 84, 240, 34), "键盘快捷键");
+        Label(g, "触发值", 48, 138, 10, Muted); ComboBox(g, new Rectangle(150, 130, 420, 34), "Ctrl+Shift+G");
+        Button(g, new Rectangle(590, 130, 116, 34), "录入按键", Blue);
+        Button(g, new Rectangle(720, 130, 92, 34), "清除", PanelAlt);
+        Label(g, "可选项", 850, 138, 10, Muted); ComboBox(g, new Rectangle(940, 130, 320, 34), "主窗口/播放");
 
         PanelBox(g, new Rectangle(24, 216, 1392, 660), "步骤列表");
         ToolStrip(g, new Rectangle(44, 262, 900, 36), ["添加单键", "添加组合键", "添加文本", "录制按键", "删除", "上移", "下移"]);
@@ -167,20 +167,21 @@ internal static class Program
         Fill(g, r, App);
         DrawTitleBar(g, r, "Spine 热键编辑器");
         PanelBox(g, new Rectangle(20, 48, 1400, 92), "TXT 文件");
-        InputBox(g, new Rectangle(42, 88, 930, 32), @"D:\Spine\hotkeys-1.txt");
-        Button(g, new Rectangle(990, 88, 110, 32), "载入文件", Blue);
-        Button(g, new Rectangle(1116, 88, 110, 32), "录制按键", PanelAlt);
-        InputBox(g, new Rectangle(1240, 88, 360, 32), "搜索: rotate");
+        InputBox(g, new Rectangle(42, 88, 720, 32), @"D:\Spine\hotkeys-1.txt");
+        Button(g, new Rectangle(778, 88, 110, 32), "载入文件", Blue);
+        Button(g, new Rectangle(904, 88, 110, 32), "录制按键", PanelAlt);
+        InputBox(g, new Rectangle(1030, 88, 360, 32), "搜索: rotate");
 
         PanelBox(g, new Rectangle(20, 156, 1400, 720), "快捷键列表");
         Table(g, new Rectangle(42, 206, 1360, 606),
-            ["分组", "名称", "快捷键", "中文说明", "状态"],
+            ["名称", "快捷键", "中文说明"],
             [
-                ["Transform", "Rotate", "R", "旋转工具", "已绑定"],
-                ["Transform", "Translate", "T", "移动工具", "已绑定"],
-                ["Animation", "Key Dopesheet", "Ctrl+K", "记录关键帧", "已绑定"],
-                ["File", "Save", "Ctrl+S", "保存项目", "已绑定"]
-            ]);
+                ["Transform / Rotate", "R", "旋转工具"],
+                ["Transform / Translate", "T", "移动工具"],
+                ["Animation / Key Dopesheet", "Ctrl+K", "记录关键帧"],
+                ["File / Save", "Ctrl+S", "保存项目"]
+            ],
+            [1.8f, 1.0f, 1.8f]);
         Button(g, new Rectangle(1194, 826, 90, 36), "取消", PanelAlt);
         Button(g, new Rectangle(1296, 826, 90, 36), "保存", Blue);
     }
@@ -228,15 +229,16 @@ internal static class Program
         Fill(g, r, App);
         DrawTitleBar(g, r, "虚拟按键管理器");
         PanelBox(g, new Rectangle(24, 56, 1392, 762), "窗口列表");
-        ToolStrip(g, new Rectangle(46, 104, 700, 36), ["新增窗口", "显示全部", "隐藏全部", "保存布局"]);
-        Table(g, new Rectangle(46, 156, 1368, 610),
+        Table(g, new Rectangle(46, 104, 1368, 630),
             ["允许显示", "窗口名称", "目标进程", "按钮数", "状态", "操作"],
             [
                 ["✓", "主窗口", "Spine.exe", "6", "显示中", "显示 / 删除"],
                 ["✓", "权重工具", "Spine.exe", "4", "隐藏", "显示 / 删除"],
                 ["", "导出辅助", "-", "3", "隐藏", "显示 / 删除"]
-            ]);
-        Button(g, new Rectangle(1240, 786, 110, 36), "关闭", PanelAlt);
+            ],
+            [0.8f, 1.4f, 1.4f, 0.8f, 0.9f, 1.2f]);
+        Button(g, new Rectangle(1128, 760, 110, 36), "新增窗口", Blue);
+        Button(g, new Rectangle(1254, 760, 110, 36), "关闭", PanelAlt);
     }
 
     private static void DrawBatchCopy(Graphics g, Rectangle r)
@@ -247,14 +249,16 @@ internal static class Program
         ToolStrip(g, new Rectangle(44, 92, 520, 34), ["选择文件", "移除选中", "清空列表"]);
         Table(g, new Rectangle(44, 138, 1368, 82), ["文件名", "路径"], [["201.png", @"source\201.png"], ["zzps-skin.json", @"source\zzps-skin.json"]]);
         PanelBox(g, new Rectangle(24, 246, 1392, 470), "目标路径");
-        InputBox(g, new Rectangle(116, 300, 360, 32), @"D:\exports");
+        InputBox(g, new Rectangle(116, 300, 600, 32), @"D:\exports");
         Label(g, "前缀", 46, 307, 10, Muted);
+        Button(g, new Rectangle(730, 300, 92, 32), "选择文件夹", PanelAlt);
         TextArea(g, new Rectangle(116, 346, 600, 136), "targets1\ntargets2\ntargets3\ntargets4\ntargets5");
         Label(g, "中间", 46, 354, 10, Muted);
         Button(g, new Rectangle(730, 346, 92, 32), "添加行", PanelAlt);
         Button(g, new Rectangle(730, 388, 92, 32), "删除行", PanelAlt);
-        InputBox(g, new Rectangle(116, 500, 360, 32), "images");
+        InputBox(g, new Rectangle(116, 500, 600, 32), "images");
         Label(g, "后缀", 46, 507, 10, Muted);
+        Button(g, new Rectangle(730, 542, 92, 32), "清理历史", PanelAlt);
         Table(g, new Rectangle(880, 300, 500, 250), ["预览目标"], [[@"D:\exports\targets1\images"], [@"D:\exports\targets2\images"], [@"D:\exports\targets3\images"]]);
         Button(g, new Rectangle(24, 734, 1368, 42), "开始复制", Green);
         Label(g, "复制中: zzps-skin.json -> targets4", 24, 798, 10, Text, 1368, align: StringAlignment.Center);
@@ -270,14 +274,15 @@ internal static class Program
         Button(g, new Rectangle(846, 102, 82, 32), "浏览", Blue);
         Button(g, new Rectangle(940, 102, 82, 32), "刷新", PanelAlt);
         var grid = new Rectangle(48, 158, 1350, 600);
-        Fill(g, grid, Workspace); Stroke(g, grid, Border);
+        FillRound(g, grid, Workspace, 5);
+        StrokeRound(g, grid, Border, 5);
         for (var i = 0; i < 18; i++)
         {
             var col = i % 6;
             var row = i / 6;
             var cell = new Rectangle(grid.X + 26 + col * 218, grid.Y + 24 + row * 178, 178, 146);
-            Fill(g, cell, Panel);
-            Stroke(g, cell, i < 3 ? Blue : Border);
+            FillRound(g, cell, Panel, 5);
+            StrokeRound(g, cell, i < 3 ? Blue : Border, 5);
             DrawChecker(g, new Rectangle(cell.X + 12, cell.Y + 12, 154, 88));
             Label(g, i < 3 ? "✓ 201.png" : $"image_{i + 1}.png", cell.X + 12, cell.Y + 106, 9, i < 3 ? Text : Muted);
         }
@@ -315,7 +320,7 @@ internal static class Program
         InputBox(g, new Rectangle(792, 628, 220, 32), "默认");
         Label(g, "--to", 720, 636, 10, Muted);
         Button(g, new Rectangle(970, 690, 142, 38), "执行合并", Blue);
-        Pill(g, new Rectangle(1128, 692, 282, 34), "实验功能: CLI骨架合并(4.3)", Orange);
+        CheckOption(g, new Rectangle(1128, 692, 282, 34), "实验功能: CLI骨架合并(4.3)", true, Orange);
         Label(g, "实验合并: G5_target_copy.spine", 24, 812, 10, Text, 1392, align: StringAlignment.Center);
         Progress(g, new Rectangle(24, 838, 1392, 26), .4f, "2/5");
     }
@@ -332,7 +337,11 @@ internal static class Program
         Button(g, new Rectangle(866, 204, 82, 32), "浏览", PanelAlt);
         Button(g, new Rectangle(960, 204, 82, 32), "扫描", Blue);
         Table(g, new Rectangle(48, 258, 1350, 360), ["文件名", "export.json", "路径"], [["G5.spine", "✓ finish.export.json", @"projects\G5.spine"], ["ribbon_test2.json", "缺省导出", @"projects\ribbon_test2.json"]]);
-        ToolStrip(g, new Rectangle(48, 638, 720, 34), ["刷新状态", "finish.export.json", "demotion.export.json", "其他"]);
+        Button(g, new Rectangle(48, 634, 104, 42), "刷新状态", PanelAlt);
+        Label(g, "导出配置", 174, 648, 10, Muted);
+        CheckOption(g, new Rectangle(260, 634, 220, 42), "finish.export.json", true, Blue);
+        CheckOption(g, new Rectangle(494, 634, 230, 42), "demotion.export.json", false, BorderStrong);
+        CheckOption(g, new Rectangle(738, 634, 96, 42), "其他", false, BorderStrong);
         InputBox(g, new Rectangle(132, 704, 720, 32), @"docs\verification\cli-output");
         Label(g, "输出目录", 48, 712, 10, Muted);
         Button(g, new Rectangle(866, 704, 82, 32), "浏览", PanelAlt);
@@ -373,9 +382,9 @@ internal static class Program
         PanelBox(g, new Rectangle(42, 492, 1320, 168), "整理配置");
         Label(g, "源文件夹", 70, 538, 10, Muted); InputBox(g, new Rectangle(160, 530, 420, 32), @"D:\apk\spine"); Button(g, new Rectangle(596, 530, 104, 32), "源文件位置", PanelAlt);
         Label(g, "保存位置", 70, 590, 10, Muted); InputBox(g, new Rectangle(160, 582, 420, 32), @"D:\organized"); Button(g, new Rectangle(596, 582, 104, 32), "保存位置", PanelAlt);
-        Pill(g, new Rectangle(760, 530, 360, 34), ".bytes 及 .txt 后缀处理", Cyan);
-        Button(g, new Rectangle(1160, 582, 116, 36), "清空列表", PanelAlt);
-        Button(g, new Rectangle(1290, 582, 116, 36), "开始整理", Blue);
+        CheckOption(g, new Rectangle(760, 530, 360, 34), ".bytes 及 .txt 后缀处理", true, Cyan);
+        Button(g, new Rectangle(1018, 582, 116, 36), "清空列表", PanelAlt);
+        Button(g, new Rectangle(1148, 582, 116, 36), "开始整理", Blue);
         Label(g, "整理: G5.atlas.txt", 42, 708, 10, Text, 1320, align: StringAlignment.Center);
         Progress(g, new Rectangle(42, 734, 1320, 26), .66f, "2/3");
     }
@@ -385,9 +394,9 @@ internal static class Program
         DrawRenameShell(g, "批量重命名 - SPINE 图集自动解包", 2);
         Table(g, new Rectangle(42, 150, 1320, 460), ["Atlas 文件"], [[@"G5.atlas"], [@"ribbon.atlas"], [@"skin.atlas"]]);
         PanelBox(g, new Rectangle(42, 630, 1320, 108), "解包操作");
-        Label(g, "图集所在目标文件夹", 70, 676, 10, Muted); InputBox(g, new Rectangle(220, 668, 420, 32), @"D:\atlas"); Button(g, new Rectangle(666, 668, 128, 32), "选择目标文件夹", PanelAlt);
-        Button(g, new Rectangle(890, 668, 110, 32), "清空列表", PanelAlt);
-        Button(g, new Rectangle(1210, 652, 116, 56), "开始解包", Blue);
+        Label(g, "图集所在目标文件夹", 70, 694, 10, Muted); InputBox(g, new Rectangle(220, 686, 420, 32), @"D:\atlas"); Button(g, new Rectangle(666, 686, 128, 32), "选择目标文件夹", PanelAlt);
+        Button(g, new Rectangle(890, 686, 110, 32), "清空列表", PanelAlt);
+        Button(g, new Rectangle(1210, 686, 116, 32), "开始解包", Blue);
         Label(g, "解包: ribbon.atlas", 42, 772, 10, Text, 1320, align: StringAlignment.Center);
         Progress(g, new Rectangle(42, 798, 1320, 26), .66f, "2/3");
     }
@@ -411,9 +420,9 @@ internal static class Program
         ToolStrip(g, new Rectangle(48, 104, 620, 36), ["全选", "全不选", "反选"]);
         InputBox(g, new Rectangle(48, 158, 360, 32), "搜索: G5");
         InputBox(g, new Rectangle(430, 158, 360, 32), "不包含: temp");
-        Table(g, new Rectangle(48, 212, 1368, 570), ["选择", "名称", "路径"], [["✓", "G5.spine", @"projects\G5.spine"], ["✓", "G5.json", @"projects\G5.json"], ["", "temp_test.spine", @"projects\temp_test.spine"]]);
-        Button(g, new Rectangle(1190, 802, 96, 36), "取消", PanelAlt);
-        Button(g, new Rectangle(1302, 802, 96, 36), "确认选择", Blue);
+        Table(g, new Rectangle(48, 212, 1368, 536), ["选择", "名称", "路径"], [["✓", "G5.spine", @"projects\G5.spine"], ["✓", "G5.json", @"projects\G5.json"], ["", "temp_test.spine", @"projects\temp_test.spine"]]);
+        Button(g, new Rectangle(1190, 766, 96, 36), "取消", PanelAlt);
+        Button(g, new Rectangle(1302, 766, 96, 36), "确认选择", Blue);
     }
 
     private static void DrawCoreDialogsAndMenus(Graphics g, Rectangle r)
@@ -476,7 +485,7 @@ internal static class Program
         Fill(g, new Rectangle(r.X, r.Y, r.Width, 34), C("#222224"));
         Stroke(g, new Rectangle(r.X, r.Y, r.Width, 34), C("#121214"));
         Label(g, title, r.X + 14, r.Y + 8, 10, Text);
-        Label(g, "_  □  X", r.Right - 82, r.Y + 8, 9, Muted);
+        DrawWindowControls(g, new Rectangle(r.Right - 92, r.Y + 7, 72, 20));
     }
 
     private static void Header(Graphics g, int y, string title, string subtitle)
@@ -508,35 +517,45 @@ internal static class Program
 
     private static void Button(Graphics g, Rectangle rect, string label, Color bg)
     {
-        var well = Rectangle.Inflate(rect, 5, 5);
-        FillRound(g, well, C("#1E1E20"), 6);
-        StrokeRound(g, well, C("#4A4A4C"), 6);
-        FillRound(g, rect, bg, 4);
-        StrokeRound(g, rect, ControlPaint.Light(bg), 4);
-        Stroke(g, new Rectangle(rect.X + 2, rect.Y + rect.Height - 3, rect.Width - 4, 1), ControlPaint.Dark(bg));
-        Label(g, label, rect.X, rect.Y + (rect.Height - 16) / 2, 9, Text, rect.Width, align: StringAlignment.Center);
+        FillRound(g, rect, C("#1E1E20"), 6);
+        StrokeRound(g, rect, C("#4A4A4C"), 6);
+        var inner = Rectangle.Inflate(rect, -5, -5);
+        FillRound(g, inner, bg, 4);
+        StrokeRound(g, inner, ControlPaint.Light(bg), 4);
+        Stroke(g, new Rectangle(inner.X + 2, inner.Y + inner.Height - 3, inner.Width - 4, 1), ControlPaint.Dark(bg));
+        Label(g, label, inner.X, inner.Y + (inner.Height - 16) / 2, 9, Text, inner.Width, align: StringAlignment.Center, ellipsis: true);
     }
 
     private static void InputBox(Graphics g, Rectangle rect, string value)
     {
-        var well = Rectangle.Inflate(rect, 5, 5);
-        FillRound(g, well, C("#1E1E20"), 6);
-        StrokeRound(g, well, C("#4A4A4C"), 6);
-        FillRound(g, rect, C("#19191B"), 4);
-        StrokeRound(g, rect, BorderStrong, 4);
-        Label(g, value, rect.X + 10, rect.Y + 8, 9, Muted, rect.Width - 20, ellipsis: true);
+        FillRound(g, rect, C("#1E1E20"), 6);
+        StrokeRound(g, rect, C("#4A4A4C"), 6);
+        var inner = Rectangle.Inflate(rect, -5, -5);
+        FillRound(g, inner, C("#19191B"), 4);
+        StrokeRound(g, inner, BorderStrong, 4);
+        Label(g, value, inner.X + 10, inner.Y + Math.Max(3, (inner.Height - 17) / 2), 9, Muted, inner.Width - 20, ellipsis: true);
+    }
+
+    private static void ComboBox(Graphics g, Rectangle rect, string value)
+    {
+        InputBox(g, rect, value);
+        var inner = Rectangle.Inflate(rect, -5, -5);
+        var arrowBox = new Rectangle(inner.Right - 28, inner.Y + 1, 26, inner.Height - 2);
+        FillRound(g, arrowBox, C("#242426"), 4);
+        Stroke(g, new Rectangle(arrowBox.X, arrowBox.Y + 3, 1, arrowBox.Height - 6), Border);
+        Label(g, "▼", arrowBox.X, arrowBox.Y + Math.Max(2, (arrowBox.Height - 17) / 2), 8, Muted, arrowBox.Width, align: StringAlignment.Center);
     }
 
     private static void TextArea(Graphics g, Rectangle rect, string value)
     {
-        var well = Rectangle.Inflate(rect, 5, 5);
-        FillRound(g, well, C("#1E1E20"), 6);
-        StrokeRound(g, well, C("#4A4A4C"), 6);
-        FillRound(g, rect, C("#19191B"), 4);
-        StrokeRound(g, rect, BorderStrong, 4);
+        FillRound(g, rect, C("#1E1E20"), 6);
+        StrokeRound(g, rect, C("#4A4A4C"), 6);
+        var inner = Rectangle.Inflate(rect, -5, -5);
+        FillRound(g, inner, C("#19191B"), 4);
+        StrokeRound(g, inner, BorderStrong, 4);
         var lines = value.Split('\n');
         for (var i = 0; i < lines.Length; i++)
-            Label(g, lines[i], rect.X + 10, rect.Y + 10 + i * 24, 9, Muted, rect.Width - 20);
+            Label(g, lines[i], inner.X + 10, inner.Y + 10 + i * 24, 9, Muted, inner.Width - 20);
     }
 
     private static void ToolStrip(Graphics g, Rectangle rect, string[] items)
@@ -547,10 +566,69 @@ internal static class Program
         foreach (var item in items)
         {
             var w = Math.Max(64, item.Length * 14 + 24);
+            var available = rect.Right - x - 6;
+            if (available < 58) break;
+            w = Math.Min(w, available);
             Button(g, new Rectangle(x, rect.Y + 5, w, rect.Height - 10), item, PanelAlt);
             x += w + 6;
-            if (x > rect.Right - 80) break;
         }
+    }
+
+    private static void MainToolbar(Graphics g, Rectangle rect)
+    {
+        FillRound(g, rect, C("#252527"), 5);
+        StrokeRound(g, rect, Border, 5);
+        var seq = C("#4F6948");
+        var edit = C("#555557");
+        var danger = C("#8A4A4A");
+        var utility = C("#2E6F78");
+        var spine = C("#8A5A33");
+        var vk = C("#2F5F82");
+        var batch = C("#2F7478");
+        var copy = C("#4C7044");
+        var cli = C("#5A458A");
+        var items = new (string Text, Color Color)[] {
+            ("添加", edit),
+            ("编辑", edit),
+            ("删除", edit),
+            ("删除全部", danger),
+            ("复制序列", edit),
+            ("暂停全部", edit),
+            ("Spine 热键", spine),
+            ("释放", danger),
+            ("VK 开/关", vk),
+            ("VK 管理", vk),
+            ("批量重命名", batch),
+            ("批量复制", copy),
+            ("CLI", cli),
+            ("导入", edit),
+            ("导出", edit)
+        };
+
+        var x = rect.X + 6;
+        foreach (var item in items)
+        {
+            var w = Math.Max(58, item.Text.Length * 13 + 24);
+            if (item.Text is "复制序列" or "Spine 热键" or "批量重命名")
+                w += 10;
+            var available = rect.Right - x - 6;
+            if (available < 50) break;
+            w = Math.Min(w, available);
+            Button(g, new Rectangle(x, rect.Y + 5, w, rect.Height - 10), item.Text, item.Color);
+            x += w + 6;
+        }
+    }
+
+    private static void CheckOption(Graphics g, Rectangle rect, string label, bool isChecked, Color color)
+    {
+        FillRound(g, rect, C("#252527"), 5);
+        StrokeRound(g, rect, color, 5);
+        var box = new Rectangle(rect.X + 12, rect.Y + (rect.Height - 16) / 2, 16, 16);
+        FillRound(g, box, C("#19191B"), 3);
+        StrokeRound(g, box, isChecked ? color : BorderStrong, 3);
+        if (isChecked)
+            Label(g, "✓", box.X + 2, box.Y - 1, 9, color, box.Width, align: StringAlignment.Center);
+        Label(g, label, rect.X + 38, rect.Y + (rect.Height - 17) / 2, 9, Text, rect.Width - 46, ellipsis: true);
     }
 
     private static void Tabs(Graphics g, Rectangle rect, string[] tabs, int active)
@@ -569,41 +647,93 @@ internal static class Program
         }
     }
 
-    private static void Table(Graphics g, Rectangle rect, string[] headers, string[][] rows)
+    private static void Table(Graphics g, Rectangle rect, string[] headers, string[][] rows, float[]? columnWeights = null)
     {
-        var well = Rectangle.Inflate(rect, 6, 6);
-        FillRound(g, well, C("#1E1E20"), 6);
-        StrokeRound(g, well, C("#4A4A4C"), 6);
+        FillRound(g, rect, C("#1E1E20"), 6);
+        StrokeRound(g, rect, C("#4A4A4C"), 6);
+        rect = Rectangle.Inflate(rect, -6, -6);
         FillRound(g, rect, C("#202023"), 5);
         StrokeRound(g, rect, BorderStrong, 5);
-        var headerH = 34;
+        var state = g.Save();
+        g.SetClip(rect);
+
+        var headerH = Math.Min(34, Math.Max(24, rect.Height / 4));
+        var rowArea = Math.Max(0, rect.Height - headerH);
+        var rowH = rows.Length == 0 ? 42 : Math.Min(42, Math.Max(24, rowArea / Math.Max(rows.Length, 1)));
+
         FillRound(g, new Rectangle(rect.X, rect.Y, rect.Width, headerH), C("#2B2B2D"), 5);
-        var colW = rect.Width / headers.Length;
+        var weights = NormalizeColumnWeights(headers.Length, columnWeights);
+        var totalWeight = 0f;
+        for (var i = 0; i < weights.Length; i++) totalWeight += weights[i];
+        var colX = new int[headers.Length];
+        var colWidths = new int[headers.Length];
+        var x = rect.X;
         for (var c = 0; c < headers.Length; c++)
         {
-            Label(g, headers[c], rect.X + c * colW + 10, rect.Y + 9, 9, Text, colW - 20, ellipsis: true);
-            Stroke(g, new Rectangle(rect.X + c * colW, rect.Y, colW, rect.Height), C("#4C4C4E"));
+            colX[c] = x;
+            var w = c == headers.Length - 1 ? rect.Right - x : (int)Math.Round(rect.Width * (weights[c] / totalWeight));
+            colWidths[c] = Math.Max(36, w);
+            x += colWidths[c];
+        }
+        for (var c = 0; c < headers.Length; c++)
+        {
+            Label(g, headers[c], colX[c] + 10, rect.Y + Math.Max(5, (headerH - 16) / 2), 9, Text, colWidths[c] - 20, ellipsis: true);
+            Stroke(g, new Rectangle(colX[c], rect.Y, colWidths[c], rect.Height), C("#4C4C4E"));
         }
         for (var i = 0; i < rows.Length; i++)
         {
-            var y = rect.Y + headerH + i * 42;
-            Fill(g, new Rectangle(rect.X, y, rect.Width, 42), i % 2 == 0 ? Panel : PanelAlt);
-            if (i == 1) Fill(g, new Rectangle(rect.X, y, rect.Width, 42), C("#536A76"));
-            Stroke(g, new Rectangle(rect.X, y, rect.Width, 42), C("#4A4A4C"));
+            var y = rect.Y + headerH + i * rowH;
+            if (y >= rect.Bottom) break;
+            var rowRect = new Rectangle(rect.X, y, rect.Width, rowH);
+            Fill(g, rowRect, i % 2 == 0 ? Panel : PanelAlt);
+            if (i == 1) Fill(g, rowRect, C("#536A76"));
+            Stroke(g, rowRect, C("#4A4A4C"));
             for (var c = 0; c < headers.Length && c < rows[i].Length; c++)
-                Label(g, rows[i][c], rect.X + c * colW + 10, y + 12, 9, c == 0 && rows[i][c] == "●" ? Green : Text, colW - 20, ellipsis: true);
+                TableCell(g, rows[i][c], colX[c], y, colWidths[c], rowH);
         }
+
+        g.Restore(state);
+    }
+
+    private static void TableCell(Graphics g, string value, int x, int y, int width, int height)
+    {
+        if (value == "✓")
+        {
+            var box = new Rectangle(x + 10, y + Math.Max(5, (height - 18) / 2), 18, 18);
+            FillRound(g, box, C("#19191B"), 3);
+            StrokeRound(g, box, Blue, 3);
+            Label(g, "✓", box.X + 1, box.Y, 9, Blue, box.Width, align: StringAlignment.Center);
+            return;
+        }
+
+        if (value is "选择" or "清除" or "复制")
+        {
+            var buttonW = Math.Min(width - 18, value.Length * 16 + 28);
+            if (buttonW >= 42)
+                Button(g, new Rectangle(x + 9, y + Math.Max(5, (height - 28) / 2), buttonW, 28), value, PanelAlt);
+            return;
+        }
+
+        Label(g, value, x + 10, y + Math.Max(5, (height - 16) / 2), 9, Text, width - 20, ellipsis: true);
+    }
+
+    private static float[] NormalizeColumnWeights(int count, float[]? weights)
+    {
+        var result = new float[count];
+        for (var i = 0; i < count; i++)
+            result[i] = weights != null && i < weights.Length && weights[i] > 0 ? weights[i] : 1f;
+        return result;
     }
 
     private static void Progress(Graphics g, Rectangle rect, float pct, string text)
     {
-        var well = Rectangle.Inflate(rect, 4, 4);
-        FillRound(g, well, C("#1E1E20"), 5);
-        StrokeRound(g, well, C("#4A4A4C"), 5);
-        FillRound(g, rect, C("#19191B"), 4);
-        StrokeRound(g, rect, BorderStrong, 4);
-        FillRound(g, new Rectangle(rect.X, rect.Y, (int)(rect.Width * pct), rect.Height), Blue, 4);
-        Label(g, text, rect.X, rect.Y + 4, 9, Text, rect.Width, align: StringAlignment.Center);
+        FillRound(g, rect, C("#1E1E20"), 5);
+        StrokeRound(g, rect, C("#4A4A4C"), 5);
+        var inner = Rectangle.Inflate(rect, -4, -4);
+        FillRound(g, inner, C("#19191B"), 4);
+        StrokeRound(g, inner, BorderStrong, 4);
+        FillRound(g, new Rectangle(inner.X, inner.Y, (int)(inner.Width * pct), inner.Height), Blue, 4);
+        Label(g, text, inner.X, inner.Y + 4, 9, Text, inner.Width, align: StringAlignment.Center);
     }
 
     private static void Status(Graphics g, Rectangle rect, string text)
@@ -657,6 +787,9 @@ internal static class Program
 
     private static void DrawChecker(Graphics g, Rectangle rect)
     {
+        var state = g.Save();
+        using var path = RoundedRect(rect, 4);
+        g.SetClip(path);
         var s = 32;
         for (var y = rect.Y; y < rect.Bottom; y += s)
         {
@@ -666,7 +799,32 @@ internal static class Program
                 Fill(g, new Rectangle(x, y, Math.Min(s, rect.Right - x), Math.Min(s, rect.Bottom - y)), alt ? C("#555558") : C("#4C4C50"));
             }
         }
-        Stroke(g, rect, Border);
+        g.Restore(state);
+        StrokeRound(g, rect, Border, 4);
+    }
+
+    private static void DrawWindowControls(Graphics g, Rectangle rect)
+    {
+        using var pen = new Pen(Muted, 1.2f);
+        for (var i = 0; i < 3; i++)
+        {
+            var btn = new Rectangle(rect.X + i * 24, rect.Y, 18, 18);
+            FillRound(g, btn, C("#2B2B2D"), 4);
+            StrokeRound(g, btn, C("#3F3F41"), 4);
+            if (i == 0)
+            {
+                g.DrawLine(pen, btn.X + 5, btn.Y + 11, btn.Right - 5, btn.Y + 11);
+            }
+            else if (i == 1)
+            {
+                g.DrawRectangle(pen, btn.X + 5, btn.Y + 5, 8, 8);
+            }
+            else
+            {
+                g.DrawLine(pen, btn.X + 5, btn.Y + 5, btn.Right - 5, btn.Bottom - 5);
+                g.DrawLine(pen, btn.Right - 5, btn.Y + 5, btn.X + 5, btn.Bottom - 5);
+            }
+        }
     }
 
     private static void FillRound(Graphics g, Rectangle rect, Color color, int radius)
