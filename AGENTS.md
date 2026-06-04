@@ -231,6 +231,7 @@ BaseBtnWidth: SmallIcon=48  LargeIcon=96  LoopIcon=110
 5. 修改完成后导出一个单独的.exe应用供测试，如遇应用已开启导致无法修改就强行终止应用再尝试导出
 
 ## 版本历史
+- **V2.84** (2026-06-04): UI 原生控件替换第四阶段，普通控件句柄接入 Windows `DarkMode_Explorer` 原生深色主题，改善 TextBox/ListBox/ListView 等系统滚动条白色残留；不替换滚动控件、不改变滚动逻辑
 - **V2.83** (2026-06-04): UI 原生控件替换第三阶段，接入 Windows DWM 原生深色标题栏，普通窗口标题栏由系统绘制为深色并保留拖动、最小化、最大化、关闭和系统菜单；继续排除 `VirtualKeyWindow` 本体
 - **V2.82** (2026-06-04): UI 原生控件替换第二阶段，新增 `DarkComboBox` 并局部替换批量复制前缀/后缀历史输入框，覆盖原生白色下拉按钮；保留输入、历史、自动完成、TextUpdate/SelectedIndexChanged 逻辑
 - **V2.81** (2026-06-04): UI 原生控件替换第一阶段，新增 `DarkTabControl` 和 `DarkCheckedListBox`，替换 CLI、ReNameTool、动画选择、子文件夹选择中的原生页签白条和白色勾选框；保留现有 TabPage、CheckedItems、ItemCheck 与业务逻辑

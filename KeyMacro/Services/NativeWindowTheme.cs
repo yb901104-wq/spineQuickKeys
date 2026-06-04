@@ -21,6 +21,20 @@ public static class NativeWindowTheme
         form.HandleCreated += (_, _) => TryApply(form.Handle);
     }
 
+    public static void ApplyDarkControlChrome(Control control)
+    {
+        if (control.IsDisposed)
+            return;
+
+        if (control.IsHandleCreated)
+        {
+            TryApplyControlTheme(control.Handle);
+            return;
+        }
+
+        control.HandleCreated += (_, _) => TryApplyControlTheme(control.Handle);
+    }
+
     private static void TryApply(IntPtr handle)
     {
         if (handle == IntPtr.Zero || !OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17763))
@@ -33,4 +47,15 @@ public static class NativeWindowTheme
 
     [DllImport("dwmapi.dll", PreserveSig = true)]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int pvAttribute, int cbAttribute);
+
+    private static void TryApplyControlTheme(IntPtr handle)
+    {
+        if (handle == IntPtr.Zero || !OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17763))
+            return;
+
+        _ = SetWindowTheme(handle, "DarkMode_Explorer", null);
+    }
+
+    [DllImport("uxtheme.dll", CharSet = CharSet.Unicode, PreserveSig = true)]
+    private static extern int SetWindowTheme(IntPtr hwnd, string? pszSubAppName, string? pszSubIdList);
 }

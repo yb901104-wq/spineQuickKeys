@@ -117,6 +117,7 @@ public static class UiTheme
 
     private static void ApplyControl(Control control)
     {
+        NativeWindowTheme.ApplyDarkControlChrome(control);
         control.Font = control is TextBoxBase or ComboBox ? BodyFont(10f) : BodyFont();
         control.ForeColor = Text;
 

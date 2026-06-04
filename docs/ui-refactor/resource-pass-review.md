@@ -156,6 +156,15 @@
 - 截图：`native-dark-titlebar-contact-sheet.png`；单图包括 `runtime-mainform-titlebar-native-dark.png`、`runtime-batch-copy-titlebar-native-dark.png`、`runtime-input-dialog-titlebar-native-dark.png`。
 - 残留：Windows 原生标题栏按钮图标仍由系统决定，不做自定义美术按钮；系统滚动条仍未替换。
 
+### 2026-06-04 原生控件替换第四阶段
+
+- 范围：所有调用 `UiTheme.Apply()` 的普通 WinForms 窗口控件句柄；继续排除 `VirtualKeyWindow` 本体。
+- 修改：在 `NativeWindowTheme.ApplyDarkControlChrome()` 中通过 `SetWindowTheme(handle, "DarkMode_Explorer", null)` 请求 Windows 原生深色控件主题，改善 TextBox/ListBox/ListView 等控件的系统滚动条白色残留。
+- 保留：不替换 TextBox/ListBox/ListView 控件，不自绘滚动条，不改变鼠标滚动、键盘滚动、选择、输入、复制粘贴或列表数据逻辑；系统不支持时静默回退。
+- 验证：`dotnet build KeyMacro\KeyMacro.csproj --no-restore` 与 `dotnet build docs\ui-refactor\tools\RuntimeWindowCapture\RuntimeWindowCapture.csproj --no-restore -p:UseSharedCompilation=false` 均为 0 错误 / 0 警告。
+- 截图：`runtime-batch-copy-native-scrollbar-theme.png`。
+- 残留：个别控件或旧版 Windows 的滚动条是否变深取决于系统原生主题支持；本阶段不做高风险自定义滚动条。
+
 ## 结论
 
 资源优先阶段已可进入下一步：基于新的统一资源截图，再逐界面做布局、控件尺寸和局部样式细化。
