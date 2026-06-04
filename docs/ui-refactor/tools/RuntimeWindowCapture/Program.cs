@@ -1,6 +1,7 @@
 ﻿using System.Drawing;
 using System.Drawing.Imaging;
 using System.Windows.Forms;
+using KeyMacro.Controls;
 using KeyMacro.Forms;
 using KeyMacro.Forms.ReNameTool;
 using KeyMacro.Models;
@@ -354,12 +355,12 @@ internal static class Program
             BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA)
         };
 
-        var clb = new CheckedListBox
+        var clb = new DarkCheckedListBox
         {
             Dock = DockStyle.Fill,
             CheckOnClick = true,
             BorderStyle = BorderStyle.FixedSingle,
-            BackColor = Color.White
+            BackColor = UiTheme.List
         };
         foreach (var item in new[] { "walk", "idle", "attack", "run", "hit" })
             clb.Items.Add(item, item is "walk" or "idle");

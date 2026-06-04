@@ -1,5 +1,6 @@
 #nullable disable
 using System.ComponentModel;
+using KeyMacro.Controls;
 using KeyMacro.Services;
 
 namespace KeyMacro.Forms;
@@ -56,7 +57,7 @@ public class SubfolderSelectDialog : Form
         _txtExclude.TextChanged += (_, _) => ApplyFilter();
 
         // Checked list box
-        _clb = new CheckedListBox
+        _clb = new DarkCheckedListBox
         {
             Dock = DockStyle.Fill,
             Font = new Font("微软雅黑", 10),
@@ -64,7 +65,7 @@ public class SubfolderSelectDialog : Form
             HorizontalScrollbar = true,
             IntegralHeight = false,
             BorderStyle = BorderStyle.FixedSingle,
-            BackColor = Color.White
+            BackColor = UiTheme.List
         };
         _clb.ItemCheck += _clb_ItemCheck;
 

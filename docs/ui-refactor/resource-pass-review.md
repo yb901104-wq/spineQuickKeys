@@ -53,8 +53,8 @@
 | UI-RP-004 | ReNameTool / BatchCopy / BatchCli 板块比例 | 资源统一后整体可用，但与概览图的板块比例仍有差距。 | 下一阶段按运行截图逐界面微调位置、宽高和间距。 |
 | UI-RP-005 | VK 菜单截图 | 截图只验证右键菜单主题，不验证虚拟按键窗口本体。 | 符合约束；虚拟窗口本体继续使用独立 SKIN 系统。 |
 | UI-RP-006 | Details 模式 ListView | 已完成 CLI 明细列表表头/行深色自绘，并让最后一列自动补满列表宽度；缩略图 LargeIcon 列表未受影响。 | 后续只观察真实导出配置状态色是否需要更强的成功/缺失区分。 |
-| UI-RP-007 | WinForms 原生 TabControl | 页签按钮已深色自绘，但页签带背景仍有一条原生白色区域。 | 若要完全消除，需要自定义 TabControl 或改成按钮式导航，属于实现方式变化，需用户确认后再做。 |
-| UI-RP-008 | WinForms 原生 CheckedListBox | 列表背景和文字已深色，`ThreeDCheckBoxes=false` 已应用，但原生勾选框本体仍保持白色。 | 完全深色化需要自定义勾选列表控件或替换为表格/列表自绘控件，属于控件结构变化，需用户确认后再做。 |
+| UI-RP-007 | WinForms 原生 TabControl | 已进入替换第一阶段：CLI 与 ReNameTool 改用 `DarkTabControl`，页签带白条基本消除。 | 继续观察运行截图；若后续仍需进一步统一标题栏/系统边框，另立高风险阶段处理。 |
+| UI-RP-008 | WinForms 原生 CheckedListBox | 已进入替换第一阶段：CLI 动画选择与子文件夹选择改用 `DarkCheckedListBox`，勾选框本体改为深色自绘。 | 继续保留 `CheckedListBox` 数据/事件模型，不改为表格；若需要表格式多列，再由用户确认。 |
 | UI-RP-009 | 普通 ListBox | 已完成普通 ListBox 深色行、交替行和选中态绘制；已有自绘逻辑的特殊列表不重复接管。 | 后续观察批量复制和 ReNameTool 长路径文字是否需要横向滚动或 tooltip。 |
 | UI-RP-010 | 普通 CheckBox / RadioButton | 已完成普通复选框和单选框深色绘制；Checked 状态、AutoCheck 和事件逻辑不变。 | 后续观察少数状态型复选框是否需要不同强调色，例如“有效/无效”。 |
 | UI-RP-011 | WinForms 原生 ComboBox | 下拉项已深色绘制，闭合输入区域保持深色；但 DropDown/可输入 ComboBox 右侧下拉按钮仍为原生白色。 | 完全替换需要自定义 ComboBox 或组合 TextBox+按钮+弹出列表，属于控件结构变化，需用户确认后再做。 |
@@ -127,6 +127,16 @@
 - 验证：`dotnet build KeyMacro\KeyMacro.csproj --no-restore` 与截图工具构建均为 0 错误 / 0 警告。
 - 截图：`runtime-batch-copy-combo-refine.png`、`runtime-sequence-editor-combo-regression.png`。
 - 残留：可输入 DropDown ComboBox 右侧下拉按钮仍为原生白色；完全替换需要自定义控件，先记录为 UI-RP-011。
+
+### 2026-06-04 原生控件替换第一阶段
+
+- 范围：BatchCliWindow 合并/导出页、ReNameTool 三个页签、CLI 动画选择弹窗、SubfolderSelectDialog。
+- 修改：新增 `KeyMacro/Controls/DarkTabControl.cs`，以控件继承方式替换原生 `TabControl` 的页签区域绘制，减少页签带白条；新增 `KeyMacro/Controls/DarkCheckedListBox.cs`，以控件继承方式自绘深色勾选框、行背景、选中态和悬停态。
+- 保留：不改变 Tab 页数量、顺序、SelectedIndex、TabPage 内容；不改变 CheckedItems、GetItemChecked、SetItemChecked、ItemCheck、CheckOnClick、全选/全不选、确认/取消等业务逻辑。
+- 修正：`DarkCheckedListBox` 在控件句柄创建前批量设置初始勾选状态时不再调用 `BeginInvoke`，避免 CLI 动画选择弹窗创建时崩溃。
+- 验证：`dotnet build KeyMacro\KeyMacro.csproj --no-restore` 与 `dotnet build docs\ui-refactor\tools\RuntimeWindowCapture\RuntimeWindowCapture.csproj --no-restore -p:UseSharedCompilation=false` 均为 0 错误 / 0 警告。
+- 截图：`native-replace-contact-sheet.png`；单图包括 `runtime-cli-merge-native-replace.png`、`runtime-cli-export-native-replace.png`、`runtime-cli-animation-select-native-replace.png`、`runtime-rename-rename-native-replace.png`、`runtime-rename-organize-native-replace.png`、`runtime-rename-unpack-native-replace.png`、`runtime-subfolder-select-native-replace.png`。
+- 残留：原生窗口标题栏、ComboBox 右侧下拉按钮和系统滚动条仍为高风险原生项，本阶段未替换。
 
 ## 结论
 

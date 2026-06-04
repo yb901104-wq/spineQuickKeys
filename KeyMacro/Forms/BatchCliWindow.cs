@@ -19,7 +19,7 @@ public class BatchCliWindow : Form
     private readonly Label _lblSpineStatus = new();
 
     // ── Tab control ──
-    private readonly TabControl _tabControl = new();
+    private readonly DarkTabControl _tabControl = new();
     private readonly TabPage _tabMerge = new();
     private readonly TabPage _tabExport = new();
 
@@ -566,12 +566,12 @@ public class BatchCliWindow : Form
             BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA)
         };
 
-        var clb = new CheckedListBox
+        var clb = new DarkCheckedListBox
         {
             Dock = DockStyle.Fill,
             CheckOnClick = true,
             BorderStyle = BorderStyle.FixedSingle,
-            BackColor = Color.White
+            BackColor = UiTheme.List
         };
         for (int i = 0; i < info.AnimationNames.Count; i++)
             clb.Items.Add(info.AnimationNames[i],

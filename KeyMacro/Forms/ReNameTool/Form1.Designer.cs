@@ -39,7 +39,7 @@ namespace KeyMacro.Forms.ReNameTool
             this.textBox1 = new System.Windows.Forms.TextBox();
             this.textBox2 = new System.Windows.Forms.TextBox();
             this.openFileDialog1 = new System.Windows.Forms.OpenFileDialog();
-            this.tabControl1 = new System.Windows.Forms.TabControl();
+            this.tabControl1 = new KeyMacro.Controls.DarkTabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
             this.label9 = new System.Windows.Forms.Label();
             this.label8 = new System.Windows.Forms.Label();
@@ -484,7 +484,7 @@ namespace KeyMacro.Forms.ReNameTool
         private System.Windows.Forms.TextBox textBox1;
         private System.Windows.Forms.TextBox textBox2;
         private System.Windows.Forms.OpenFileDialog openFileDialog1;
-        private System.Windows.Forms.TabControl tabControl1;
+        private KeyMacro.Controls.DarkTabControl tabControl1;
         private System.Windows.Forms.TabPage tabPage1;
         private System.Windows.Forms.TabPage tabPage2;
         private System.Windows.Forms.Button button4;
