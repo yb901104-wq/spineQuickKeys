@@ -32,23 +32,57 @@ public class SpineHotkeyEditor : Form
 
         Text = "Spine 快捷键编辑";
         Icon = IconService.AppIcon;
-        Size = new Size(1100, 720);
-        MinimumSize = new Size(820, 520);
+        ClientSize = new Size(1440, 900);
+        MinimumSize = new Size(1100, 650);
         StartPosition = FormStartPosition.CenterParent;
         BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA);
 
-        // ── Top: file path display + load button ──
+        var root = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            Padding = new Padding(20, 16, 20, 16),
+            ColumnCount = 1,
+            RowCount = 3,
+            BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA)
+        };
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 104));
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 54));
+
         var topPanel = new TableLayoutPanel
         {
-            Dock = DockStyle.Top,
-            Height = 52,
-            Padding = new Padding(14, 10, 14, 8),
-            ColumnCount = 2,
+            Dock = DockStyle.Fill,
+            Padding = new Padding(12, 0, 12, 10),
+            ColumnCount = 1,
+            RowCount = 2,
+            BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3),
+            CellBorderStyle = TableLayoutPanelCellBorderStyle.Single
+        };
+        topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+        topPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        topPanel.Controls.Add(new Label
+        {
+            Text = "TXT 文件",
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Font = new Font("Microsoft YaHei UI", 9, FontStyle.Bold),
+            Padding = new Padding(2, 0, 0, 0)
+        }, 0, 0);
+
+        var topContent = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 6,
             RowCount = 1,
+            Padding = new Padding(10, 8, 10, 6),
             BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3)
         };
-        topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        topContent.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        topContent.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 116));
+        topContent.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 116));
+        topContent.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 52));
+        topContent.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 360));
+        topContent.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 8));
 
         _lblFilePath = new Label
         {
@@ -57,41 +91,18 @@ public class SpineHotkeyEditor : Form
             TextAlign = ContentAlignment.MiddleLeft,
             Font = new Font("Microsoft YaHei", 9),
             ForeColor = Color.Gray,
-            AutoEllipsis = true
+            AutoEllipsis = true,
+            BorderStyle = BorderStyle.FixedSingle,
+            BackColor = Color.FromArgb(0xF8, 0xFB, 0xFE),
+            Padding = new Padding(8, 0, 8, 0),
+            Margin = new Padding(0, 4, 10, 4)
         };
-        _btnLoad = MakeButton("载入文件", Color.FromArgb(0xF2, 0xF2, 0xF2), Color.Black, new Size(80, 28));
+        _btnLoad = MakeButton("载入文件", Color.FromArgb(0xF2, 0xF2, 0xF2), Color.Black, new Size(86, 28));
         _btnLoad.Click += BtnLoad_Click;
 
-        topPanel.Controls.Add(_lblFilePath);
-        topPanel.Controls.Add(_btnLoad, 1, 0);
-
-        // ── Toolbar: record button + search ──
-        var toolbar = new TableLayoutPanel
-        {
-            Dock = DockStyle.Top,
-            Height = 44,
-            Padding = new Padding(14, 6, 14, 6),
-            ColumnCount = 4,
-            RowCount = 1,
-            BackColor = Color.FromArgb(0xE4, 0xE4, 0xE4)
-        };
-        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 280));
-        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-
-        _btnRecord = MakeButton("录制按键", Color.FromArgb(0x1D, 0x6F, 0xB8), Color.White, new Size(80, 28));
+        _btnRecord = MakeButton("录制按键", Color.FromArgb(0x1D, 0x6F, 0xB8), Color.White, new Size(86, 28));
         _btnRecord.Click += BtnRecord_Click;
-        toolbar.Controls.Add(_btnRecord, 0, 0);
 
-        toolbar.Controls.Add(new Label
-        {
-            Text = "搜索:",
-            AutoSize = true,
-            TextAlign = ContentAlignment.MiddleLeft,
-            Anchor = AnchorStyles.Left,
-            Margin = new Padding(20, 0, 6, 0)
-        }, 1, 0);
         _txtSearch = new TextBox
         {
             Dock = DockStyle.Fill,
@@ -104,7 +115,20 @@ public class SpineHotkeyEditor : Form
             _searchFilter = _txtSearch.Text.Trim();
             RefreshGrid();
         };
-        toolbar.Controls.Add(_txtSearch, 2, 0);
+
+        topContent.Controls.Add(_lblFilePath, 0, 0);
+        topContent.Controls.Add(_btnLoad, 1, 0);
+        topContent.Controls.Add(_btnRecord, 2, 0);
+        topContent.Controls.Add(new Label
+        {
+            Text = "搜索:",
+            AutoSize = true,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Anchor = AnchorStyles.Left,
+            Margin = new Padding(8, 0, 6, 0)
+        }, 3, 0);
+        topContent.Controls.Add(_txtSearch, 4, 0);
+        topPanel.Controls.Add(topContent, 0, 1);
 
         // ── DataGridView ──
         _dgv = new DataGridView
@@ -136,11 +160,31 @@ public class SpineHotkeyEditor : Form
         _dgv.CellFormatting += Dgv_CellFormatting;
         _dgv.CellBeginEdit += Dgv_CellBeginEdit;
 
+        var gridPanel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            Padding = new Padding(12, 0, 12, 12),
+            ColumnCount = 1,
+            RowCount = 2,
+            BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3),
+            CellBorderStyle = TableLayoutPanelCellBorderStyle.Single
+        };
+        gridPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+        gridPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        gridPanel.Controls.Add(new Label
+        {
+            Text = "快捷键列表",
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Font = new Font("Microsoft YaHei UI", 9, FontStyle.Bold),
+            Padding = new Padding(2, 0, 0, 0)
+        }, 0, 0);
+        gridPanel.Controls.Add(_dgv, 0, 1);
+
         // ── Bottom: Save + Cancel ──
         var bottomPanel = new FlowLayoutPanel
         {
-            Dock = DockStyle.Bottom,
-            Height = 48,
+            Dock = DockStyle.Fill,
             Padding = new Padding(12, 8, 12, 8),
             FlowDirection = FlowDirection.RightToLeft,
             BackColor = Color.FromArgb(0xE4, 0xE4, 0xE4)
@@ -156,10 +200,10 @@ public class SpineHotkeyEditor : Form
         bottomPanel.Controls.Add(_btnCancel);
         bottomPanel.Controls.Add(_btnSave);
 
-        Controls.Add(bottomPanel);
-        Controls.Add(_dgv);
-        Controls.Add(toolbar);
-        Controls.Add(topPanel);
+        root.Controls.Add(topPanel, 0, 0);
+        root.Controls.Add(gridPanel, 0, 1);
+        root.Controls.Add(bottomPanel, 0, 2);
+        Controls.Add(root);
         UiTheme.Apply(this, UiWindowProfile.SpineHotkeyEditor);
 
         // Keep LastLoadedEntries after close for other forms (SequenceEditor autocomplete).
@@ -275,7 +319,10 @@ public class SpineHotkeyEditor : Form
             if (entry.Name.StartsWith("---"))
             {
                 _dgv.Rows[rowIdx].ReadOnly = true;
-                _dgv.Rows[rowIdx].DefaultCellStyle.BackColor = Color.FromArgb(0xE8, 0xE8, 0xE8);
+                _dgv.Rows[rowIdx].DefaultCellStyle.BackColor = UiTheme.ControlWell;
+                _dgv.Rows[rowIdx].DefaultCellStyle.ForeColor = UiTheme.Text;
+                _dgv.Rows[rowIdx].DefaultCellStyle.SelectionBackColor = Color.FromArgb(0x34, 0x34, 0x36);
+                _dgv.Rows[rowIdx].DefaultCellStyle.SelectionForeColor = UiTheme.Text;
                 _dgv.Rows[rowIdx].DefaultCellStyle.Font = new Font("Microsoft YaHei", 9, FontStyle.Bold);
             }
         }
@@ -284,7 +331,7 @@ public class SpineHotkeyEditor : Form
         {
             var idx = _dgv.Rows.Add("", $"无匹配结果: {_searchFilter}", "");
             _dgv.Rows[idx].ReadOnly = true;
-            _dgv.Rows[idx].DefaultCellStyle.ForeColor = Color.Gray;
+            _dgv.Rows[idx].DefaultCellStyle.ForeColor = UiTheme.Muted;
         }
     }
 
@@ -354,7 +401,10 @@ public class SpineHotkeyEditor : Form
         var name = _dgv.Rows[e.RowIndex].Cells[0].Value?.ToString();
         if (FindEntryByName(name)?.Name.StartsWith("---") == true)
         {
-            e.CellStyle.BackColor = Color.FromArgb(0xE8, 0xE8, 0xE8);
+            e.CellStyle.BackColor = UiTheme.ControlWell;
+            e.CellStyle.ForeColor = UiTheme.Text;
+            e.CellStyle.SelectionBackColor = Color.FromArgb(0x34, 0x34, 0x36);
+            e.CellStyle.SelectionForeColor = UiTheme.Text;
             e.CellStyle.Font = new Font("Microsoft YaHei", 9, FontStyle.Bold);
         }
     }
@@ -365,15 +415,17 @@ public class SpineHotkeyEditor : Form
 
         _dgv.Columns[0].DefaultCellStyle = new DataGridViewCellStyle
         {
-            BackColor = Color.FromArgb(0xF2, 0xF4, 0xF5),
-            SelectionBackColor = Color.FromArgb(0x5B, 0x73, 0x84),
+            BackColor = UiTheme.PanelAlt,
+            ForeColor = UiTheme.Text,
+            SelectionBackColor = Color.FromArgb(0x5B, 0x77, 0x82),
             SelectionForeColor = Color.White
         };
 
         var editableStyle = new DataGridViewCellStyle
         {
-            BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6),
-            SelectionBackColor = Color.FromArgb(0xC7, 0x8F, 0x24),
+            BackColor = UiTheme.Input,
+            ForeColor = UiTheme.Text,
+            SelectionBackColor = Color.FromArgb(0x6F, 0x54, 0x24),
             SelectionForeColor = Color.White
         };
         _dgv.Columns[1].DefaultCellStyle = editableStyle;

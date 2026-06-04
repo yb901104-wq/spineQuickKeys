@@ -23,8 +23,8 @@ public class SourceFilePicker : Form
     {
         Text = "选择源文件";
         Icon = IconService.AppIcon;
-        Size = new Size(1000, 700);
-        MinimumSize = new Size(760, 520);
+        ClientSize = new Size(1440, 900);
+        MinimumSize = new Size(980, 620);
         StartPosition = FormStartPosition.CenterParent;
         MinimizeBox = false;
         MaximizeBox = false;
@@ -40,40 +40,71 @@ public class SourceFilePicker : Form
         var layout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(8),
+            Padding = new Padding(24, 20, 24, 20),
             ColumnCount = 1,
-            RowCount = 3,
+            RowCount = 2,
             BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA)
         };
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 54));
 
-        // Toolbar
-        var toolbar = new FlowLayoutPanel
+        var browserPanel = new TableLayoutPanel
         {
-            Dock = DockStyle.Top,
-            AutoSize = true,
-            BackColor = Color.FromArgb(0xE4, 0xE4, 0xE4),
-            Padding = new Padding(6, 4, 6, 4)
+            Dock = DockStyle.Fill,
+            Padding = new Padding(12, 0, 12, 12),
+            ColumnCount = 1,
+            RowCount = 3,
+            BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3),
+            CellBorderStyle = TableLayoutPanelCellBorderStyle.Single
         };
-        _txtDir.Size = new Size(620, 24);
+        browserPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+        browserPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 54));
+        browserPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        browserPanel.Controls.Add(new Label
+        {
+            Text = "缩略图浏览",
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Font = new Font("Microsoft YaHei UI", 9, FontStyle.Bold),
+            Padding = new Padding(2, 0, 0, 0)
+        }, 0, 0);
+
+        var toolbar = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 4,
+            RowCount = 1,
+            Padding = new Padding(10, 8, 10, 8),
+            BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3)
+        };
+        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92));
+        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92));
+        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 360));
+        _txtDir.Dock = DockStyle.Fill;
         _txtDir.ReadOnly = true;
         _txtDir.BorderStyle = BorderStyle.FixedSingle;
         _txtDir.BackColor = Color.FromArgb(0xF8, 0xFB, 0xFE);
+        _txtDir.Margin = new Padding(0, 4, 12, 4);
         _btnBrowse.Text = "浏览";
-        _btnBrowse.AutoSize = true;
-        _btnBrowse.MinimumSize = new Size(60, 28);
+        _btnBrowse.AutoSize = false;
+        _btnBrowse.Dock = DockStyle.Fill;
+        _btnBrowse.MinimumSize = new Size(70, 28);
         _btnBrowse.FlatStyle = FlatStyle.Flat;
-        StyleButton(_btnBrowse);
+        StyleButton(_btnBrowse, Color.FromArgb(0x00, 0x78, 0xD7), Color.White);
         _btnBrowse.Click += (_, _) => BrowseDir();
         _btnRefresh.Text = "刷新";
-        _btnRefresh.AutoSize = true;
-        _btnRefresh.MinimumSize = new Size(60, 28);
+        _btnRefresh.AutoSize = false;
+        _btnRefresh.Dock = DockStyle.Fill;
+        _btnRefresh.MinimumSize = new Size(70, 28);
         _btnRefresh.FlatStyle = FlatStyle.Flat;
         StyleButton(_btnRefresh);
         _btnRefresh.Click += async (_, _) => await LoadThumbnailsAsync();
-        toolbar.Controls.AddRange([_txtDir, _btnBrowse, _btnRefresh]);
-        layout.Controls.Add(toolbar, 0, 0);
+        toolbar.Controls.Add(_txtDir, 0, 0);
+        toolbar.Controls.Add(_btnBrowse, 1, 0);
+        toolbar.Controls.Add(_btnRefresh, 2, 0);
+        browserPanel.Controls.Add(toolbar, 0, 1);
 
-        // Thumbnail list
         _lvThumbnails.Dock = DockStyle.Fill;
         _lvThumbnails.View = View.LargeIcon;
         _lvThumbnails.LargeImageList = _imageList;
@@ -84,37 +115,33 @@ public class SourceFilePicker : Form
         _lvThumbnails.ItemCheck += (_, _) =>
             BeginInvoke(new Action(() =>
                 _lblCount.Text = $"已选 {_lvThumbnails.CheckedItems.Count} 个文件"));
-        layout.Controls.Add(_lvThumbnails, 0, 1);
+        browserPanel.Controls.Add(_lvThumbnails, 0, 2);
 
         _imageList.ImageSize = new Size(96, 96);
         _imageList.ColorDepth = ColorDepth.Depth32Bit;
 
-        // Bottom bar
         var bottomBar = new FlowLayoutPanel
         {
-            Dock = DockStyle.Bottom,
-            AutoSize = true,
+            Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.RightToLeft,
             BackColor = Color.FromArgb(0xE4, 0xE4, 0xE4),
-            Padding = new Padding(8, 4, 8, 4)
+            Padding = new Padding(8, 7, 8, 7)
         };
         _lblCount.Text = "已选 0 个文件";
         _lblCount.AutoSize = true;
-        _lblCount.Margin = new Padding(0, 6, 8, 0);
+        _lblCount.Margin = new Padding(0, 7, 16, 0);
 
         _btnCancel.Text = "取消";
-        _btnCancel.AutoSize = true;
-        _btnCancel.MinimumSize = new Size(80, 32);
+        _btnCancel.AutoSize = false;
+        _btnCancel.Size = new Size(88, 32);
         _btnCancel.FlatStyle = FlatStyle.Flat;
         StyleButton(_btnCancel);
         _btnCancel.Click += (_, _) => { DialogResult = DialogResult.Cancel; Close(); };
 
         _btnOk.Text = "确认选择";
-        _btnOk.AutoSize = true;
-        _btnOk.MinimumSize = new Size(100, 32);
+        _btnOk.AutoSize = false;
+        _btnOk.Size = new Size(104, 32);
         _btnOk.FlatStyle = FlatStyle.Flat;
-        _btnOk.BackColor = Color.FromArgb(0x00, 0x78, 0xD7);
-        _btnOk.ForeColor = Color.White;
         StyleButton(_btnOk, Color.FromArgb(0x00, 0x78, 0xD7), Color.White);
         _btnOk.Click += (_, _) =>
         {
@@ -129,12 +156,8 @@ public class SourceFilePicker : Form
         };
 
         bottomBar.Controls.AddRange([_btnCancel, _btnOk, _lblCount]);
-        layout.Controls.Add(bottomBar, 0, 2);
-
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
-
+        layout.Controls.Add(browserPanel, 0, 0);
+        layout.Controls.Add(bottomBar, 0, 1);
         Controls.Add(layout);
     }
 

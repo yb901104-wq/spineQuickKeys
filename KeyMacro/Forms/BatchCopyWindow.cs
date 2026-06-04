@@ -39,8 +39,8 @@ public class BatchCopyWindow : Form
     {
         Text = "文件批量复制";
         Icon = IconService.AppIcon;
-        Size = new Size(1100, 760);
-        MinimumSize = new Size(820, 620);
+        ClientSize = new Size(1440, 900);
+        MinimumSize = new Size(1040, 680);
         StartPosition = FormStartPosition.CenterParent;
         ShowInTaskbar = true;
         BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA);
@@ -73,7 +73,7 @@ public class BatchCopyWindow : Form
             Margin = new Padding(0, 4, 0, 0)
         }, 0, 1);
         mainPanel.Controls.Add(BuildTargetPanel(), 0, 2);
-        mainPanel.Controls.Add(BuildHistoryRow(), 0, 3);
+        mainPanel.Controls.Add(new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA) }, 0, 3);
         mainPanel.Controls.Add(BuildActionPanel(), 0, 4);
         mainPanel.Controls.Add(BuildProgressPanel(), 0, 5);
 
@@ -83,10 +83,10 @@ public class BatchCopyWindow : Form
         _lblStatus.Margin = new Padding(0, 4, 0, 0);
         mainPanel.Controls.Add(_lblStatus, 0, 6);
 
-        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 236));
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 238));
         mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
         mainPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 14));
         mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
         mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
         mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
@@ -235,37 +235,52 @@ public class BatchCopyWindow : Form
         var layout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 3,
-            RowCount = 5,
-            Padding = new Padding(0),
+            ColumnCount = 2,
+            RowCount = 1,
             BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3)
         };
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60));
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40));
 
-        // Row 0: Prefix
-        layout.Controls.Add(new Label { Text = "前缀", TextAlign = ContentAlignment.MiddleLeft, Height = 28 }, 0, 0);
+        var inputLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 3,
+            RowCount = 5,
+            Padding = new Padding(8, 8, 14, 8),
+            BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3)
+        };
+        inputLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 60));
+        inputLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        inputLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92));
+        inputLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+        inputLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        inputLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+        inputLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+        inputLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+
+        inputLayout.Controls.Add(new Label { Text = "前缀", TextAlign = ContentAlignment.MiddleLeft, Dock = DockStyle.Fill }, 0, 0);
         _cmbPrefix.DropDownStyle = ComboBoxStyle.DropDown;
-        _cmbPrefix.Font = new Font("微软雅黑", 9);
+        _cmbPrefix.Font = new Font("Microsoft YaHei", 9);
         _cmbPrefix.Dock = DockStyle.Fill;
-        _cmbPrefix.Margin = new Padding(0, 3, 0, 3);
+        _cmbPrefix.Margin = new Padding(0, 3, 10, 3);
         _cmbPrefix.BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6);
         _cmbPrefix.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
         _cmbPrefix.AutoCompleteSource = AutoCompleteSource.ListItems;
         _cmbPrefix.TextUpdate += (_, _) => DebouncePreview();
         _cmbPrefix.SelectedIndexChanged += (_, _) => DebouncePreview();
-        layout.Controls.Add(_cmbPrefix, 1, 0);
+        inputLayout.Controls.Add(_cmbPrefix, 1, 0);
 
-        _btnBrowsePrefix.Text = "•••";
+        _btnBrowsePrefix.Text = "选择文件夹";
         _btnBrowsePrefix.Dock = DockStyle.Fill;
         _btnBrowsePrefix.AutoSize = false;
-        _btnBrowsePrefix.MinimumSize = new Size(36, 28);
+        _btnBrowsePrefix.MinimumSize = new Size(82, 28);
         _btnBrowsePrefix.FlatStyle = FlatStyle.Flat;
         StyleButton(_btnBrowsePrefix, Color.FromArgb(0xF2, 0xF2, 0xF2), Color.Black);
         _btnBrowsePrefix.Click += BtnBrowsePrefix_Click;
-        layout.Controls.Add(_btnBrowsePrefix, 2, 0);
+        inputLayout.Controls.Add(_btnBrowsePrefix, 2, 0);
 
-        // Row 1: Middle label
-        layout.Controls.Add(new Label { Text = "中间", TextAlign = ContentAlignment.MiddleLeft, Height = 28 }, 0, 1);
-
+        inputLayout.Controls.Add(new Label { Text = "中间", TextAlign = ContentAlignment.TopLeft, Dock = DockStyle.Fill, Padding = new Padding(0, 7, 0, 0) }, 0, 1);
         _txtMiddle.Multiline = true;
         _txtMiddle.Dock = DockStyle.Fill;
         _txtMiddle.Font = new Font("Consolas", 10);
@@ -274,69 +289,88 @@ public class BatchCopyWindow : Form
         _txtMiddle.WordWrap = false;
         _txtMiddle.BorderStyle = BorderStyle.FixedSingle;
         _txtMiddle.BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6);
+        _txtMiddle.Margin = new Padding(0, 4, 10, 4);
         _txtMiddle.TextChanged += (_, _) => DebouncePreview();
+        inputLayout.Controls.Add(_txtMiddle, 1, 1);
 
         var middleBtnCol = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.TopDown,
             AutoSize = false,
-            Padding = new Padding(4, 0, 0, 0),
+            Padding = new Padding(0, 4, 0, 0),
             WrapContents = false
         };
         _btnAddMiddle.Text = "添加行";
-        _btnAddMiddle.AutoSize = true;
-        _btnAddMiddle.MinimumSize = new Size(60, 26);
+        _btnAddMiddle.AutoSize = false;
+        _btnAddMiddle.Size = new Size(82, 30);
         _btnAddMiddle.FlatStyle = FlatStyle.Flat;
         StyleButton(_btnAddMiddle);
         _btnAddMiddle.Click += BtnAddMiddle_Click;
         middleBtnCol.Controls.Add(_btnAddMiddle);
 
         _btnDelMiddle.Text = "删除行";
-        _btnDelMiddle.AutoSize = true;
-        _btnDelMiddle.MinimumSize = new Size(60, 26);
+        _btnDelMiddle.AutoSize = false;
+        _btnDelMiddle.Size = new Size(82, 30);
+        _btnDelMiddle.Margin = new Padding(3, 8, 3, 3);
         _btnDelMiddle.FlatStyle = FlatStyle.Flat;
         StyleButton(_btnDelMiddle);
         _btnDelMiddle.Click += BtnDelMiddle_Click;
         middleBtnCol.Controls.Add(_btnDelMiddle);
+        inputLayout.Controls.Add(middleBtnCol, 2, 1);
 
-        layout.Controls.Add(_txtMiddle, 1, 1);
-        layout.Controls.Add(middleBtnCol, 2, 1);
-
-        // Row 2: Suffix
-        layout.Controls.Add(new Label { Text = "后缀", TextAlign = ContentAlignment.MiddleLeft, Height = 28 }, 0, 2);
+        inputLayout.Controls.Add(new Label { Text = "后缀", TextAlign = ContentAlignment.MiddleLeft, Dock = DockStyle.Fill }, 0, 2);
         _cmbSuffix.DropDownStyle = ComboBoxStyle.DropDown;
-        _cmbSuffix.Font = new Font("微软雅黑", 9);
+        _cmbSuffix.Font = new Font("Microsoft YaHei", 9);
         _cmbSuffix.Dock = DockStyle.Fill;
-        _cmbSuffix.Margin = new Padding(0, 3, 0, 3);
+        _cmbSuffix.Margin = new Padding(0, 3, 10, 3);
         _cmbSuffix.BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6);
         _cmbSuffix.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
         _cmbSuffix.AutoCompleteSource = AutoCompleteSource.ListItems;
         _cmbSuffix.TextUpdate += (_, _) => DebouncePreview();
         _cmbSuffix.SelectedIndexChanged += (_, _) => DebouncePreview();
-        layout.Controls.Add(_cmbSuffix, 1, 2);
+        inputLayout.Controls.Add(_cmbSuffix, 1, 2);
 
-        // Row 3: Preview label
-        layout.Controls.Add(new Label { Text = "预览", TextAlign = ContentAlignment.MiddleLeft, Height = 22 }, 0, 3);
+        _btnClearHistory.Text = "清理历史";
+        _btnClearHistory.AutoSize = false;
+        _btnClearHistory.Size = new Size(82, 30);
+        _btnClearHistory.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnClearHistory);
+        _btnClearHistory.Click += (_, _) =>
+        {
+            var result = MessageBox.Show(this, "确定要清理前缀和后缀的历史记录吗？",
+                "清理历史记录", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (result == DialogResult.Yes)
+            {
+                ConfigService.ClearPathHistory();
+                _history = new PathHistory();
+                _cmbPrefix.Items.Clear();
+                _cmbSuffix.Items.Clear();
+            }
+        };
+        inputLayout.Controls.Add(_btnClearHistory, 2, 2);
 
-        // Row 4: Preview list
+        var previewPanel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            Padding = new Padding(14, 8, 8, 8),
+            BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3)
+        };
+        previewPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+        previewPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        previewPanel.Controls.Add(new Label { Text = "预览目标", TextAlign = ContentAlignment.MiddleLeft, Dock = DockStyle.Fill, Font = new Font("Microsoft YaHei UI", 9, FontStyle.Bold) }, 0, 0);
         _lbPreview.Dock = DockStyle.Fill;
         _lbPreview.Font = new Font("Consolas", 10);
         _lbPreview.IntegralHeight = false;
         _lbPreview.SelectionMode = SelectionMode.None;
         _lbPreview.BorderStyle = BorderStyle.FixedSingle;
         _lbPreview.BackColor = Color.White;
-        layout.Controls.Add(_lbPreview, 1, 4);
+        previewPanel.Controls.Add(_lbPreview, 0, 1);
 
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 50));
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 86));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
-        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 80));
-
+        layout.Controls.Add(inputLayout, 0, 0);
+        layout.Controls.Add(previewPanel, 1, 0);
         panel.Controls.Add(layout);
         return panel;
     }

@@ -60,6 +60,7 @@ powershell -ExecutionPolicy Bypass -File docs/ui-refactor/tools/capture-window.p
 | key | 窗体 | 说明 |
 | --- | --- | --- |
 | `sequence-editor` | `SequenceEditor` | 使用示例序列和示例步骤行，便于检查列表单元格、下拉列、复制按钮列 |
+| `mainform-layout` | `MainForm` | 打开主窗口，用于 round3 布局对齐概览图截图 |
 | `spine-hotkey-editor` | `SpineHotkeyEditor` | 使用示例 Spine 热键行，便于检查只读名称列、快捷键编辑列、中文说明列 |
 | `vk-manager` | `VkWindowManager` | 使用当前布局数据，便于检查窗口名称、目标、按钮数、允许显示、显示/隐藏、删除列 |
 | `batch-copy` | `BatchCopyWindow` | 打开批量复制主界面，便于检查源文件、目标路径、预览、进度条和底部状态区 |
@@ -87,6 +88,15 @@ dotnet run --project docs/ui-refactor/tools/RuntimeWindowCapture/RuntimeWindowCa
 
 后续新增窗口截图入口时，只允许加入 `docs/ui-refactor/tools/RuntimeWindowCapture/Program.cs`，不得每次临时创建一次性截图项目。
 
+## Round3 布局对齐截图
+
+`round3` 用于检查控件位置、窗口默认尺寸、板块比例和列表/输入框/按钮区域是否接近概览图；它不代表最终美术资源已经替换。
+
+| 界面 | 截图 |
+| --- | --- |
+| MainForm | `runtime-mainform-layout-round3-check.png` |
+| SequenceEditor | `runtime-sequence-editor-layout-round3-check.png` |
+
 ## 注意事项
 
 - 如果目标窗口需要用户操作进入，则先手动或通过真实应用打开，再执行截图脚本。
@@ -94,3 +104,37 @@ dotnet run --project docs/ui-refactor/tools/RuntimeWindowCapture/RuntimeWindowCa
 - 如果应用已有托盘实例导致新实例无法显示，应先确认是否需要关闭旧实例，再截图。
 - 虚拟按键窗口本体不纳入普通 UI 重构截图；只截图右键菜单和相关输入弹窗。
 - 右键菜单/托盘菜单可用 `RuntimeWindowCapture` 的菜单入口截图；若需人工复核，再真实触发菜单后执行 `capture-window.ps1 -ActiveWindow`。
+
+
+## Round3 布局对齐截图补充（2026-06-04）
+
+本轮截图用于对比最新运行时窗口与 UI 概览图的控件位置、默认尺寸、列表/输入框/按钮区域和进度区，不代表最终美术资源已经替换。
+
+| 界面 | 运行时截图 |
+| --- | --- |
+| MainForm | `runtime-mainform-layout-round3-check.png` |
+| SequenceEditor | `runtime-sequence-editor-layout-round3-check.png` |
+| SpineHotkeyEditor | `runtime-spine-hotkey-editor-layout-round3-check.png` |
+| VkWindowManager | `runtime-vk-manager-layout-round3-check.png` |
+| BatchCopyWindow | `runtime-batch-copy-layout-round3-check.png` |
+| SourceFilePicker | `runtime-source-file-picker-layout-round3-check.png` |
+| BatchCliWindow 合并页 | `runtime-cli-merge-layout-round3-check.png` |
+| BatchCliWindow 导出页 | `runtime-cli-export-layout-round3-check.png` |
+| BatchCliWindow 动画选择弹窗 | `runtime-cli-animation-select-layout-round3-check.png` |
+| ReNameTool 重命名页 | `runtime-rename-tool-rename-layout-round3-check.png` |
+| ReNameTool Spine 整理页 | `runtime-rename-tool-organize-layout-round3-check.png` |
+| ReNameTool 图集解包页 | `runtime-rename-tool-unpack-layout-round3-check.png` |
+| HotkeyRecorderForm | `runtime-hotkey-recorder-layout-round3-check.png` |
+| ConflictDialog | `runtime-conflict-dialog-layout-round3-check.png` |
+| InputDialog | `runtime-input-dialog-layout-round3-check.png` |
+| SubfolderSelectDialog | `runtime-subfolder-select-layout-round3-check.png` |
+| VK 空白区域右键菜单 | `runtime-vk-blank-menu-layout-round3-check.png` |
+| VK 按钮右键菜单 | `runtime-vk-button-menu-layout-round3-check.png` |
+| 托盘菜单 | `runtime-tray-menu-layout-round3-check.png` |
+
+本轮同时更新了 `RuntimeWindowCapture` 的示例数据填充：批量复制、CLI 合并/导出、ReNameTool 三个页签会在截图时显示示例列表和进度条文字，便于检查“当前处理文件文字在进度条上方，进度条中间显示进度”的结构。
+
+
+## Round3 并排对比图
+
+已生成概览图与运行截图的并排对比图，索引见 `docs/ui-refactor/layout-round3-comparison.md`，图片保存在 `docs/ui-refactor/comparisons/round3/`。

@@ -35,8 +35,8 @@ public partial class MainForm : Form
     {
         Text = "spine宏助手（TANRY） V2.8";
         Icon = IconService.AppIcon;
-        Size = new Size(1200, 760);
-        MinimumSize = new Size(900, 560);
+        ClientSize = new Size(1440, 900);
+        MinimumSize = new Size(1100, 650);
         StartPosition = FormStartPosition.CenterScreen;
         FormClosing += MainForm_FormClosing;
         Shown += MainForm_Shown;
@@ -56,7 +56,8 @@ public partial class MainForm : Form
             Dock = DockStyle.Fill,
             AutoSize = true,
             WrapContents = true,
-            Padding = new Padding(12, 10, 12, 8),
+            Padding = new Padding(4, 6, 4, 6),
+            Margin = new Padding(14, 12, 14, 8),
             BackColor = Color.FromArgb(0xE4, 0xE4, 0xE4)
         };
 
@@ -121,8 +122,32 @@ public partial class MainForm : Form
         var dgvPanel = new Panel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(12, 8, 12, 12),
+            Padding = new Padding(18, 8, 18, 18),
             BackColor = Color.FromArgb(0xD7, 0xD7, 0xD7)
+        };
+
+        var listFrame = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            Padding = new Padding(0),
+            Margin = new Padding(0),
+            CellBorderStyle = TableLayoutPanelCellBorderStyle.Single,
+            BackColor = Color.FromArgb(0xD7, 0xD7, 0xD7)
+        };
+        listFrame.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+        listFrame.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        var listTitle = new Label
+        {
+            Text = "宏序列列表",
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Padding = new Padding(12, 0, 0, 0),
+            Font = new Font("Microsoft YaHei UI", 9, FontStyle.Bold),
+            BackColor = Color.FromArgb(0xE1, 0xE7, 0xEA),
+            ForeColor = Color.Black
         };
 
         _dgv = new DataGridView
@@ -160,7 +185,9 @@ public partial class MainForm : Form
         _dgv.CellEndEdit += Dgv_CellEndEdit;
         _dgv.CellFormatting += Dgv_CellFormatting;
         _dgv.CellClick += Dgv_CellClick;
-        dgvPanel.Controls.Add(_dgv);
+        listFrame.Controls.Add(listTitle, 0, 0);
+        listFrame.Controls.Add(_dgv, 0, 1);
+        dgvPanel.Controls.Add(listFrame);
         rootLayout.Controls.Add(toolStrip, 0, 0);
         rootLayout.Controls.Add(dgvPanel, 0, 1);
         Controls.Add(rootLayout);
@@ -171,13 +198,15 @@ public partial class MainForm : Form
         return new Button
         {
             Text = text,
-            AutoSize = true,
-            MinimumSize = new Size(80, 32),
+            AutoSize = false,
+            Size = new Size(ButtonWidth(text), 30),
+            MinimumSize = new Size(ButtonWidth(text), 30),
+            Font = new Font("Microsoft YaHei UI", 8f),
             FlatStyle = FlatStyle.Flat,
             BackColor = backColor,
             ForeColor = foreColor,
-            Margin = new Padding(3, 3, 3, 5),
-            Padding = new Padding(6, 0, 6, 1),
+            Margin = new Padding(1, 2, 1, 2),
+            Padding = new Padding(3, 0, 3, 1),
             Cursor = Cursors.Hand,
             FlatAppearance =
             {
@@ -185,6 +214,21 @@ public partial class MainForm : Form
                 MouseOverBackColor = Lighten(backColor),
                 MouseDownBackColor = Darken(backColor)
             }
+        };
+    }
+
+    private static int ButtonWidth(string text)
+    {
+        return text switch
+        {
+            "添加" or "编辑" or "删除" or "释放" or "导入" or "导出" => 52,
+            "删除全部" or "复制序列" or "暂停全部" or "批量复制" => 70,
+            "Spine热键编辑" => 100,
+            "开启虚拟按键" or "关闭虚拟按键" => 94,
+            "管理虚拟按键" => 100,
+            "批量重命名/spine解包整理" => 180,
+            "CLI批量合并/导出" => 125,
+            _ => 76
         };
     }
 
@@ -209,9 +253,9 @@ public partial class MainForm : Form
         return new Panel
         {
             AutoSize = false,
-            Width = 10,
+            Width = 3,
             Height = 30,
-            Margin = new Padding(8, 4, 8, 4),
+            Margin = new Padding(1, 2, 1, 2),
             BackColor = Color.Gainsboro
         };
     }
@@ -309,7 +353,7 @@ public partial class MainForm : Form
     {
         if (e.ColumnIndex < 0 || e.RowIndex < 0 || _failedHotkeys.Count == 0) return;
         if (_dgv.Columns.Count <= 2) return;
-        if (e.ColumnIndex != _dgv.Columns[2].Index) return;
+        if (e.ColumnIndex != _dgv.Columns[3].Index) return;
 
         var value = _dgv.Rows[e.RowIndex].Cells[e.ColumnIndex].Value?.ToString();
         if (!string.IsNullOrEmpty(value) && _failedHotkeys.Contains(value))
@@ -324,7 +368,7 @@ public partial class MainForm : Form
         if (e.RowIndex < 0 || e.RowIndex >= _sequences.Count) return;
         var seq = _sequences[e.RowIndex];
 
-        if (e.ColumnIndex == 7)
+        if (e.ColumnIndex == 1)
         {
             using var dialog = new OpenFileDialog
             {
@@ -1124,15 +1168,24 @@ public partial class MainForm : Form
         _dgv.Columns.Add(new DataGridViewCheckBoxColumn
         {
             HeaderText = "启用",
-            Width = (int)(56 * ds),
+            Width = (int)(72 * ds),
             AutoSizeMode = DataGridViewAutoSizeColumnMode.None
+        });
+        _dgv.Columns.Add(new DataGridViewButtonColumn
+        {
+            HeaderText = "选择",
+            Text = "选择",
+            UseColumnTextForButtonValue = true,
+            Width = (int)(96 * ds),
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
+            ReadOnly = true
         });
         _dgv.Columns.Add(new DataGridViewTextBoxColumn
         {
-            HeaderText = "序列名称",
+            HeaderText = "名称",
             ReadOnly = true,
             AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
-            FillWeight = 26,
+            FillWeight = 22,
             MinimumWidth = (int)(140 * ds)
         });
         _dgv.Columns.Add(new DataGridViewTextBoxColumn
@@ -1140,7 +1193,7 @@ public partial class MainForm : Form
             HeaderText = "触发快捷键",
             ReadOnly = true,
             AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
-            FillWeight = 18,
+            FillWeight = 22,
             MinimumWidth = (int)(120 * ds)
         });
         _dgv.Columns.Add(new DataGridViewTextBoxColumn
@@ -1153,38 +1206,29 @@ public partial class MainForm : Form
         });
         _dgv.Columns.Add(new DataGridViewTextBoxColumn
         {
-            HeaderText = "步骤数",
-            ReadOnly = true,
-            Width = (int)(72 * ds),
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.None
-        });
-        _dgv.Columns.Add(new DataGridViewTextBoxColumn
-        {
             HeaderText = "间隔(ms)",
-            Width = (int)(90 * ds),
+            Width = (int)(150 * ds),
             AutoSizeMode = DataGridViewAutoSizeColumnMode.None
         });
         _dgv.Columns.Add(new DataGridViewTextBoxColumn
         {
             HeaderText = "循环(次)",
-            Width = (int)(90 * ds),
+            Width = (int)(150 * ds),
             AutoSizeMode = DataGridViewAutoSizeColumnMode.None
         });
-        _dgv.Columns.Add(new DataGridViewButtonColumn
+        _dgv.Columns.Add(new DataGridViewTextBoxColumn
         {
-            HeaderText = "选择",
-            Text = "...",
-            UseColumnTextForButtonValue = true,
-            Width = (int)(64 * ds),
+            HeaderText = "步骤",
+            ReadOnly = true,
+            Width = (int)(88 * ds),
             AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
-            ReadOnly = true
         });
         _dgv.Columns.Add(new DataGridViewButtonColumn
         {
             HeaderText = "清除",
-            Text = "✕",
+            Text = "清除",
             UseColumnTextForButtonValue = true,
-            Width = (int)(64 * ds),
+            Width = (int)(104 * ds),
             AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
             ReadOnly = true
         });
@@ -1195,8 +1239,9 @@ public partial class MainForm : Form
         {
             var appName = GetTargetAppDisplay(seq);
             var idx = _dgv.Rows.Add(
-                seq.Enabled, seq.Name, !string.IsNullOrEmpty(seq.TriggerVkButtonName) ? $"虚拟按键({seq.TriggerVkButtonName})" : seq.TriggerHotkey, appName, seq.Steps.Count,
-                seq.LoopIntervalMs.ToString(), seq.LoopCount.ToString());
+                seq.Enabled, "选择", seq.Name,
+                !string.IsNullOrEmpty(seq.TriggerVkButtonName) ? $"虚拟按键({seq.TriggerVkButtonName})" : seq.TriggerHotkey,
+                appName, seq.LoopIntervalMs.ToString(), seq.LoopCount.ToString(), seq.Steps.Count, "清除");
             _dgv.Rows[idx].Tag = seq.Id;
         }
 
@@ -1217,8 +1262,9 @@ public partial class MainForm : Form
 
         var editableStyle = new DataGridViewCellStyle
         {
-            BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6),
-            SelectionBackColor = Color.FromArgb(0xC7, 0x8F, 0x24),
+            BackColor = UiTheme.Input,
+            ForeColor = UiTheme.Text,
+            SelectionBackColor = Color.FromArgb(0x6F, 0x54, 0x24),
             SelectionForeColor = Color.White
         };
         _dgv.Columns[5].DefaultCellStyle = editableStyle;
@@ -1226,17 +1272,19 @@ public partial class MainForm : Form
 
         var chooseStyle = new DataGridViewCellStyle
         {
-            BackColor = Color.FromArgb(0xE7, 0xF1, 0xFB),
-            SelectionBackColor = Color.FromArgb(0x1D, 0x6F, 0xB8),
+            BackColor = Color.FromArgb(0x2D, 0x42, 0x49),
+            ForeColor = UiTheme.Text,
+            SelectionBackColor = Color.FromArgb(0x2E, 0x68, 0x7A),
             SelectionForeColor = Color.White,
             Alignment = DataGridViewContentAlignment.MiddleCenter
         };
-        _dgv.Columns[7].DefaultCellStyle = chooseStyle;
+        _dgv.Columns[1].DefaultCellStyle = chooseStyle;
 
         var clearStyle = new DataGridViewCellStyle
         {
-            BackColor = Color.FromArgb(0xFA, 0xE6, 0xE6),
-            SelectionBackColor = Color.FromArgb(0xB8, 0x42, 0x42),
+            BackColor = Color.FromArgb(0x47, 0x34, 0x34),
+            ForeColor = UiTheme.Text,
+            SelectionBackColor = Color.FromArgb(0x7A, 0x48, 0x48),
             SelectionForeColor = Color.White,
             Alignment = DataGridViewContentAlignment.MiddleCenter
         };

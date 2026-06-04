@@ -19,7 +19,7 @@ public class InputDialog : Form
         MaximizeBox = false;
         ShowInTaskbar = false;
         FormBorderStyle = FormBorderStyle.FixedDialog;
-        BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA);
+        BackColor = UiTheme.App;
 
         var layout = new TableLayoutPanel
         {
@@ -27,7 +27,7 @@ public class InputDialog : Form
             Padding = new Padding(12),
             RowCount = 3,
             ColumnCount = 1,
-            BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA)
+            BackColor = UiTheme.App
         };
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -36,15 +36,21 @@ public class InputDialog : Form
         var lblPrompt = new Label
         {
             Text = prompt,
-            AutoSize = true
+            AutoSize = true,
+            Font = new Font("Microsoft YaHei UI", 10, FontStyle.Regular),
+            ForeColor = UiTheme.Text,
+            Margin = new Padding(0, 0, 0, 8)
         };
         layout.Controls.Add(lblPrompt);
 
         _txtInput.Text = defaultValue;
-        _txtInput.Dock = DockStyle.Fill;
+        _txtInput.Dock = DockStyle.Top;
+        _txtInput.Height = 32;
         _txtInput.Margin = new Padding(0, 8, 0, 8);
         _txtInput.BorderStyle = BorderStyle.FixedSingle;
-        _txtInput.BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6);
+        _txtInput.BackColor = UiTheme.Input;
+        _txtInput.ForeColor = UiTheme.Text;
+        _txtInput.Font = new Font("Microsoft YaHei UI", 10, FontStyle.Regular);
         layout.Controls.Add(_txtInput);
 
         var btnPanel = new FlowLayoutPanel
@@ -52,7 +58,7 @@ public class InputDialog : Form
             FlowDirection = FlowDirection.RightToLeft,
             AutoSize = true,
             Dock = DockStyle.Bottom,
-            BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA)
+            BackColor = UiTheme.App
         };
 
         var btnCancel = new Button
@@ -62,7 +68,7 @@ public class InputDialog : Form
             MinimumSize = new Size(80, 30),
             FlatStyle = FlatStyle.Flat
         };
-        StyleButton(btnCancel, Color.FromArgb(0xF2, 0xF2, 0xF2), Color.Black);
+        StyleButton(btnCancel, UiTheme.PanelAlt, UiTheme.Text);
         btnCancel.Click += (_, _) => { DialogResult = DialogResult.Cancel; Close(); };
 
         var btnOk = new Button
@@ -71,10 +77,10 @@ public class InputDialog : Form
             AutoSize = true,
             MinimumSize = new Size(80, 30),
             FlatStyle = FlatStyle.Flat,
-            BackColor = Color.FromArgb(0x00, 0x78, 0xD7),
+            BackColor = UiTheme.Blue,
             ForeColor = Color.White
         };
-        StyleButton(btnOk, Color.FromArgb(0x00, 0x78, 0xD7), Color.White);
+        StyleButton(btnOk, UiTheme.Blue, Color.White);
         btnOk.Click += (_, _) => { DialogResult = DialogResult.OK; Close(); };
 
         btnPanel.Controls.AddRange([btnCancel, btnOk]);
@@ -91,7 +97,10 @@ public class InputDialog : Form
         button.BackColor = backColor;
         button.ForeColor = foreColor;
         button.Cursor = Cursors.Hand;
-        button.FlatAppearance.BorderColor = Color.FromArgb(0x8A, 0x8A, 0x8A);
+        button.Font = new Font("Microsoft YaHei UI", 9, FontStyle.Regular);
+        button.Padding = new Padding(10, 0, 10, 1);
+        button.FlatAppearance.BorderColor = UiTheme.BorderStrong;
+        button.FlatAppearance.BorderSize = 1;
         button.FlatAppearance.MouseOverBackColor = Lighten(backColor);
         button.FlatAppearance.MouseDownBackColor = Darken(backColor);
     }

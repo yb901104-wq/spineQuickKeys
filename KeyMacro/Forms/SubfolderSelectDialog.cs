@@ -77,35 +77,32 @@ public class SubfolderSelectDialog : Form
         {
             Dock = DockStyle.Fill,
             Padding = new Padding(12),
-            RowCount = 4,
+            RowCount = 5,
             ColumnCount = 1,
             BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA)
         };
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
         mainPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         mainPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         mainPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         mainPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
-        // Row 0: search + exclude
-        var searchPanel = new FlowLayoutPanel
+        mainPanel.Controls.Add(new Label
         {
-            AutoSize = true,
-            Padding = new Padding(6, 4, 6, 6),
-            BackColor = Color.FromArgb(0xE4, 0xE4, 0xE4)
-        };
-        _txtSearch.Size = new Size(240, 24);
-        searchPanel.Controls.Add(new Label { Text = "搜索:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft });
-        searchPanel.Controls.Add(_txtSearch);
-        _txtExclude.Size = new Size(240, 24);
-        searchPanel.Controls.Add(new Label { Text = "不包含:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft });
-        searchPanel.Controls.Add(_txtExclude);
-        mainPanel.Controls.Add(searchPanel, 0, 0);
+            Text = "批量选择",
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Font = new Font("Microsoft YaHei UI", 9, FontStyle.Bold),
+            Padding = new Padding(10, 0, 0, 0),
+            BackColor = Color.FromArgb(0xE1, 0xE7, 0xEA),
+            ForeColor = Color.Black
+        }, 0, 0);
 
         // Row 1: 全选 / 全不选
         var topPanel = new FlowLayoutPanel
         {
             AutoSize = true,
-            Padding = new Padding(0, 0, 0, 6),
+            Padding = new Padding(0, 6, 0, 6),
             BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA)
         };
 
@@ -140,10 +137,25 @@ public class SubfolderSelectDialog : Form
         topPanel.Controls.AddRange([btnSelectAll, btnDeselectAll]);
         mainPanel.Controls.Add(topPanel, 0, 1);
 
-        // Row 2: list
-        mainPanel.Controls.Add(_clb, 0, 2);
+        // Row 2: search + exclude
+        var searchPanel = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            Padding = new Padding(6, 4, 6, 6),
+            BackColor = Color.FromArgb(0xE4, 0xE4, 0xE4)
+        };
+        _txtSearch.Size = new Size(240, 24);
+        searchPanel.Controls.Add(new Label { Text = "搜索:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft });
+        searchPanel.Controls.Add(_txtSearch);
+        _txtExclude.Size = new Size(240, 24);
+        searchPanel.Controls.Add(new Label { Text = "不包含:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft });
+        searchPanel.Controls.Add(_txtExclude);
+        mainPanel.Controls.Add(searchPanel, 0, 2);
 
-        // Row 3: bottom buttons
+        // Row 3: list
+        mainPanel.Controls.Add(_clb, 0, 3);
+
+        // Row 4: bottom buttons
         var bottomPanel = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
@@ -165,7 +177,7 @@ public class SubfolderSelectDialog : Form
 
         var btnOk = new Button
         {
-            Text = "确认添加",
+            Text = "确认选择",
             AutoSize = true,
             MinimumSize = new Size(100, 32),
             FlatStyle = FlatStyle.Flat,
@@ -181,7 +193,7 @@ public class SubfolderSelectDialog : Form
         };
 
         bottomPanel.Controls.AddRange([btnCancel, btnOk]);
-        mainPanel.Controls.Add(bottomPanel, 0, 3);
+        mainPanel.Controls.Add(bottomPanel, 0, 4);
 
         Controls.Add(mainPanel);
         UiTheme.Apply(this, UiWindowProfile.SubfolderSelect);

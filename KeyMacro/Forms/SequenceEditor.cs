@@ -45,8 +45,8 @@ public partial class SequenceEditor : Form
     {
         Text = "编辑序列";
         Icon = IconService.AppIcon;
-        Size = new Size(1100, 850);
-        MinimumSize = new Size(600, 400);
+        ClientSize = new Size(1440, 900);
+        MinimumSize = new Size(900, 620);
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.Sizable;
         MaximizeBox = true;
@@ -57,21 +57,37 @@ public partial class SequenceEditor : Form
         _topPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Top,
-            Height = 154,
-            ColumnCount = 2,
+            Height = 174,
+            ColumnCount = 5,
             RowCount = 3,
-            Padding = new Padding(14, 16, 14, 6),
+            Padding = new Padding(14, 18, 14, 12),
             BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3)
         };
-        _topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
+        _topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
+        _topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 420));
         _topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        _topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-        _topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
-        _topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+        _topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
+        _topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 360));
+        _topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+        _topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
+        _topPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 58));
 
-        _topPanel.Controls.Add(new Label { Text = "序列名称:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 0);
-        _topPanel.Controls.Add(new Label { Text = "触发快捷键:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 1);
-        _topPanel.Controls.Add(new Label { Text = "关联虚拟按键:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 2);
+        var bindTitle = new Label
+        {
+            Text = "触发与绑定",
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Padding = new Padding(8, 0, 0, 0),
+            Font = new Font("Microsoft YaHei UI", 9, FontStyle.Bold),
+            BackColor = Color.FromArgb(0xE1, 0xE7, 0xEA),
+            ForeColor = Color.Black
+        };
+        _topPanel.Controls.Add(bindTitle, 0, 0);
+        _topPanel.SetColumnSpan(bindTitle, 5);
+
+        _topPanel.Controls.Add(new Label { Text = "序列名称:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 1);
+        _topPanel.Controls.Add(new Label { Text = "触发快捷键:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 2);
+        _topPanel.Controls.Add(new Label { Text = "关联虚拟按键:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 3, 1);
 
         _txtName = new TextBox
         {
@@ -80,17 +96,18 @@ public partial class SequenceEditor : Form
             Margin = new Padding(0, 5, 0, 5),
             BorderStyle = BorderStyle.FixedSingle
         };
-        _topPanel.Controls.Add(_txtName, 1, 0);
+        _topPanel.Controls.Add(_txtName, 1, 1);
 
         var hotkeyPanel = new TableLayoutPanel
         {
-            Dock = DockStyle.Fill,
+            Anchor = AnchorStyles.Left,
+            Size = new Size(790, 40),
             ColumnCount = 4,
             RowCount = 1,
             Margin = new Padding(0, 5, 0, 5),
             BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3)
         };
-        hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 430));
         hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
         hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
         hotkeyPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 60));
@@ -115,7 +132,8 @@ public partial class SequenceEditor : Form
         hotkeyPanel.Controls.Add(_btnKeyboardRecord);
         hotkeyPanel.Controls.Add(_btnVkPick);
         hotkeyPanel.Controls.Add(btnClearHotkey);
-        _topPanel.Controls.Add(hotkeyPanel, 1, 1);
+        _topPanel.Controls.Add(hotkeyPanel, 1, 2);
+        _topPanel.SetColumnSpan(hotkeyPanel, 2);
 
         _txtVkBind = new TextBox
         {
@@ -125,14 +143,14 @@ public partial class SequenceEditor : Form
             Margin = new Padding(0, 5, 0, 5),
             BorderStyle = BorderStyle.FixedSingle
         };
-        _topPanel.Controls.Add(_txtVkBind, 1, 2);
+        _topPanel.Controls.Add(_txtVkBind, 4, 1);
 
         // ── Steps Toolbar ──
         var stepsToolbar = new FlowLayoutPanel
         {
             Dock = DockStyle.Top,
-            Height = 38,
-            Padding = new Padding(12, 4, 12, 0),
+            Height = 44,
+            Padding = new Padding(16, 7, 16, 0),
             BackColor = Color.FromArgb(0xE4, 0xE4, 0xE4)
         };
 
@@ -149,6 +167,18 @@ public partial class SequenceEditor : Form
         _btnMoveDown.Click += (_, _) => MoveStep(1);
 
         stepsToolbar.Controls.AddRange([_btnAddStep, _btnDelStep, _btnRecordKey, _btnMoveUp, _btnMoveDown]);
+
+        var stepsTitle = new Label
+        {
+            Text = "步骤列表",
+            Dock = DockStyle.Top,
+            Height = 32,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Padding = new Padding(20, 0, 0, 0),
+            Font = new Font("Microsoft YaHei UI", 9, FontStyle.Bold),
+            BackColor = Color.FromArgb(0xE1, 0xE7, 0xEA),
+            ForeColor = Color.Black
+        };
 
         // ── Steps Grid ──
         _dgvSteps = new DataGridView
@@ -181,6 +211,14 @@ public partial class SequenceEditor : Form
         _dgvSteps.CellEndEdit += (_, _) => { OperationLogger.Info("Suggest: CellEndEdit"); BeginInvoke(HideSuggestion); };
         _dgvSteps.EditingControlShowing += DgvSteps_EditingControlShowing;
         _dgvSteps.CellClick += StepsGrid_CellClick;
+
+        var stepsGridPanel = new Panel
+        {
+            Dock = DockStyle.Fill,
+            Padding = new Padding(24, 0, 24, 6),
+            BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA)
+        };
+        stepsGridPanel.Controls.Add(_dgvSteps);
 
         // ── Autocomplete suggestion dropdown (ToolStripDropDown, no focus steal) ──
         _suggestionListBox = new ListBox
@@ -276,14 +314,15 @@ public partial class SequenceEditor : Form
         _btnOk.FlatAppearance.BorderColor = Color.FromArgb(0x0A, 0x5F, 0xA8);
         _btnOk.Click += (_, _) => { SaveToSequence(); DialogResult = DialogResult.OK; Close(); };
 
-        bottomPanel.Controls.Add(_btnCancel);
         bottomPanel.Controls.Add(_btnOk);
+        bottomPanel.Controls.Add(_btnCancel);
 
         // ── Add all panels in correct Z-order ──
         Controls.Add(bottomPanel);  // Dock=Bottom (lowest Z = allocated first)
         Controls.Add(_statusPanel); // Dock=Bottom (above bottomPanel)
-        Controls.Add(_dgvSteps);    // Dock=Fill
+        Controls.Add(stepsGridPanel); // Dock=Fill
         Controls.Add(stepsToolbar); // Dock=Top (higher priority)
+        Controls.Add(stepsTitle);   // Dock=Top (section title above toolbar)
         Controls.Add(_topPanel);     // Dock=Top (highest Z = allocated last = wins top spot)
 
         // ── Form-level KeyPreview for Esc handling ──
@@ -298,10 +337,10 @@ public partial class SequenceEditor : Form
     {
         float ds = DeviceDpi / 96f;
         if (ds == 1.0f) return;
-        _topPanel.Height = (int)(154 * ds);
-        _topPanel.RowStyles[0].Height = (int)(36 * ds);
-        _topPanel.RowStyles[1].Height = (int)(48 * ds);
-        _topPanel.RowStyles[2].Height = (int)(36 * ds);
+        _topPanel.Height = (int)(174 * ds);
+        _topPanel.RowStyles[0].Height = (int)(32 * ds);
+        _topPanel.RowStyles[1].Height = (int)(52 * ds);
+        _topPanel.RowStyles[2].Height = (int)(58 * ds);
         _topPanel.ColumnStyles[0].Width = (int)(130 * ds);
     }
 
@@ -453,8 +492,9 @@ public partial class SequenceEditor : Form
 
         var optionStyle = new DataGridViewCellStyle
         {
-            BackColor = Color.FromArgb(0xE7, 0xF1, 0xFB),
-            SelectionBackColor = Color.FromArgb(0x1D, 0x6F, 0xB8),
+            BackColor = Color.FromArgb(0x2D, 0x42, 0x49),
+            ForeColor = UiTheme.Text,
+            SelectionBackColor = Color.FromArgb(0x2E, 0x68, 0x7A),
             SelectionForeColor = Color.White
         };
         _dgvSteps.Columns[0].DefaultCellStyle = optionStyle;
@@ -462,8 +502,9 @@ public partial class SequenceEditor : Form
 
         var editableStyle = new DataGridViewCellStyle
         {
-            BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6),
-            SelectionBackColor = Color.FromArgb(0xC7, 0x8F, 0x24),
+            BackColor = UiTheme.Input,
+            ForeColor = UiTheme.Text,
+            SelectionBackColor = Color.FromArgb(0x6F, 0x54, 0x24),
             SelectionForeColor = Color.White
         };
         _dgvSteps.Columns[1].DefaultCellStyle = editableStyle;
@@ -472,8 +513,9 @@ public partial class SequenceEditor : Form
 
         _dgvSteps.Columns[5].DefaultCellStyle = new DataGridViewCellStyle
         {
-            BackColor = Color.FromArgb(0xE7, 0xF1, 0xFB),
-            SelectionBackColor = Color.FromArgb(0x1D, 0x6F, 0xB8),
+            BackColor = Color.FromArgb(0x2D, 0x42, 0x49),
+            ForeColor = UiTheme.Text,
+            SelectionBackColor = Color.FromArgb(0x2E, 0x68, 0x7A),
             SelectionForeColor = Color.White,
             Alignment = DataGridViewContentAlignment.MiddleCenter
         };
@@ -921,8 +963,8 @@ public class HotkeyRecorderForm : Form
     {
         _allowNoModifier = allowNoModifier;
         Text = "录制快捷键";
-        Size = new Size(580, 360);
-        MinimumSize = new Size(420, 240);
+        Size = new Size(430, 250);
+        MinimumSize = new Size(380, 220);
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         ControlBox = false;
@@ -937,7 +979,7 @@ public class HotkeyRecorderForm : Form
         var panel = new Panel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(18),
+            Padding = new Padding(16),
             BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA)
         };
 
@@ -946,7 +988,7 @@ public class HotkeyRecorderForm : Form
             Text = msg,
             TextAlign = ContentAlignment.MiddleCenter,
             Dock = DockStyle.Fill,
-            Font = new Font("Microsoft YaHei", 11),
+            Font = new Font("Microsoft YaHei", 10),
             ForeColor = Color.FromArgb(0x33, 0x33, 0x33),
             AutoSize = false,
             BorderStyle = BorderStyle.FixedSingle,

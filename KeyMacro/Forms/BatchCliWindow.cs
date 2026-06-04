@@ -66,8 +66,8 @@ public class BatchCliWindow : Form
     {
         Text = "CLI批量合并/导出";
         Icon = IconService.AppIcon;
-        Size = new Size(1100, 760);
-        MinimumSize = new Size(880, 620);
+        ClientSize = new Size(1440, 900);
+        MinimumSize = new Size(1040, 680);
         StartPosition = FormStartPosition.CenterParent;
         BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA);
 
@@ -78,9 +78,9 @@ public class BatchCliWindow : Form
             RowCount = 3,
             BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA)
         };
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 58));
 
         layout.Controls.Add(BuildTopBar(), 0, 0);
         BuildTabControl();
@@ -107,7 +107,7 @@ public class BatchCliWindow : Form
         };
 
         var lbl = new Label { Text = "Spine.com 路径:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft };
-        _txtSpinePath.Size = new Size(520, 24);
+        _txtSpinePath.Size = new Size(620, 24);
         _txtSpinePath.BorderStyle = BorderStyle.FixedSingle;
         _txtSpinePath.BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6);
         _btnDetect.Text = "检测";
@@ -225,12 +225,38 @@ public class BatchCliWindow : Form
     private readonly BindingList<SpineCliEntry> _sourceEntries = [];
     private readonly BindingList<SpineCliEntry> _targetEntries = [];
 
+    private static TableLayoutPanel BuildSectionContainer(string title)
+    {
+        var container = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3),
+            CellBorderStyle = TableLayoutPanelCellBorderStyle.Single
+        };
+        container.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+        container.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        container.Controls.Add(new Label
+        {
+            Text = title,
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Font = new Font("Microsoft YaHei UI", 9, FontStyle.Bold),
+            Padding = new Padding(12, 0, 0, 0),
+            BackColor = Color.FromArgb(0xE1, 0xE7, 0xEA),
+            ForeColor = Color.Black
+        }, 0, 0);
+        return container;
+    }
+
     private void BuildMergeTab()
     {
         _tabMerge.Text = "合并";
         _tabMerge.Padding = new Padding(10);
         _tabMerge.BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA);
 
+        var mergeContainer = BuildSectionContainer("合并任务");
         var mergePanel = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
@@ -243,11 +269,11 @@ public class BatchCliWindow : Form
         mergePanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 20));
         mergePanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 48));
         mergePanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        mergePanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 220));
+        mergePanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        mergePanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        mergePanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         mergePanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        mergePanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        mergePanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        mergePanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        mergePanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
         // Row 0: Headers
         var srcHeader = new Label { Text = "源文件", Font = new Font("Microsoft YaHei", 10, FontStyle.Bold), Dock = DockStyle.Fill };
@@ -377,7 +403,8 @@ public class BatchCliWindow : Form
         execPanel.Controls.AddRange([_btnMergeExecute, _chkExperimental]);
         mergePanel.Controls.Add(execPanel, 2, 4);
 
-        _tabMerge.Controls.Add(mergePanel);
+        mergeContainer.Controls.Add(mergePanel, 0, 1);
+        _tabMerge.Controls.Add(mergeContainer);
     }
 
     private void AddSourceFile()
@@ -1060,24 +1087,26 @@ public class BatchCliWindow : Form
         _tabExport.Padding = new Padding(10);
         _tabExport.BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA);
 
+        var exportContainer = BuildSectionContainer("导出任务");
         var exportPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 2,
-            RowCount = 5,
+            RowCount = 6,
             Padding = new Padding(10),
             BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3)
         };
         exportPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        exportPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 250));
+        exportPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        exportPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        exportPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         exportPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        exportPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        exportPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        exportPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
         // Row 0: Source dir
         exportPanel.Controls.Add(new Label { Text = "源目录:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft }, 0, 0);
         var srcDirPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3) };
-        _txtSourceDir.Size = new Size(520, 24);
+        _txtSourceDir.Size = new Size(620, 24);
         _txtSourceDir.BorderStyle = BorderStyle.FixedSingle;
         _txtSourceDir.BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6);
         _btnBrowseSource.Text = "浏览";
@@ -1155,7 +1184,7 @@ public class BatchCliWindow : Form
             }
         };
 
-        var refreshPanel = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(0, 2, 0, 0), BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3) };
+        var refreshPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = false, Padding = new Padding(0, 8, 0, 4), BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3) };
         refreshPanel.Controls.Add(_btnRefresh);
         refreshPanel.Controls.Add(new Label { Text = "  |  导出配置:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft });
         refreshPanel.Controls.Add(_rbFinish);
@@ -1166,7 +1195,7 @@ public class BatchCliWindow : Form
         // Row 3: Output dir
         exportPanel.Controls.Add(new Label { Text = "输出目录:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft }, 0, 3);
         var outDirPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3) };
-        _txtOutputDir.Size = new Size(520, 24);
+        _txtOutputDir.Size = new Size(620, 24);
         _txtOutputDir.BorderStyle = BorderStyle.FixedSingle;
         _txtOutputDir.BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6);
         _btnBrowseOutput.Text = "浏览";
@@ -1207,7 +1236,8 @@ public class BatchCliWindow : Form
         actionPanel.Controls.AddRange([_btnExport, _btnPack]);
         exportPanel.Controls.Add(actionPanel, 1, 4);
 
-        _tabExport.Controls.Add(exportPanel);
+        exportContainer.Controls.Add(exportPanel, 0, 1);
+        _tabExport.Controls.Add(exportContainer);
     }
 
     private void ScanSourceDir(object? sender, EventArgs e)

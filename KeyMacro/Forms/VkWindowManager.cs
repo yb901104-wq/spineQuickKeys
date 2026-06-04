@@ -22,8 +22,8 @@ public class VkWindowManager : Form
 
         Text = "虚拟按键管理";
         Icon = IconService.AppIcon;
-        Size = new Size(760, 520);
-        MinimumSize = new Size(560, 360);
+        ClientSize = new Size(1440, 900);
+        MinimumSize = new Size(900, 560);
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.Sizable;
         ShowInTaskbar = false;
@@ -77,8 +77,43 @@ public class VkWindowManager : Form
         _dgv.CellValueChanged += Dgv_CellValueChanged;
         _dgv.CellClick += Dgv_CellClick;
 
-        Controls.Add(_dgv);
-        Controls.Add(bottomPanel);
+        var root = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            Padding = new Padding(24, 20, 24, 20),
+            ColumnCount = 1,
+            RowCount = 2,
+            BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA)
+        };
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 60));
+
+        var listPanel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            Padding = new Padding(12, 0, 12, 12),
+            ColumnCount = 1,
+            RowCount = 2,
+            BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3),
+            CellBorderStyle = TableLayoutPanelCellBorderStyle.Single
+        };
+        listPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+        listPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        listPanel.Controls.Add(new Label
+        {
+            Text = "窗口列表",
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Font = new Font("Microsoft YaHei UI", 9, FontStyle.Bold),
+            Padding = new Padding(2, 0, 0, 0)
+        }, 0, 0);
+        listPanel.Controls.Add(_dgv, 0, 1);
+
+        bottomPanel.Dock = DockStyle.Fill;
+        bottomPanel.Height = 0;
+        root.Controls.Add(listPanel, 0, 0);
+        root.Controls.Add(bottomPanel, 0, 1);
+        Controls.Add(root);
         UiTheme.Apply(this, UiWindowProfile.VkWindowManager);
 
         Shown += (_, _) => RefreshList();
@@ -187,15 +222,17 @@ public class VkWindowManager : Form
 
         _dgv.Columns[0].DefaultCellStyle = new DataGridViewCellStyle
         {
-            BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6),
-            SelectionBackColor = Color.FromArgb(0xC7, 0x8F, 0x24),
+            BackColor = UiTheme.Input,
+            ForeColor = UiTheme.Text,
+            SelectionBackColor = Color.FromArgb(0x6F, 0x54, 0x24),
             SelectionForeColor = Color.White
         };
 
         var readOnlyStyle = new DataGridViewCellStyle
         {
-            BackColor = Color.FromArgb(0xF2, 0xF4, 0xF5),
-            SelectionBackColor = Color.FromArgb(0x5B, 0x73, 0x84),
+            BackColor = UiTheme.PanelAlt,
+            ForeColor = UiTheme.Text,
+            SelectionBackColor = Color.FromArgb(0x5B, 0x77, 0x82),
             SelectionForeColor = Color.White
         };
         _dgv.Columns[1].DefaultCellStyle = readOnlyStyle;
@@ -203,24 +240,27 @@ public class VkWindowManager : Form
 
         _dgv.Columns[3].DefaultCellStyle = new DataGridViewCellStyle
         {
-            BackColor = Color.FromArgb(0xE7, 0xF1, 0xFB),
-            SelectionBackColor = Color.FromArgb(0x1D, 0x6F, 0xB8),
+            BackColor = Color.FromArgb(0x2D, 0x42, 0x49),
+            ForeColor = UiTheme.Text,
+            SelectionBackColor = Color.FromArgb(0x2E, 0x68, 0x7A),
             SelectionForeColor = Color.White,
             Alignment = DataGridViewContentAlignment.MiddleCenter
         };
 
         _dgv.Columns[4].DefaultCellStyle = new DataGridViewCellStyle
         {
-            BackColor = Color.FromArgb(0xE7, 0xF1, 0xFB),
-            SelectionBackColor = Color.FromArgb(0x1D, 0x6F, 0xB8),
+            BackColor = Color.FromArgb(0x2D, 0x42, 0x49),
+            ForeColor = UiTheme.Text,
+            SelectionBackColor = Color.FromArgb(0x2E, 0x68, 0x7A),
             SelectionForeColor = Color.White,
             Alignment = DataGridViewContentAlignment.MiddleCenter
         };
 
         _dgv.Columns[5].DefaultCellStyle = new DataGridViewCellStyle
         {
-            BackColor = Color.FromArgb(0xFA, 0xE6, 0xE6),
-            SelectionBackColor = Color.FromArgb(0xB8, 0x42, 0x42),
+            BackColor = Color.FromArgb(0x47, 0x34, 0x34),
+            ForeColor = UiTheme.Text,
+            SelectionBackColor = Color.FromArgb(0x7A, 0x48, 0x48),
             SelectionForeColor = Color.White,
             Alignment = DataGridViewContentAlignment.MiddleCenter
         };

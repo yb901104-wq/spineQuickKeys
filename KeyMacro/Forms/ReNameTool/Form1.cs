@@ -30,45 +30,167 @@ namespace KeyMacro.Forms.ReNameTool
         {
             InitializeComponent();
             Icon = IconService.AppIcon;
-            Size = new Size(1080, 660);
-            MinimumSize = new Size(980, 600);
+            ClientSize = new Size(1440, 900);
+            MinimumSize = new Size(1080, 680);
+            ApplyRound3Layout();
             InitializeProgressPanels();
             ApplyVisualStyles();
             UiTheme.Apply(this, UiWindowProfile.ReNameTool);
         }
 
+        private void ApplyRound3Layout()
+        {
+            tabControl1.Dock = DockStyle.Fill;
+
+            AddSectionLabel(tabPage1, "文件路径", new Point(40, 28), new Size(760, 24));
+            AddSectionLabel(tabPage1, "命名规则", new Point(836, 28), new Size(530, 24));
+            listBox1.Location = new Point(40, 54);
+            listBox1.Size = new Size(760, 430);
+            button1.Location = new Point(40, 510);
+            button1.Size = new Size(88, 28);
+            button4.Location = new Point(136, 510);
+            button4.Size = new Size(96, 28);
+            button2.Location = new Point(240, 510);
+            button2.Size = new Size(88, 28);
+            textBox3.Location = new Point(690, 512);
+            textBox3.Size = new Size(480, 25);
+            label3.Location = new Point(866, 70);
+            label9.Location = new Point(866, 118);
+            textBox4.Location = new Point(966, 112);
+            textBox4.Size = new Size(220, 25);
+            button5.Location = new Point(1204, 108);
+            button5.Size = new Size(116, 32);
+            label8.Location = new Point(866, 220);
+            label1.Location = new Point(866, 310);
+            textBox1.Location = new Point(966, 304);
+            textBox1.Size = new Size(220, 25);
+            label2.Location = new Point(866, 360);
+            textBox2.Location = new Point(966, 354);
+            textBox2.Size = new Size(220, 25);
+            button3.Location = new Point(1204, 350);
+            button3.Size = new Size(116, 32);
+
+            AddSectionLabel(tabPage2, "待整理文件", new Point(40, 28), new Size(1320, 24));
+            AddSectionLabel(tabPage2, "整理配置", new Point(40, 420), new Size(1320, 24));
+            listBox2.Location = new Point(40, 54);
+            listBox2.Size = new Size(1320, 330);
+            label6.Location = new Point(60, 450);
+            label7.Location = new Point(60, 475);
+            label4.Location = new Point(60, 520);
+            textBox5.Location = new Point(160, 516);
+            textBox5.Size = new Size(420, 25);
+            button6.Location = new Point(596, 512);
+            button6.Size = new Size(104, 32);
+            label5.Location = new Point(60, 575);
+            textBox6.Location = new Point(160, 571);
+            textBox6.Size = new Size(420, 25);
+            button7.Location = new Point(596, 567);
+            button7.Size = new Size(104, 32);
+            checkBox1.Location = new Point(760, 516);
+            checkBox1.Size = new Size(360, 28);
+            button9.Location = new Point(1018, 568);
+            button9.Size = new Size(116, 32);
+            button8.Location = new Point(1148, 568);
+            button8.Size = new Size(116, 32);
+
+            AddSectionLabel(tabPage3, "Atlas 文件", new Point(40, 28), new Size(1320, 24));
+            AddSectionLabel(tabPage3, "解包操作", new Point(40, 530), new Size(1320, 24));
+            listBox3.Location = new Point(40, 54);
+            listBox3.Size = new Size(1320, 460);
+            label10.Location = new Point(60, 594);
+            textBox7.Location = new Point(220, 588);
+            textBox7.Size = new Size(420, 25);
+            button10.Location = new Point(666, 584);
+            button10.Size = new Size(128, 32);
+            button11.Location = new Point(890, 584);
+            button11.Size = new Size(110, 32);
+            button13.Location = new Point(1210, 584);
+            button13.Size = new Size(116, 32);
+        }
+
+        private static void AddSectionLabel(Control parent, string text, Point location, Size size)
+        {
+            var label = new Label
+            {
+                Text = text,
+                Location = location,
+                Size = size,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(10, 0, 0, 0),
+                BackColor = UiTheme.ControlWell,
+                ForeColor = UiTheme.Text,
+                Font = new Font("Microsoft YaHei UI", 9, FontStyle.Bold)
+            };
+            parent.Controls.Add(label);
+            label.BringToFront();
+        }
+
         private void ApplyVisualStyles()
         {
-            BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA);
-            tabControl1.BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA);
+            BackColor = UiTheme.App;
+            ForeColor = UiTheme.Text;
+            tabControl1.BackColor = UiTheme.App;
+            tabControl1.DrawMode = TabDrawMode.OwnerDrawFixed;
+            tabControl1.DrawItem += TabControl_DrawItem;
 
             foreach (var page in new[] { tabPage1, tabPage2, tabPage3 })
             {
-                page.BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3);
+                page.BackColor = UiTheme.Workspace;
+                page.ForeColor = UiTheme.Text;
             }
 
             foreach (var list in new[] { listBox1, listBox2, listBox3 })
             {
                 list.BorderStyle = BorderStyle.FixedSingle;
-                list.BackColor = Color.White;
-                list.ForeColor = Color.Black;
+                list.BackColor = UiTheme.List;
+                list.ForeColor = UiTheme.Text;
             }
 
             foreach (var textBox in new[] { textBox1, textBox2, textBox3, textBox4, textBox5, textBox6, textBox7 })
             {
                 textBox.BorderStyle = BorderStyle.FixedSingle;
-                textBox.BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6);
+                textBox.BackColor = UiTheme.Input;
+                textBox.ForeColor = UiTheme.Text;
             }
 
             foreach (var button in new[] { button1, button2, button4, button6, button7, button9, button10, button11 })
             {
-                StyleButton(button, Color.FromArgb(0xF2, 0xF2, 0xF2), Color.Black);
+                StyleButton(button, UiTheme.PanelAlt, UiTheme.Text);
             }
 
-            StyleButton(button3, Color.FromArgb(0x14, 0x87, 0x92), Color.White);
-            StyleButton(button5, Color.FromArgb(0x00, 0x78, 0xD7), Color.White);
-            StyleButton(button8, Color.FromArgb(0x00, 0x78, 0xD7), Color.White);
-            StyleButton(button13, Color.FromArgb(0x00, 0x78, 0xD7), Color.White);
+            StyleButton(button3, UiTheme.Cyan, Color.White);
+            StyleButton(button5, UiTheme.Blue, Color.White);
+            StyleButton(button8, UiTheme.Blue, Color.White);
+            StyleButton(button13, UiTheme.Blue, Color.White);
+
+            checkBox1.BackColor = UiTheme.Workspace;
+            checkBox1.ForeColor = UiTheme.Text;
+            checkBox1.FlatStyle = FlatStyle.Flat;
+
+            foreach (Control control in new Control[] { label1, label2, label3, label4, label5, label6, label7, label8, label9, label10 })
+            {
+                control.ForeColor = UiTheme.Text;
+                if (control is Label label && label.BackColor != UiTheme.ControlWell)
+                    label.BackColor = UiTheme.Workspace;
+            }
+        }
+
+        private void TabControl_DrawItem(object sender, DrawItemEventArgs e)
+        {
+            if (sender is not TabControl tabs || e.Index < 0)
+                return;
+
+            var selected = e.Index == tabs.SelectedIndex;
+            var bounds = e.Bounds;
+            using var back = new SolidBrush(selected ? UiTheme.PanelAlt : UiTheme.App);
+            using var border = new Pen(selected ? UiTheme.Blue : UiTheme.Border);
+            using var text = new SolidBrush(UiTheme.Text);
+
+            e.Graphics.FillRectangle(back, bounds);
+            e.Graphics.DrawRectangle(border, bounds.X, bounds.Y, bounds.Width - 1, bounds.Height - 1);
+
+            var flags = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis;
+            TextRenderer.DrawText(e.Graphics, tabs.TabPages[e.Index].Text, tabs.Font, bounds, UiTheme.Text, flags);
         }
 
         private static void StyleButton(Button button, Color backColor, Color foreColor)
@@ -77,7 +199,7 @@ namespace KeyMacro.Forms.ReNameTool
             button.BackColor = backColor;
             button.ForeColor = foreColor;
             button.Cursor = Cursors.Hand;
-            button.FlatAppearance.BorderColor = Color.FromArgb(0x8A, 0x8A, 0x8A);
+            button.FlatAppearance.BorderColor = UiTheme.BorderStrong;
             button.FlatAppearance.MouseOverBackColor = Lighten(backColor);
             button.FlatAppearance.MouseDownBackColor = Darken(backColor);
         }
@@ -100,14 +222,9 @@ namespace KeyMacro.Forms.ReNameTool
 
         private void InitializeProgressPanels()
         {
-            listBox1.Size = new Size(listBox1.Width, 304);
-            AddProgressPanel(tabPage1, _renameProgressLabel, _renameProgressBar, new Point(0, 314), new Size(480, 46));
-
-            listBox2.Size = new Size(listBox2.Width, 212);
-            AddProgressPanel(tabPage2, _organizeProgressLabel, _organizeProgressBar, new Point(3, 218), new Size(789, 42));
-
-            listBox3.Size = new Size(listBox3.Width, 292);
-            AddProgressPanel(tabPage3, _unpackProgressLabel, _unpackProgressBar, new Point(3, 300), new Size(650, 42));
+            AddProgressPanel(tabPage1, _renameProgressLabel, _renameProgressBar, new Point(40, 620), new Size(1320, 52));
+            AddProgressPanel(tabPage2, _organizeProgressLabel, _organizeProgressBar, new Point(40, 620), new Size(1320, 52));
+            AddProgressPanel(tabPage3, _unpackProgressLabel, _unpackProgressBar, new Point(40, 660), new Size(1320, 52));
         }
 
         private static void AddProgressPanel(Control parent, Label label, TextProgressBar progressBar, Point location, Size size)
@@ -116,7 +233,7 @@ namespace KeyMacro.Forms.ReNameTool
             {
                 Location = location,
                 Size = size,
-                Anchor = AnchorStyles.Left | AnchorStyles.Right,
+                Anchor = AnchorStyles.Left,
                 ColumnCount = 1,
                 RowCount = 2,
                 Padding = new Padding(0),
@@ -128,10 +245,14 @@ namespace KeyMacro.Forms.ReNameTool
             label.Dock = DockStyle.Fill;
             label.AutoEllipsis = true;
             label.TextAlign = ContentAlignment.MiddleCenter;
-            label.ForeColor = Color.FromArgb(55, 55, 55);
+            label.ForeColor = UiTheme.Text;
             label.Text = "";
 
             progressBar.Dock = DockStyle.Fill;
+            progressBar.BackColor = UiTheme.ControlWell;
+            progressBar.ForeColor = UiTheme.Text;
+            progressBar.BarColor = UiTheme.Blue;
+            progressBar.BorderColor = UiTheme.BorderStrong;
             progressBar.Minimum = 0;
             progressBar.Maximum = 100;
             progressBar.Value = 0;
