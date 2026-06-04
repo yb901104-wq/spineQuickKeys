@@ -47,7 +47,7 @@
 
 | 序号 | 界面/范围 | 现象 | 建议后续处理 |
 | --- | --- | --- | --- |
-| UI-RP-001 | 全局窗口标题栏 | 当前仍是 Windows 原生白色标题栏，与深灰资源不完全统一。 | 若用户确认需要，可后续做自定义标题栏；当前不动以降低窗口拖动/最小化/关闭风险。 |
+| UI-RP-001 | 全局窗口标题栏 | 已进入替换第三阶段：普通窗口接入 Windows DWM 原生深色标题栏，标题栏由系统绘制为深色。 | 未改为自绘标题栏，因此保留拖动、最小化、最大化、关闭和系统菜单；`VirtualKeyWindow` 本体继续排除。 |
 | UI-RP-002 | DataGridView 内嵌按钮/复选框/下拉编辑格 | 已完成第一轮显示层细化：表格按钮、复选框、下拉格改为深色自绘；不改变单元格点击、勾选和编辑逻辑。 | 继续观察少量单元格选中/编辑态是否仍出现浅色块，必要时逐表格处理。 |
 | UI-RP-003 | CLI 动画选择 / 子文件夹选择 | 真实功能仍是 CheckedListBox，和概览图中的表格式结构不同。 | 这是功能结构差异，需用户确认后才可换成表格控件。 |
 | UI-RP-004 | ReNameTool / BatchCopy / BatchCli 板块比例 | 资源统一后整体可用，但与概览图的板块比例仍有差距。 | 下一阶段按运行截图逐界面微调位置、宽高和间距。 |
@@ -146,6 +146,15 @@
 - 验证：`dotnet build KeyMacro\KeyMacro.csproj --no-restore` 与 `dotnet build docs\ui-refactor\tools\RuntimeWindowCapture\RuntimeWindowCapture.csproj --no-restore -p:UseSharedCompilation=false` 均为 0 错误 / 0 警告。
 - 截图：`runtime-batch-copy-combo-native-replace.png`。
 - 残留：多行 TextBox、ListBox 等系统滚动条仍为原生白色滚动条；该项涉及自定义滚动区域或替换控件，风险高，本阶段未处理。
+
+### 2026-06-04 原生控件替换第三阶段
+
+- 范围：所有调用 `UiTheme.Apply()` 的普通 WinForms 窗口；继续排除 `VirtualKeyWindow` 本体。
+- 修改：新增 `KeyMacro/Services/NativeWindowTheme.cs`，通过 `DwmSetWindowAttribute` 请求 Windows 原生深色标题栏，避免改成无边框自绘窗口。
+- 保留：不改变 `FormBorderStyle`、窗口拖动、最小化、最大化、关闭、系统菜单、任务栏显示、父窗口定位和 DPI 行为；系统不支持时静默回退原生标题栏。
+- 验证：`dotnet build KeyMacro\KeyMacro.csproj --no-restore` 与 `dotnet build docs\ui-refactor\tools\RuntimeWindowCapture\RuntimeWindowCapture.csproj --no-restore -p:UseSharedCompilation=false` 均为 0 错误 / 0 警告。
+- 截图：`native-dark-titlebar-contact-sheet.png`；单图包括 `runtime-mainform-titlebar-native-dark.png`、`runtime-batch-copy-titlebar-native-dark.png`、`runtime-input-dialog-titlebar-native-dark.png`。
+- 残留：Windows 原生标题栏按钮图标仍由系统决定，不做自定义美术按钮；系统滚动条仍未替换。
 
 ## 结论
 

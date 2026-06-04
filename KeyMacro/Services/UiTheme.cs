@@ -59,6 +59,7 @@ public static class UiTheme
             return;
 
         form.BackColor = App;
+        NativeWindowTheme.ApplyDarkTitleBar(form);
         ApplyRecursive(form);
 
         foreach (var menu in FindContextMenus(form))
