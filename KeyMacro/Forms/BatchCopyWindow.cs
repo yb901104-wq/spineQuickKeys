@@ -15,12 +15,12 @@ public class BatchCopyWindow : Form
     private readonly List<string> _sourceFiles = [];
 
     // ── Controls: Target ──
-    private readonly ComboBox _cmbPrefix = new();
+    private readonly DarkComboBox _cmbPrefix = new();
     private readonly Button _btnBrowsePrefix = new();
     private readonly TextBox _txtMiddle = new();
     private readonly Button _btnAddMiddle = new();
     private readonly Button _btnDelMiddle = new();
-    private readonly ComboBox _cmbSuffix = new();
+    private readonly DarkComboBox _cmbSuffix = new();
     private readonly ListBox _lbPreview = new();
 
     // ── Controls: Action ──

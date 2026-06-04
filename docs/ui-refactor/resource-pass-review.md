@@ -57,7 +57,7 @@
 | UI-RP-008 | WinForms 原生 CheckedListBox | 已进入替换第一阶段：CLI 动画选择与子文件夹选择改用 `DarkCheckedListBox`，勾选框本体改为深色自绘。 | 继续保留 `CheckedListBox` 数据/事件模型，不改为表格；若需要表格式多列，再由用户确认。 |
 | UI-RP-009 | 普通 ListBox | 已完成普通 ListBox 深色行、交替行和选中态绘制；已有自绘逻辑的特殊列表不重复接管。 | 后续观察批量复制和 ReNameTool 长路径文字是否需要横向滚动或 tooltip。 |
 | UI-RP-010 | 普通 CheckBox / RadioButton | 已完成普通复选框和单选框深色绘制；Checked 状态、AutoCheck 和事件逻辑不变。 | 后续观察少数状态型复选框是否需要不同强调色，例如“有效/无效”。 |
-| UI-RP-011 | WinForms 原生 ComboBox | 下拉项已深色绘制，闭合输入区域保持深色；但 DropDown/可输入 ComboBox 右侧下拉按钮仍为原生白色。 | 完全替换需要自定义 ComboBox 或组合 TextBox+按钮+弹出列表，属于控件结构变化，需用户确认后再做。 |
+| UI-RP-011 | WinForms 原生 ComboBox | 已进入替换第二阶段：批量复制前缀/后缀历史输入框改用 `DarkComboBox`，右侧下拉按钮改为深色覆盖绘制。 | 仅替换真实普通 ComboBox 使用点；DataGridView 内嵌下拉格继续由表格自绘处理。 |
 
 ## 资源后细化记录
 
@@ -137,6 +137,15 @@
 - 验证：`dotnet build KeyMacro\KeyMacro.csproj --no-restore` 与 `dotnet build docs\ui-refactor\tools\RuntimeWindowCapture\RuntimeWindowCapture.csproj --no-restore -p:UseSharedCompilation=false` 均为 0 错误 / 0 警告。
 - 截图：`native-replace-contact-sheet.png`；单图包括 `runtime-cli-merge-native-replace.png`、`runtime-cli-export-native-replace.png`、`runtime-cli-animation-select-native-replace.png`、`runtime-rename-rename-native-replace.png`、`runtime-rename-organize-native-replace.png`、`runtime-rename-unpack-native-replace.png`、`runtime-subfolder-select-native-replace.png`。
 - 残留：原生窗口标题栏、ComboBox 右侧下拉按钮和系统滚动条仍为高风险原生项，本阶段未替换。
+
+### 2026-06-04 原生控件替换第二阶段
+
+- 范围：BatchCopyWindow 的前缀/后缀历史输入框。
+- 修改：新增 `KeyMacro/Controls/DarkComboBox.cs`，局部替换 `_cmbPrefix` 与 `_cmbSuffix`，覆盖绘制右侧下拉按钮、边框、箭头和下拉项深色行。
+- 保留：不改变 `DropDownStyle.DropDown`、用户输入、历史项、自动完成、`TextUpdate`、`SelectedIndexChanged`、保存历史和预览刷新逻辑。
+- 验证：`dotnet build KeyMacro\KeyMacro.csproj --no-restore` 与 `dotnet build docs\ui-refactor\tools\RuntimeWindowCapture\RuntimeWindowCapture.csproj --no-restore -p:UseSharedCompilation=false` 均为 0 错误 / 0 警告。
+- 截图：`runtime-batch-copy-combo-native-replace.png`。
+- 残留：多行 TextBox、ListBox 等系统滚动条仍为原生白色滚动条；该项涉及自定义滚动区域或替换控件，风险高，本阶段未处理。
 
 ## 结论
 

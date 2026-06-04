@@ -231,6 +231,7 @@ BaseBtnWidth: SmallIcon=48  LargeIcon=96  LoopIcon=110
 5. 修改完成后导出一个单独的.exe应用供测试，如遇应用已开启导致无法修改就强行终止应用再尝试导出
 
 ## 版本历史
+- **V2.82** (2026-06-04): UI 原生控件替换第二阶段，新增 `DarkComboBox` 并局部替换批量复制前缀/后缀历史输入框，覆盖原生白色下拉按钮；保留输入、历史、自动完成、TextUpdate/SelectedIndexChanged 逻辑
 - **V2.81** (2026-06-04): UI 原生控件替换第一阶段，新增 `DarkTabControl` 和 `DarkCheckedListBox`，替换 CLI、ReNameTool、动画选择、子文件夹选择中的原生页签白条和白色勾选框；保留现有 TabPage、CheckedItems、ItemCheck 与业务逻辑
 - **V2.8** (2026-06-03): 启用 UI 资源包与 `UiTheme` 通用主题，普通窗口默认尺寸按 UI 概览图调整，按钮/输入/列表/菜单/进度条切换为深灰专业软件风格；排除 `VirtualKeyWindow` 本体和 VK 皮肤资源
 - **V2.79** (2026-06-02): 修复 AUD-027，统一 CLI 批量合并/导出、批量复制、批量重命名/整理/解包的批量进度显示；新增自绘进度条，当前处理文件文字独立显示在进度条上方，避免被原生 ProgressBar 遮挡
