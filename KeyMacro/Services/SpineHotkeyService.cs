@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace KeyMacro.Services;
 
@@ -9,6 +10,10 @@ public class SpineHotkeyEntry
     public string? Section { get; set; }
     public string? ChineseNote { get; set; }
 }
+
+public sealed record AnnotationEntry(
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("note")] string Note);
 
 public class SpineHotkeyService
 {
@@ -77,8 +82,9 @@ public class SpineHotkeyService
             }
         }
 
-        // Load translations from dictionary and apply to matching entries
-        var translations = LoadAnnotationFile();
+        // Load per-file annotations and apply notes by hotkey name.
+        var translations = LoadAnnotationFile()
+            .ToDictionary(a => a.Name, a => a.Note, StringComparer.OrdinalIgnoreCase);
         foreach (var entry in entries)
         {
             if (!entry.Name.StartsWith("---") && translations.TryGetValue(entry.Name, out var trans))
@@ -97,13 +103,13 @@ public class SpineHotkeyService
             {
                 writer.WriteLine(entry.Name);
             }
-            else
+            else if (!string.IsNullOrWhiteSpace(entry.Keys))
             {
                 writer.WriteLine($"{entry.Name}: {entry.Keys}");
             }
         }
 
-        // Persist ChineseNotes back to the translation file
+        // Persist notes independently of whether the shortcut itself is cleared.
         SaveTranslations(entries);
     }
 
@@ -111,16 +117,11 @@ public class SpineHotkeyService
     {
         try
         {
-            var translations = LoadAnnotationFile();
-
-            // Update with entries that have non-empty ChineseNote
-            foreach (var entry in entries)
-            {
-                if (!string.IsNullOrEmpty(entry.ChineseNote))
-                    translations[entry.Name] = entry.ChineseNote;
-            }
-
-            SaveAnnotations(FilePath, translations);
+            var annotations = entries
+                .Where(e => !e.Name.StartsWith("---") && !string.IsNullOrWhiteSpace(e.ChineseNote))
+                .Select(e => new AnnotationEntry(e.Name, e.ChineseNote!))
+                .ToList();
+            SaveAnnotations(FilePath, annotations);
         }
         catch { }
     }
@@ -182,29 +183,43 @@ public class SpineHotkeyService
 
     public static string GetAnnotationPath(string hotkeyFilePath) => hotkeyFilePath + ".annotations.json";
 
-    public static void SaveAnnotations(string hotkeyFilePath, Dictionary<string, string> annotations)
+    public static void SaveAnnotations(string hotkeyFilePath, IEnumerable<AnnotationEntry> annotations)
     {
         var path = GetAnnotationPath(hotkeyFilePath);
         EnsureDirectory(path);
-        var json = JsonSerializer.Serialize(annotations, new JsonSerializerOptions { WriteIndented = true });
+        var normalized = annotations
+            .Where(a => !string.IsNullOrWhiteSpace(a.Name) && !string.IsNullOrWhiteSpace(a.Note))
+            .GroupBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.Last())
+            .ToList();
+        var json = JsonSerializer.Serialize(normalized, new JsonSerializerOptions { WriteIndented = true });
         File.WriteAllText(path, json, System.Text.Encoding.UTF8);
     }
 
-    private Dictionary<string, string> LoadAnnotationFile()
+    private List<AnnotationEntry> LoadAnnotationFile()
     {
         try
         {
             if (File.Exists(AnnotationPath))
             {
                 var json = File.ReadAllText(AnnotationPath, System.Text.Encoding.UTF8);
-                return JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? [];
+                var array = JsonSerializer.Deserialize<List<AnnotationEntry>>(json);
+                if (array != null)
+                    return array;
+
+                // Backward compatibility with the previous dictionary format.
+                var legacy = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+                if (legacy != null)
+                    return legacy.Select(kv => new AnnotationEntry(kv.Key, kv.Value)).ToList();
             }
         }
         catch { }
 
         // Backward fallback for older builds that used one global translation file.
         EnsureTranslationFile();
-        return LoadTranslationFile();
+        return LoadTranslationFile()
+            .Select(kv => new AnnotationEntry(kv.Key, kv.Value))
+            .ToList();
     }
 
     /// <summary>

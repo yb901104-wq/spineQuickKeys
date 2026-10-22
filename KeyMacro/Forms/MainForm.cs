@@ -33,7 +33,7 @@ public partial class MainForm : Form
 
     public MainForm()
     {
-        Text = "spine宏助手（TANRY） V2.84";
+        Text = "spine宏助手（TANRY） V2.85";
         Icon = IconService.AppIcon;
         ClientSize = new Size(1440, 900);
         MinimumSize = new Size(1100, 650);
@@ -884,7 +884,8 @@ public partial class MainForm : Form
                 {
                     if (importNoteMap.Count > 0)
                     { 
-                        SpineHotkeyService.SaveAnnotations(spinePath, importNoteMap);
+                        SpineHotkeyService.SaveAnnotations(spinePath,
+                            importNoteMap.Select(kv => new AnnotationEntry(kv.Key, kv.Value)));
                         MessageBox.Show("按键功能说明已导入。", "完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     else
