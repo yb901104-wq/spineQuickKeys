@@ -45,6 +45,13 @@ public class VirtualLayoutSerializer
         public bool SingleLineMode { get; set; } = true;
         public bool VerticalMode { get; set; }
         public float ScaleFactor { get; set; } = 1.0f;
+        // Optional process-aware visibility and edge behavior. Defaults preserve legacy behavior.
+        public bool AutoVisibilityEnabled { get; set; }
+        public bool EdgeSnapEnabled { get; set; } = true;
+        public int EdgeSnapDistance { get; set; } = 12;
+        public bool AutoHideEnabled { get; set; }
+        public int AutoHideDelayMs { get; set; } = 800;
+        public int AutoHidePeekPixels { get; set; } = 4;
         public List<VirtualButton> Buttons { get; set; } = [];
     }
 

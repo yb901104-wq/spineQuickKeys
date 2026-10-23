@@ -18,6 +18,22 @@ public class VirtualKeyWindow : Form
     private static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder text, int maxLen);
     [DllImport("user32.dll")]
     private static extern bool IsWindow(IntPtr hWnd);
+    [DllImport("user32.dll")]
+    private static extern bool IsWindowVisible(IntPtr hWnd);
+    [DllImport("user32.dll")]
+    private static extern bool GetCursorPos(out Point point);
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+    [DllImport("user32.dll")]
+    private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint flags);
+
+    private static readonly IntPtr HwndTop = new(0);
+    private static readonly IntPtr HwndTopMost = new(-1);
+    private const int SwShownoactivate = 4;
+    private const uint SwpNoActivate = 0x0010;
+    private const uint SwpShowWindow = 0x0040;
+    private const uint SwpNoMove = 0x0002;
+    private const uint SwpNoSize = 0x0001;
 
     private readonly VirtualButtonManager _btnManager = new();
     private readonly VirtualKeyBindingManager _bindingManager;
@@ -43,6 +59,20 @@ public class VirtualKeyWindow : Form
     private bool _vertical;
     private bool _isBeingDeleted;
     private ToolStripMenuItem? _orientMenuItem;
+    private ToolStripMenuItem? _autoVisibilityMenuItem;
+    private ToolStripMenuItem? _edgeSnapMenuItem;
+    private ToolStripMenuItem? _autoHideMenuItem;
+    private readonly System.Windows.Forms.Timer _behaviorTimer;
+    private readonly ForegroundProcessWatcher _foregroundWatcher = new();
+    private bool _manualHidden;
+    private bool _behaviorVisible;
+    private bool _interactionHold;
+    private bool _draggingWindow;
+    private Point _dragStartCursor;
+    private Point _dragStartLocation;
+    private bool _edgeHidden;
+    private Point _locationBeforeEdgeHide;
+    private DateTime _lastInteractionUtc = DateTime.UtcNow;
     private float _scaleFactor = 1.0f;
     // ── Layout base metrics at 100% scale ──
     private const int BASE_BTN_H = 48;
@@ -71,6 +101,8 @@ public class VirtualKeyWindow : Form
         _bindingManager = new VirtualKeyBindingManager(new HotkeyService(IntPtr.Zero), _btnManager);
         _loopExecutor = new VirtualLoopExecutor(_player);
         _loopExecutor.LoopEnded += OnLoopEnded;
+        _behaviorTimer = new System.Windows.Forms.Timer { Interval = 250 };
+        _behaviorTimer.Tick += (_, _) => EvaluateWindowBehavior();
 
         Text = "虚拟按键";
         Icon = IconService.AppIcon;
@@ -97,6 +129,20 @@ public class VirtualKeyWindow : Form
 
         var menu = BuildBlankMenu();
         _panel.ContextMenuStrip = menu;
+        _panel.MouseDown += (_, e) => OnPanelWindowDrag(e);
+        _panel.MouseMove += (_, e) => OnPanelWindowDrag(e);
+        _panel.MouseUp += (_, e) =>
+        {
+            if (e.Button == MouseButtons.Middle)
+                OnWidgetWindowDragEnded();
+        };
+        MouseDown += (_, e) => OnPanelWindowDrag(e);
+        MouseMove += (_, e) => OnPanelWindowDrag(e);
+        MouseUp += (_, e) =>
+        {
+            if (e.Button == MouseButtons.Middle)
+                OnWidgetWindowDragEnded();
+        };
 
         _skinLoader = new VkSkinLoader(_data.SkinPath);
         _skinLoader.Load();
@@ -112,14 +158,33 @@ public class VirtualKeyWindow : Form
             if (_isBeingDeleted) return;
             if (e.CloseReason == CloseReason.UserClosing)
             {
-                _loopExecutor.StopAll(); SaveLayout(); e.Cancel = true; Hide();
+                _loopExecutor.StopAll();
+                _manualHidden = true;
+                _behaviorVisible = false;
+                SaveLayout();
+                e.Cancel = true;
+                Hide();
             }
+        };
+        VisibleChanged += (_, _) =>
+        {
+            if (Visible && !_manualHidden)
+                _behaviorVisible = true;
         };
 
         FormClosed += (_, _) =>
         {
+            _behaviorTimer.Stop();
+            _foregroundWatcher.Dispose();
             if (_isBeingDeleted)
                 _loopExecutor.StopAll();
+        };
+        Shown += (_, _) => StartBehaviorMonitoring();
+        _foregroundWatcher.ForegroundChanged += _ =>
+        {
+            if (IsDisposed) return;
+            if (InvokeRequired) BeginInvoke((Action)EvaluateWindowBehavior);
+            else EvaluateWindowBehavior();
         };
     }
 
@@ -141,6 +206,50 @@ public class VirtualKeyWindow : Form
         });
         m.Items.Add("-");
         m.Items.Add("置顶/取消置顶", null, (_, _) => { _topMostState = !_topMostState; TopMost = _topMostState; SaveLayout(); });
+
+        _autoVisibilityMenuItem = new ToolStripMenuItem("目标进程自动显示/隐藏")
+        {
+            Checked = _data.AutoVisibilityEnabled,
+            CheckOnClick = true
+        };
+        _autoVisibilityMenuItem.CheckedChanged += (_, _) =>
+        {
+            _data.AutoVisibilityEnabled = _autoVisibilityMenuItem.Checked;
+            _manualHidden = false;
+            if (!_data.AutoVisibilityEnabled)
+            {
+                _behaviorVisible = true;
+                ShowManually();
+            }
+            SaveLayout();
+        };
+        m.Items.Add(_autoVisibilityMenuItem);
+
+        _edgeSnapMenuItem = new ToolStripMenuItem("屏幕边缘吸附")
+        {
+            Checked = _data.EdgeSnapEnabled,
+            CheckOnClick = true
+        };
+        _edgeSnapMenuItem.CheckedChanged += (_, _) =>
+        {
+            _data.EdgeSnapEnabled = _edgeSnapMenuItem.Checked;
+            SaveLayout();
+        };
+        m.Items.Add(_edgeSnapMenuItem);
+
+        _autoHideMenuItem = new ToolStripMenuItem("边缘自动隐藏")
+        {
+            Checked = _data.AutoHideEnabled,
+            CheckOnClick = true,
+            Enabled = _data.EdgeSnapEnabled
+        };
+        _autoHideMenuItem.CheckedChanged += (_, _) =>
+        {
+            _data.AutoHideEnabled = _autoHideMenuItem.Checked;
+            if (!_data.AutoHideEnabled) RestoreFromEdgeHide();
+            SaveLayout();
+        };
+        m.Items.Add(_autoHideMenuItem);
 
         var opMenu = new ToolStripMenuItem("透明度");
         opMenu.DropDownItems.Add("100%", null, (_, _) => SetOpacity(1.0));
@@ -186,7 +295,7 @@ public class VirtualKeyWindow : Form
         m.Items.Add("-");
         var lockItem = m.Items.Add(_winLocked ? "✓ 窗口已锁定" : "窗口锁定/解锁", null, (_, _) => ToggleWindowLock());
         m.Items.Add("-");
-        m.Items.Add("关闭窗口", null, (_, _) => { _loopExecutor.StopAll(); SaveLayout(); Hide(); });
+        m.Items.Add("关闭窗口", null, (_, _) => { _loopExecutor.StopAll(); _manualHidden = true; SaveLayout(); Hide(); });
         m.Items.Add("删除当前窗口", null, (_, _) =>
         {
             if (MessageBox.Show(this, $"确定删除窗口\"{_data.Name}\"及其所有按钮？", "删除确认",
@@ -202,11 +311,25 @@ public class VirtualKeyWindow : Form
 
         m.Opened += (_, _) =>
         {
+            _interactionHold = true;
+            _lastInteractionUtc = DateTime.UtcNow;
             var display = _targetTitle ?? _targetProc;
             clearTarget.Text = string.IsNullOrEmpty(display) ? "清除目标窗口" : $"清除目标窗口 ({display})";
             clearTarget.Visible = !string.IsNullOrEmpty(_targetProc);
             if (_orientMenuItem != null) _orientMenuItem.Checked = _vertical;
+            if (_autoVisibilityMenuItem != null) _autoVisibilityMenuItem.Checked = _data.AutoVisibilityEnabled;
+            if (_edgeSnapMenuItem != null) _edgeSnapMenuItem.Checked = _data.EdgeSnapEnabled;
+            if (_autoHideMenuItem != null)
+            {
+                _autoHideMenuItem.Checked = _data.AutoHideEnabled;
+                _autoHideMenuItem.Enabled = _data.EdgeSnapEnabled;
+            }
             lockItem.Text = _winLocked ? "✓ 窗口已锁定" : "窗口锁定/解锁";
+        };
+        m.Closed += (_, _) =>
+        {
+            _interactionHold = false;
+            _lastInteractionUtc = DateTime.UtcNow;
         };
         UiTheme.Apply(m);
         return m;
@@ -218,6 +341,13 @@ public class VirtualKeyWindow : Form
         var menu = new ContextMenuStrip();
         var nameItem = menu.Items.Add($"[ {vbtn.Name} ]");
         nameItem.Enabled = false;
+        menu.Items.Add("-");
+        var moveMenu = new ToolStripMenuItem("按钮排序");
+        moveMenu.DropDownItems.Add("上移", null, (_, _) => MoveButton(widget, -1));
+        moveMenu.DropDownItems.Add("下移", null, (_, _) => MoveButton(widget, 1));
+        moveMenu.DropDownItems.Add("移到最前", null, (_, _) => MoveButtonTo(widget, 0));
+        moveMenu.DropDownItems.Add("移到最后", null, (_, _) => MoveButtonTo(widget, _btnManager.Buttons.Count - 1));
+        menu.Items.Add(moveMenu);
         menu.Items.Add("-");
         menu.Items.Add("修改按钮名称", null, (_, _) =>
         {
@@ -277,10 +407,34 @@ public class VirtualKeyWindow : Form
         {
             _loopExecutor.ForceStopLoop(vbtn.Id); _btnManager.RemoveButton(vbtn.Id); SaveLayout();
         });
-        menu.Opened += (_, _) => _loopExecutor.PauseForMenu(vbtn.Id);
-        menu.Closed += (_, _) => _loopExecutor.ResumeFromMenu(vbtn.Id);
+        menu.Opened += (_, _) =>
+        {
+            _interactionHold = true;
+            _lastInteractionUtc = DateTime.UtcNow;
+            _loopExecutor.PauseForMenu(vbtn.Id);
+        };
+        menu.Closed += (_, _) =>
+        {
+            _interactionHold = false;
+            _lastInteractionUtc = DateTime.UtcNow;
+            _loopExecutor.ResumeFromMenu(vbtn.Id);
+        };
         UiTheme.Apply(menu);
         menu.Show(widget, location);
+    }
+
+    private void MoveButton(VirtualButtonWidget widget, int delta)
+    {
+        var buttons = _btnManager.Buttons.ToList();
+        var index = buttons.FindIndex(b => b.Id == widget.VirtualButton.Id);
+        if (index < 0) return;
+        MoveButtonTo(widget, index + delta);
+    }
+
+    private void MoveButtonTo(VirtualButtonWidget widget, int targetIndex)
+    {
+        _btnManager.MoveButton(widget.VirtualButton.Id, targetIndex);
+        SaveLayout();
     }
 
     private void SetLoopInterval(VirtualButton vbtn, VirtualButtonWidget widget, int ms)
@@ -314,6 +468,40 @@ public class VirtualKeyWindow : Form
     }
 
     public bool HasBoundButtons() => _btnManager.Buttons.Any(b => !string.IsNullOrEmpty(b.BindActionId));
+
+    public bool IsNativeWindowVisible => IsHandleCreated && IsWindowVisible(Handle);
+
+    public void ShowManually()
+    {
+        _manualHidden = false;
+        _behaviorVisible = true;
+        RestoreFromEdgeHide();
+
+        // A newly created Form has no native handle until it is shown. Use the
+        // normal manual path once to create/show it; existing hidden windows,
+        // including those hidden by target behavior, use the non-activating path.
+        if (!IsHandleCreated)
+        {
+            Show();
+            StartBehaviorMonitoring();
+        }
+        else
+        {
+            ShowFromBehavior();
+            StartBehaviorMonitoring();
+        }
+
+        _lastInteractionUtc = DateTime.UtcNow;
+    }
+
+    public void HideManually()
+    {
+        _manualHidden = true;
+        _behaviorVisible = false;
+        _interactionHold = false;
+        _loopExecutor.StopAll();
+        Hide();
+    }
 
     // ── Orientation ──
 
@@ -437,6 +625,10 @@ public class VirtualKeyWindow : Form
                     var sb = new System.Text.StringBuilder(len + 1);
                     GetWindowText(hwnd, sb, sb.Capacity);
                     _targetTitle = len > 0 ? sb.ToString() : null;
+                    _data.AutoVisibilityEnabled = true;
+                    _manualHidden = false;
+                    _behaviorVisible = true;
+                    SaveLayout();
                     MessageBox.Show(this, $"目标窗口已捕获: {_targetTitle ?? _targetProc}", "捕获成功");
                 }
                 catch { _targetProc = null; _targetTitle = null; MessageBox.Show(this, "无法获取目标进程信息。", "捕获失败", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
@@ -449,7 +641,12 @@ public class VirtualKeyWindow : Form
 
     private void ClearTargetWindow()
     {
-        _targetProc = null; _targetTitle = null; SaveLayout(); UpdateTitle();
+        _targetProc = null; _targetTitle = null;
+        _data.AutoVisibilityEnabled = false;
+        _manualHidden = false;
+        _behaviorVisible = true;
+        ShowFromBehavior();
+        SaveLayout(); UpdateTitle();
     }
 
     private IntPtr ResolveTargetWindow()
@@ -507,8 +704,8 @@ public class VirtualKeyWindow : Form
             w.ApplySkin(_skinLoader);
             w.IsFirstInRow = i == 0; w.IsLastInRow = i == buttons.Count - 1;
             w.Clicked += OnButtonClicked;
-            w.Dragged += OnButtonDragged;
-            w.DragEnded += (ww, dx, dy) => OnButtonDragEnded(ww, dx, dy);
+            w.WindowDragRequested += OnWidgetWindowDragRequested;
+            w.WindowDragEnded += _ => OnWidgetWindowDragEnded();
             w.ContextMenuRequested += OnWidgetContextMenu;
             w.LoopCountEdited += OnLoopCountEdited;
             w.VerticalMode = _vertical;
@@ -593,6 +790,7 @@ public class VirtualKeyWindow : Form
 
     private async void OnButtonClicked(VirtualButtonWidget widget)
     {
+        _lastInteractionUtc = DateTime.UtcNow;
         var vbtn = widget.VirtualButton;
         OperationLogger.Info($"[DIAG] VKClick: button=\"{vbtn.Name}\" bindActionId=\"{vbtn.BindActionId}\" style={vbtn.StyleType} isPlaying={_player.IsPlaying}");
 
@@ -649,32 +847,158 @@ public class VirtualKeyWindow : Form
             ClearActive();
     }
 
-    private void OnButtonDragged(VirtualButtonWidget widget, int dx, int dy)
+    private void OnPanelWindowDrag(MouseEventArgs e)
     {
-        // Drag tracked for reorder on mouse-up via DragEnded
+        if (e.Button == MouseButtons.Middle || _draggingWindow)
+            OnWidgetWindowDragRequested(null!, e);
     }
 
-    private void OnButtonDragEnded(VirtualButtonWidget widget, int dx, int dy)
+    private void OnWidgetWindowDragEnded()
     {
-        var vbtn = widget.VirtualButton;
-        float effScale = GetEffectiveScale();
+        if (!_draggingWindow) return;
+        _draggingWindow = false;
+        _interactionHold = false;
+        SnapToScreenEdge();
+        SaveLayout();
+    }
 
-        int delta = _vertical ? dy : dx;
-        if (Math.Abs(delta) < 30 * effScale) return;
-
-        var buttons = _btnManager.Buttons.ToList();
-        var idx = buttons.FindIndex(b => b.Id == vbtn.Id);
-        if (idx < 0) return;
-
-        var steps = Math.Max(1, Math.Abs(delta) / (int)(60 * effScale));
-        int newIdx = delta > 0
-            ? Math.Min(buttons.Count - 1, idx + steps)
-            : Math.Max(0, idx - steps);
-
-        if (newIdx != idx)
+    private void OnWidgetWindowDragRequested(VirtualButtonWidget widget, MouseEventArgs e)
+    {
+        if (e.Button == MouseButtons.Middle && !_draggingWindow)
         {
-            _btnManager.MoveButton(vbtn.Id, newIdx);
+            _draggingWindow = true;
+            _interactionHold = true;
+            _lastInteractionUtc = DateTime.UtcNow;
+            GetCursorPos(out _dragStartCursor);
+            _dragStartLocation = Location;
+            return;
         }
+
+        if (_draggingWindow)
+        {
+            GetCursorPos(out var cursor);
+            Location = new Point(
+                _dragStartLocation.X + cursor.X - _dragStartCursor.X,
+                _dragStartLocation.Y + cursor.Y - _dragStartCursor.Y);
+            _lastInteractionUtc = DateTime.UtcNow;
+            return;
+        }
+
+    }
+
+    private void SnapToScreenEdge()
+    {
+        if (!_data.EdgeSnapEnabled || IsDisposed || !IsHandleCreated) return;
+        var area = Screen.FromRectangle(Bounds).WorkingArea;
+        var distance = Math.Max(0, _data.EdgeSnapDistance);
+        var x = Left;
+        var y = Top;
+        if (Math.Abs(Left - area.Left) <= distance) x = area.Left;
+        else if (Math.Abs(area.Right - Right) <= distance) x = area.Right - Width;
+        if (Math.Abs(Top - area.Top) <= distance) y = area.Top;
+        else if (Math.Abs(area.Bottom - Bottom) <= distance) y = area.Bottom - Height;
+        Location = new Point(x, y);
+    }
+
+    private bool IsTargetForeground()
+    {
+        if (string.IsNullOrWhiteSpace(_targetProc)) return false;
+        var hwnd = GetForegroundWindow();
+        if (hwnd == IntPtr.Zero || hwnd == Handle) return false;
+        GetWindowThreadProcessId(hwnd, out var pid);
+        try
+        {
+            using var proc = System.Diagnostics.Process.GetProcessById((int)pid);
+            return string.Equals(proc.ProcessName, _targetProc, StringComparison.OrdinalIgnoreCase);
+        }
+        catch { return false; }
+    }
+
+    private void StartBehaviorMonitoring()
+    {
+        if (IsDisposed) return;
+        _foregroundWatcher.Start();
+        _behaviorTimer.Start();
+        EvaluateWindowBehavior();
+    }
+
+    private void EvaluateWindowBehavior()
+    {
+        if (IsDisposed || _isBeingDeleted || _manualHidden || _interactionHold || _draggingWindow) return;
+        if (_data.AutoVisibilityEnabled && string.IsNullOrWhiteSpace(_targetProc))
+        {
+            if (!_behaviorVisible) ShowFromBehavior();
+            return;
+        }
+
+        var targetForeground = !_data.AutoVisibilityEnabled || IsTargetForeground();
+        if (!targetForeground)
+        {
+            HideFromBehavior();
+            return;
+        }
+
+        if (!_behaviorVisible)
+            ShowFromBehavior();
+
+        if (!Visible || !_data.AutoHideEnabled || !_data.EdgeSnapEnabled || _edgeHidden) return;
+        if ((DateTime.UtcNow - _lastInteractionUtc).TotalMilliseconds >= Math.Max(100, _data.AutoHideDelayMs))
+            HideToEdge();
+    }
+
+    private void ShowFromBehavior()
+    {
+        RestoreFromEdgeHide();
+        _behaviorVisible = true;
+        if (!IsHandleCreated) return;
+        if (!IsWindowVisible(Handle))
+            ShowWindow(Handle, SwShownoactivate);
+        SetWindowPos(
+            Handle,
+            _topMostState ? HwndTopMost : HwndTop,
+            0, 0, 0, 0,
+            SwpNoActivate | SwpShowWindow | SwpNoMove | SwpNoSize);
+    }
+
+    private void HideFromBehavior()
+    {
+        _behaviorVisible = false;
+        if (IsHandleCreated && IsWindowVisible(Handle))
+            ShowWindow(Handle, 0);
+    }
+
+    private void HideToEdge()
+    {
+        if (_edgeHidden || !Visible) return;
+        var area = Screen.FromRectangle(Bounds).WorkingArea;
+        _locationBeforeEdgeHide = Location;
+        var peek = Math.Max(1, _data.AutoHidePeekPixels);
+        var x = Left;
+        var y = Top;
+        if (Math.Abs(Left - area.Left) <= Math.Max(1, _data.EdgeSnapDistance)) x = area.Left - Width + peek;
+        else if (Math.Abs(area.Right - Right) <= Math.Max(1, _data.EdgeSnapDistance)) x = area.Right - peek;
+        else if (Math.Abs(Top - area.Top) <= Math.Max(1, _data.EdgeSnapDistance)) y = area.Top - Height + peek;
+        else if (Math.Abs(area.Bottom - Bottom) <= Math.Max(1, _data.EdgeSnapDistance)) y = area.Bottom - peek;
+        else return;
+        _edgeHidden = true;
+        _behaviorVisible = true;
+        Location = new Point(x, y);
+    }
+
+    private void RestoreFromEdgeHide()
+    {
+        if (!_edgeHidden) return;
+        _edgeHidden = false;
+        _behaviorVisible = true;
+        Location = _locationBeforeEdgeHide;
+        _lastInteractionUtc = DateTime.UtcNow;
+    }
+
+    protected override void OnMouseEnter(EventArgs e)
+    {
+        base.OnMouseEnter(e);
+        RestoreFromEdgeHide();
+        _lastInteractionUtc = DateTime.UtcNow;
     }
 
     private void OnLoopCountEdited(VirtualButtonWidget widget, int count)
@@ -747,6 +1071,9 @@ public class VirtualKeyWindow : Form
         _targetProc = _data.TargetProcessName;
         _targetTitle = _data.TargetWindowTitle;
         _vertical = _data.VerticalMode;
+        _data.EdgeSnapDistance = Math.Clamp(_data.EdgeSnapDistance, 0, 200);
+        _data.AutoHideDelayMs = Math.Clamp(_data.AutoHideDelayMs, 100, 60000);
+        _data.AutoHidePeekPixels = Math.Clamp(_data.AutoHidePeekPixels, 1, 32);
         _scaleFactor = _data.ScaleFactor > 0 ? _data.ScaleFactor : 1.0f;
         int margin = Math.Max(1, (int)(BASE_MARGIN * GetEffectiveScale()));
         _panel.Padding = new Padding(margin);
@@ -788,6 +1115,9 @@ public class VirtualKeyWindow : Form
         _posLocked = _data.PositionLocked; _winLocked = _data.WindowLocked;
         _targetProc = _data.TargetProcessName;
         _targetTitle = _data.TargetWindowTitle;
+        _data.EdgeSnapDistance = Math.Clamp(_data.EdgeSnapDistance, 0, 200);
+        _data.AutoHideDelayMs = Math.Clamp(_data.AutoHideDelayMs, 100, 60000);
+        _data.AutoHidePeekPixels = Math.Clamp(_data.AutoHidePeekPixels, 1, 32);
         foreach (var w in _widgets.Values) w.AllowDragging = !_posLocked;
         _panel.WrapContents = false;
         _panel.FlowDirection = _vertical ? FlowDirection.TopDown : FlowDirection.LeftToRight;

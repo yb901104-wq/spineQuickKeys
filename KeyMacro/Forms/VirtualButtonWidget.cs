@@ -9,8 +9,7 @@ public class VirtualButtonWidget : UserControl
 {
     private VirtualButton _vbtn;
     private bool _isPressed;
-    private bool _isDragging;
-    private Point _dragStart;
+    private bool _isMiddleDragging;
     private bool _isActive;
     private bool _isFirstInRow;
     private bool _isLastInRow;
@@ -49,9 +48,9 @@ public class VirtualButtonWidget : UserControl
 
     public VirtualButton VirtualButton => _vbtn;
     public event Action<VirtualButtonWidget>? Clicked;
-    public event Action<VirtualButtonWidget, int, int>? Dragged;
-    public event Action<VirtualButtonWidget, int, int>? DragEnded;
     public event Action<VirtualButtonWidget, Point>? ContextMenuRequested;
+    public event Action<VirtualButtonWidget, MouseEventArgs>? WindowDragRequested;
+    public event Action<VirtualButtonWidget>? WindowDragEnded;
     public event Action<VirtualButtonWidget, int>? LoopCountEdited;
 
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
@@ -212,34 +211,29 @@ public class VirtualButtonWidget : UserControl
         if (e.Button == MouseButtons.Left)
         {
             _isPressed = true;
-            _isDragging = true;
-            _dragStart = e.Location;
             Invalidate();
+        }
+        else if (e.Button == MouseButtons.Middle)
+        {
+            _isMiddleDragging = true;
+            WindowDragRequested?.Invoke(this, e);
         }
     }
 
     private void OnMouseMove(object? sender, MouseEventArgs e)
     {
-        if (_isDragging && _isPressed && AllowDragging)
-        {
-            var dx = e.X - _dragStart.X;
-            var dy = e.Y - _dragStart.Y;
-            if (Math.Abs(dx) > 3 || Math.Abs(dy) > 3)
-                Dragged?.Invoke(this, dx, dy);
-        }
+        if (_isMiddleDragging)
+            WindowDragRequested?.Invoke(this, e);
     }
 
     private void OnMouseUp(object? sender, MouseEventArgs e)
     {
         OperationLogger.Info($"VBWidget.OnMouseUp: name=\"{_vbtn.Name}\", btn={e.Button}");
-        if (_isDragging)
+        if (e.Button == MouseButtons.Middle)
         {
-            var dx = e.X - _dragStart.X;
-            var dy = e.Y - _dragStart.Y;
-            if (Math.Abs(dx) > 3 || Math.Abs(dy) > 3)
-                DragEnded?.Invoke(this, dx, dy);
+            _isMiddleDragging = false;
+            WindowDragEnded?.Invoke(this);
         }
-        _isDragging = false;
         if (_isPressed)
         {
             _isPressed = false;
@@ -249,7 +243,7 @@ public class VirtualButtonWidget : UserControl
 
     private void OnMouseClick(object? sender, MouseEventArgs e)
     {
-        OperationLogger.Info($"VBWidget.OnMouseClick: name=\"{_vbtn.Name}\", btn={e.Button}, drag={_isDragging}");
+        OperationLogger.Info($"VBWidget.OnMouseClick: name=\"{_vbtn.Name}\", btn={e.Button}");
         if (e.Button == MouseButtons.Right)
         {
             ContextMenuRequested?.Invoke(this, e.Location);

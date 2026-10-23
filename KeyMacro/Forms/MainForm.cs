@@ -33,7 +33,7 @@ public partial class MainForm : Form
 
     public MainForm()
     {
-        Text = "spine宏助手（TANRY） V2.85";
+        Text = "spine宏助手（TANRY） V2.88";
         Icon = IconService.AppIcon;
         ClientSize = new Size(1440, 900);
         MinimumSize = new Size(1100, 650);
@@ -636,7 +636,7 @@ public partial class MainForm : Form
             if (existing != null)
             {
                 OperationLogger.Info($"MainForm.OpenVirtualKeys: found existing window {data.Name}, showing");
-                existing.Show();
+                existing.ShowManually();
                 existing.BringToFront();
             }
             else
@@ -653,7 +653,7 @@ public partial class MainForm : Form
         foreach (var w in _vkWindows)
         {
             if (!w.IsDisposed)
-                w.Hide();
+                w.HideManually();
         }
     }
 
@@ -662,7 +662,7 @@ public partial class MainForm : Form
         var win = new VirtualKeyWindow(_vkSerializer, data, _sequences, SaveAndRefresh);
         win.DeleteRequested += OnVkWindowDeleted;
         _vkWindows.Add(win);
-        win.Show();
+        win.ShowManually();
         return win;
     }
 
@@ -701,8 +701,8 @@ public partial class MainForm : Form
             var existing = FindVkWindow(data.Name);
             if (existing != null)
             {
-                if (show) { existing.ReloadSkin(); existing.Show(); existing.BringToFront(); }
-                else existing.Hide();
+                if (show) { existing.ReloadSkin(); existing.ShowManually(); existing.BringToFront(); }
+                else existing.HideManually();
                 OperationLogger.Info($"MainForm.ToggleWindowVisibility: {(show ? "shown" : "hidden")} existing window");
             }
             else if (show)
@@ -713,8 +713,8 @@ public partial class MainForm : Form
         };
         _vkManagerWindow.QueryWindowVisible += name =>
         {
-            var win = _vkWindows.FirstOrDefault(w => !w.IsDisposed && w.Text.Contains(name));
-            return win != null && win.Visible;
+            var win = FindVkWindow(name);
+            return win != null && win.IsNativeWindowVisible;
         };
         _vkManagerWindow.DeleteWindowRequested += name =>
         {
@@ -750,16 +750,7 @@ public partial class MainForm : Form
     private VirtualKeyWindow? FindVkWindow(string name)
     {
         return _vkWindows.FirstOrDefault(w =>
-        {
-            if (w.IsDisposed) return false;
-            var title = w.Text;
-            // Match by name in title: "名称 (N)" or "[target] 名称 (N)"
-            var parenIdx = title.LastIndexOf('(');
-            var titleName = parenIdx > 0 ? title[..parenIdx].TrimEnd() : title;
-            if (titleName.Contains(']'))
-                titleName = titleName[(titleName.LastIndexOf(']') + 1)..].Trim();
-            return titleName == name;
-        });
+            !w.IsDisposed && string.Equals(w.WindowData.Name, name, StringComparison.Ordinal));
     }
 
     internal static void RequestOpenVirtualKeys()
