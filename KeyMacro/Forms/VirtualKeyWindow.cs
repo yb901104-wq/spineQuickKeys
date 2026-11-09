@@ -58,7 +58,6 @@ public class VirtualKeyWindow : Form
     private string? _targetTitle;
     private bool _vertical;
     private bool _isBeingDeleted;
-    private ToolStripMenuItem? _orientMenuItem;
     private ToolStripMenuItem? _autoVisibilityMenuItem;
     private ToolStripMenuItem? _edgeSnapMenuItem;
     private ToolStripMenuItem? _autoHideMenuItem;
@@ -73,7 +72,19 @@ public class VirtualKeyWindow : Form
     private bool _edgeHidden;
     private Point _locationBeforeEdgeHide;
     private DateTime _lastInteractionUtc = DateTime.UtcNow;
-    private float _scaleFactor = 1.0f;
+    private VirtualLayoutSerializer.LayoutMode _layoutMode = VirtualLayoutSerializer.LayoutMode.AutoGrid;
+    private int _fixedColumns;
+    private int _fixedRows;
+    private float _buttonScale = 1.0f;
+    private int _innerPadding = 10;
+    private int _buttonGap = 4;
+    private bool _windowSizeLocked;
+    private bool _windowSizeInitialized;
+    private bool _resizingWindow;
+    private bool _layouting;
+    private Point _resizeStartCursor;
+    private Size _resizeStartSize;
+    private readonly Panel _resizeGrip = new();
     // ── Layout base metrics at 100% scale ──
     private const int BASE_BTN_H = 48;
     private const int BASE_GAP = 4;
@@ -86,7 +97,7 @@ public class VirtualKeyWindow : Form
     };
     private VkSkinLoader _skinLoader = new(null);
 
-    private float GetEffectiveScale() => _scaleFactor * (DeviceDpi / 96f);
+    private float GetEffectiveScale() => _buttonScale * (DeviceDpi / 96f);
 
     public VirtualKeyWindow(
         VirtualLayoutSerializer serializer,
@@ -126,6 +137,17 @@ public class VirtualKeyWindow : Form
             FlowDirection = FlowDirection.LeftToRight
         };
         Controls.Add(_panel);
+        _resizeGrip.BackColor = Color.Transparent;
+        _resizeGrip.Cursor = Cursors.SizeNWSE;
+        _resizeGrip.Size = new Size(20, 20);
+        _resizeGrip.Paint += ResizeGrip_Paint;
+        _resizeGrip.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+        _resizeGrip.BringToFront();
+        _resizeGrip.MouseDown += ResizeGrip_MouseDown;
+        _resizeGrip.MouseMove += ResizeGrip_MouseMove;
+        _resizeGrip.MouseUp += ResizeGrip_MouseUp;
+        Controls.Add(_resizeGrip);
+        _resizeGrip.BringToFront();
 
         var menu = BuildBlankMenu();
         _panel.ContextMenuStrip = menu;
@@ -151,7 +173,7 @@ public class VirtualKeyWindow : Form
         ApplyWindowSkin();
         ApplyLayoutData();
 
-        Shown += (_, _) => { if (_widgets.Count > 0) RecalculateSize(); };
+        Shown += (_, _) => { if (_widgets.Count > 0) RecalculateSize(!_windowSizeInitialized); };
 
         FormClosing += (_, e) =>
         {
@@ -170,7 +192,9 @@ public class VirtualKeyWindow : Form
         {
             if (Visible && !_manualHidden)
                 _behaviorVisible = true;
+            PositionResizeGrip();
         };
+        Resize += (_, _) => PositionResizeGrip();
 
         FormClosed += (_, _) =>
         {
@@ -271,26 +295,40 @@ public class VirtualKeyWindow : Form
         m.Items.Add(clearTarget);
 
         m.Items.Add("-");
-        _orientMenuItem = new ToolStripMenuItem("竖向模式");
-        _orientMenuItem.Checked = _vertical;
-        _orientMenuItem.Click += (_, _) => ToggleOrientation();
-        m.Items.Add(_orientMenuItem);
-
-        var scaleMenu = new ToolStripMenuItem("缩放");
-        foreach (var pct in new[] { 50, 75, 100, 150, 200 })
+        var layoutMenu = new ToolStripMenuItem("布局设置");
+        AddLayoutModeItem(layoutMenu, "自适应网格", VirtualLayoutSerializer.LayoutMode.AutoGrid);
+        AddLayoutModeItem(layoutMenu, "单行", VirtualLayoutSerializer.LayoutMode.SingleRow);
+        AddLayoutModeItem(layoutMenu, "单列", VirtualLayoutSerializer.LayoutMode.SingleColumn);
+        AddLayoutModeItem(layoutMenu, "固定 2 列", VirtualLayoutSerializer.LayoutMode.FixedColumns, 2);
+        AddLayoutModeItem(layoutMenu, "固定 3 列", VirtualLayoutSerializer.LayoutMode.FixedColumns, 3);
+        AddLayoutModeItem(layoutMenu, "固定 4 列", VirtualLayoutSerializer.LayoutMode.FixedColumns, 4);
+        var buttonScaleMenu = new ToolStripMenuItem("按钮比例");
+        buttonScaleMenu.DropDownItems.Add("减小", null, (_, _) => SetButtonScale(_buttonScale - 0.05f));
+        buttonScaleMenu.DropDownItems.Add("增大", null, (_, _) => SetButtonScale(_buttonScale + 0.05f));
+        buttonScaleMenu.DropDownItems.Add("重置为 100%", null, (_, _) => SetButtonScale(1.0f));
+        buttonScaleMenu.DropDownItems.Add("自定义...", null, (_, _) =>
         {
-            var item = scaleMenu.DropDownItems.Add($"{pct}%");
-            item.Click += (_, _) => SetScale(pct / 100f);
-        }
-        scaleMenu.DropDownItems.Add("-");
-        var cust = scaleMenu.DropDownItems.Add("自定义...");
-        cust.Click += (_, _) =>
+            var input = Microsoft.VisualBasic.Interaction.InputBox("输入按钮比例 (40-200):", "按钮比例",
+                ((int)(_buttonScale * 100)).ToString());
+            if (int.TryParse(input, out var pct) && pct >= 40 && pct <= 200)
+                SetButtonScale(pct / 100f);
+        });
+        layoutMenu.DropDownItems.Add(buttonScaleMenu);
+        layoutMenu.DropDownItems.Add("内边距...", null, (_, _) => SetLayoutMetric(true));
+        layoutMenu.DropDownItems.Add("按钮间距...", null, (_, _) => SetLayoutMetric(false));
+        AddLayoutModeItem(layoutMenu, "固定 2 行", VirtualLayoutSerializer.LayoutMode.FixedRows, 2);
+        AddLayoutModeItem(layoutMenu, "固定 3 行", VirtualLayoutSerializer.LayoutMode.FixedRows, 3);
+        AddLayoutModeItem(layoutMenu, "固定 4 行", VirtualLayoutSerializer.LayoutMode.FixedRows, 4);
+        var resizeItem = layoutMenu.DropDownItems.Add(_windowSizeLocked ? "✓ 窗口尺寸已锁定" : "窗口尺寸锁定/解锁");
+        resizeItem.Click += (_, _) =>
         {
-            var input = Microsoft.VisualBasic.Interaction.InputBox("输入缩放比例 (10-200):", "自定义缩放",
-                ((int)(_scaleFactor * 100)).ToString());
-            if (int.TryParse(input, out var pct) && pct >= 10 && pct <= 200) SetScale(pct / 100f);
+            _windowSizeLocked = !_windowSizeLocked;
+            _data.WindowSizeLocked = _windowSizeLocked;
+            PositionResizeGrip();
+            resizeItem.Text = _windowSizeLocked ? "✓ 窗口尺寸已锁定" : "窗口尺寸锁定/解锁";
+            SaveLayout();
         };
-        m.Items.Add(scaleMenu);
+        m.Items.Add(layoutMenu);
 
         m.Items.Add("-");
         var lockItem = m.Items.Add(_winLocked ? "✓ 窗口已锁定" : "窗口锁定/解锁", null, (_, _) => ToggleWindowLock());
@@ -316,7 +354,6 @@ public class VirtualKeyWindow : Form
             var display = _targetTitle ?? _targetProc;
             clearTarget.Text = string.IsNullOrEmpty(display) ? "清除目标窗口" : $"清除目标窗口 ({display})";
             clearTarget.Visible = !string.IsNullOrEmpty(_targetProc);
-            if (_orientMenuItem != null) _orientMenuItem.Checked = _vertical;
             if (_autoVisibilityMenuItem != null) _autoVisibilityMenuItem.Checked = _data.AutoVisibilityEnabled;
             if (_edgeSnapMenuItem != null) _edgeSnapMenuItem.Checked = _data.EdgeSnapEnabled;
             if (_autoHideMenuItem != null)
@@ -464,6 +501,7 @@ public class VirtualKeyWindow : Form
             ControlBox = true;
             UpdateTitle();
         }
+        PositionResizeGrip();
         SaveLayout();
     }
 
@@ -503,34 +541,106 @@ public class VirtualKeyWindow : Form
         Hide();
     }
 
-    // ── Orientation ──
+    // ── Scale ──
 
-    private void ToggleOrientation()
+    private void SetButtonScale(float factor)
     {
-        _vertical = !_vertical;
-        _panel.FlowDirection = _vertical ? FlowDirection.TopDown : FlowDirection.LeftToRight;
-        _panel.AutoScroll = _vertical;
-        foreach (var w in _widgets.Values)
-            w.VerticalMode = _vertical;
+        _buttonScale = Math.Clamp(factor, 0.4f, 2.0f);
+        UpdateScale();
+        RecalculateSize(false);
+        SaveLayout();
+    }
+
+    private void SetLayoutMetric(bool padding)
+    {
+        var current = padding ? _innerPadding : _buttonGap;
+        var input = Microsoft.VisualBasic.Interaction.InputBox(
+            padding ? "输入四边内边距 (2-64):" : "输入按钮间距 (0-32):",
+            padding ? "内边距" : "按钮间距", current.ToString());
+        if (!int.TryParse(input, out var value)) return;
+        if (padding) _innerPadding = Math.Clamp(value, 2, 64);
+        else _buttonGap = Math.Clamp(value, 0, 32);
         RecalculateSize();
         SaveLayout();
     }
 
-    // ── Scale ──
-
-    private void SetScale(float factor)
+    private void AddLayoutModeItem(ToolStripMenuItem menu, string text, VirtualLayoutSerializer.LayoutMode mode, int fixedCount = 0)
     {
-        _scaleFactor = Math.Clamp(factor, 0.1f, 2.0f);
-        int margin = Math.Max(1, (int)(BASE_MARGIN * GetEffectiveScale()));
-        _panel.Padding = new Padding(margin);
-        UpdateScale(); RecalculateSize(); SaveLayout();
+        var item = menu.DropDownItems.Add(text);
+        item.Click += (_, _) =>
+        {
+            _layoutMode = mode;
+            if (mode == VirtualLayoutSerializer.LayoutMode.FixedColumns) _fixedColumns = fixedCount;
+            if (mode == VirtualLayoutSerializer.LayoutMode.FixedRows) _fixedRows = fixedCount;
+            ApplyLayoutMode();
+            SaveLayout();
+        };
+    }
+
+    private void ApplyLayoutMode()
+    {
+        _vertical = _layoutMode == VirtualLayoutSerializer.LayoutMode.SingleColumn;
+        foreach (var w in _widgets.Values) w.VerticalMode = _vertical;
+        RecalculateSize();
+    }
+
+    private void PositionResizeGrip()
+    {
+        if (!IsHandleCreated) return;
+        _resizeGrip.Location = new Point(Math.Max(0, ClientSize.Width - _resizeGrip.Width), Math.Max(0, ClientSize.Height - _resizeGrip.Height));
+        // 无标题栏锁定与尺寸锁定是两个独立状态；隐藏标题栏时仍应保留右下角缩放手柄。
+        _resizeGrip.Visible = _data.ResizeHandleEnabled && !_windowSizeLocked;
+        _resizeGrip.BringToFront();
+        _resizeGrip.Invalidate();
+    }
+
+    private void ResizeGrip_Paint(object? sender, PaintEventArgs e)
+    {
+        if (!_resizeGrip.Visible) return;
+        using var pen = new Pen(Color.FromArgb(210, Color.White), 2f);
+        e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        for (int i = 0; i < 3; i++)
+        {
+            int offset = 5 + i * 5;
+            e.Graphics.DrawLine(pen, _resizeGrip.Width - offset, _resizeGrip.Height - 2,
+                _resizeGrip.Width - 2, _resizeGrip.Height - offset);
+        }
+    }
+
+    private void ResizeGrip_MouseDown(object? sender, MouseEventArgs e)
+    {
+        if (e.Button != MouseButtons.Left || _windowSizeLocked) return;
+        _resizingWindow = true;
+        _interactionHold = true;
+        _resizeStartCursor = Cursor.Position;
+        _resizeStartSize = Size;
+        _lastInteractionUtc = DateTime.UtcNow;
+    }
+
+    private void ResizeGrip_MouseMove(object? sender, MouseEventArgs e)
+    {
+        if (!_resizingWindow) return;
+        var cursor = Cursor.Position;
+        var deltaX = cursor.X - _resizeStartCursor.X;
+        var deltaY = cursor.Y - _resizeStartCursor.Y;
+        Size = new Size(Math.Max(160, _resizeStartSize.Width + deltaX), Math.Max(100, _resizeStartSize.Height + deltaY));
+        RecalculateSize(false);
+    }
+
+    private void ResizeGrip_MouseUp(object? sender, MouseEventArgs e)
+    {
+        if (e.Button != MouseButtons.Left || !_resizingWindow) return;
+        _resizingWindow = false;
+        _interactionHold = false;
+        _windowSizeInitialized = true;
+        SnapToScreenEdge();
+        RecalculateSize(false);
+        SaveLayout();
     }
 
     protected override void OnDpiChanged(DpiChangedEventArgs e)
     {
         base.OnDpiChanged(e);
-        int margin = Math.Max(1, (int)(BASE_MARGIN * GetEffectiveScale()));
-        _panel.Padding = new Padding(margin);
         UpdateScale();
         RecalculateSize();
     }
@@ -722,67 +832,105 @@ public class VirtualKeyWindow : Form
 
     private void UpdateScale()
     {
-        float eff = GetEffectiveScale();
+        float eff = _buttonScale * (DeviceDpi / 96f);
         foreach (var w in _widgets.Values) { w.ScaleFactor = eff; w.UpdateSize(); }
     }
 
-    private void RecalculateSize()
+    private void RecalculateSize(bool resizeWindow = false)
     {
-        int ncW = Width - ClientSize.Width;
-        int ncH = Height - ClientSize.Height;
-        float S = GetEffectiveScale();
-        int btnH = Math.Max(1, (int)(BASE_BTN_H * S));
-        int gap = Math.Max(1, (int)(BASE_GAP * S));
-        int margin = Math.Max(1, (int)(BASE_MARGIN * S));
-        int n = _widgets.Count;
-        int barH = !_winLocked ? 28 : 0; // native title bar
-
-        if (n == 0)
+        if (_layouting) return;
+        _layouting = true;
+        try
         {
-            Size = new Size(margin * 2 + 20 + ncW, barH + margin * 2 + 20 + ncH);
-            return;
-        }
+            int ncW = Width - ClientSize.Width;
+            int ncH = Height - ClientSize.Height;
+            float dpi = DeviceDpi / 96f;
+            float S = _buttonScale * dpi;
+            int margin = Math.Max(2, (int)(_innerPadding * dpi));
+            int gap = Math.Max(0, (int)(_buttonGap * dpi));
+            int n = _widgets.Count;
 
-        if (_vertical)
-        {
-            // Vertical: width = margin + max(button width + ExtraGap) + margin
-            //           height = barH + margin + Σ(btnH + ExtraGap) + (N-1)×gap + margin
-            int maxW = _widgets.Values.Max(w =>
+            if (n == 0)
             {
-                var bw = Math.Max(1, (int)(BaseBtnWidth(w.VirtualButton.StyleType) * S));
-                return bw + (int)(w.VirtualButton.ExtraGap * S);
-            });
-            int totalH = barH + margin + _widgets.Values.Sum(w =>
-            {
-                return btnH + (int)(w.VirtualButton.ExtraGap * S);
-            }) + (n - 1) * gap + margin;
-            Size = new Size(margin + maxW + margin + ncW, totalH + ncH);
-
-            int halfGap = gap / 2;
-            foreach (var w in _widgets.Values)
-            {
-                int eg = (int)(w.VirtualButton.ExtraGap * S);
-                w.Margin = new Padding(0, halfGap, 0, halfGap + eg);
+                if (resizeWindow) Size = new Size(Math.Max(160, margin * 2 + 20 + ncW), Math.Max(100, margin * 2 + 20 + ncH));
+                PositionResizeGrip();
+                return;
             }
-        }
-        else
-        {
-            // Horizontal: width = margin + Σ(button width + ExtraGap) + (N-1)×gap + margin
-            //             height = titleBar + margin + btnH + margin
-            int totalW = margin + _widgets.Values.Sum(w =>
-            {
-                var bw = Math.Max(1, (int)(BaseBtnWidth(w.VirtualButton.StyleType) * S));
-                return bw + (int)(w.VirtualButton.ExtraGap * S);
-            }) + (n - 1) * gap + margin;
-            int totalH = barH + margin + btnH + margin;
-            Size = new Size(totalW + ncW, totalH + ncH);
 
-            int halfGap = gap / 2;
-            foreach (var w in _widgets.Values)
+            var items = _widgets.Values.ToList();
+            int columns = _layoutMode switch
             {
-                int eg = (int)(w.VirtualButton.ExtraGap * S);
-                w.Margin = new Padding(halfGap, 0, halfGap + eg, 0);
+                VirtualLayoutSerializer.LayoutMode.SingleRow => n,
+                VirtualLayoutSerializer.LayoutMode.SingleColumn => 1,
+                VirtualLayoutSerializer.LayoutMode.FixedColumns => Math.Clamp(_fixedColumns, 1, n),
+                VirtualLayoutSerializer.LayoutMode.FixedRows => Math.Max(1, (int)Math.Ceiling(n / (double)Math.Max(1, _fixedRows))),
+                _ => Math.Max(1, (int)Math.Ceiling(Math.Sqrt(n * Math.Max(0.5, (double)ClientSize.Width / Math.Max(1, ClientSize.Height)))) )
+            };
+            int rows = (int)Math.Ceiling(n / (double)columns);
+
+            if (resizeWindow)
+            {
+                var rowWidths = new int[rows];
+                for (int row = 0; row < rows; row++)
+                {
+                    var rowItems = items.Skip(row * columns).Take(columns);
+                    rowWidths[row] = rowItems.Sum(w => Math.Max(1, (int)(BaseBtnWidth(w.VirtualButton.StyleType) * S)) + (int)(w.VirtualButton.ExtraGap * S))
+                        + Math.Max(0, rowItems.Count() - 1) * gap;
+                }
+                int contentW = rowWidths.Max();
+                int contentH = rows * Math.Max(1, (int)(BASE_BTN_H * S)) + Math.Max(0, rows - 1) * gap;
+                Size = new Size(Math.Max(160, margin * 2 + contentW + ncW), Math.Max(100, margin * 2 + contentH + ncH));
             }
+
+            _panel.WrapContents = true;
+            _panel.FlowDirection = FlowDirection.LeftToRight;
+            _panel.Padding = new Padding(margin);
+            _panel.AutoScroll = false;
+            for (int i = 0; i < items.Count; i++)
+            {
+                var w = items[i];
+                int row = i / columns;
+                int rowStart = row * columns;
+                int rowEnd = Math.Min(items.Count, rowStart + columns);
+                int extra = Math.Max(0, (int)(w.VirtualButton.ExtraGap * S));
+                int rightGap = i < rowEnd - 1 ? gap : 0;
+                int bottomGap = row < rows - 1 ? gap : 0;
+                w.Margin = new Padding(0, 0, rightGap + extra, bottomGap);
+                w.IsFirstInRow = i == rowStart;
+                w.IsLastInRow = i == rowEnd - 1;
+            }
+            _panel.PerformLayout();
+            ApplyActualRowFlags(items);
+            PositionResizeGrip();
+        }
+        finally
+        {
+            _layouting = false;
+        }
+    }
+
+    private void ApplyActualRowFlags(IReadOnlyList<VirtualButtonWidget> items)
+    {
+        if (items.Count == 0) return;
+        var rowStarts = new List<int>();
+        var rowEnds = new List<int>();
+        int previousTop = int.MinValue;
+        for (int i = 0; i < items.Count; i++)
+        {
+            var bounds = items[i].Bounds;
+            if (i == 0 || bounds.Top != previousTop)
+                rowStarts.Add(i);
+            previousTop = bounds.Top;
+        }
+        for (int row = 0; row < rowStarts.Count; row++)
+        {
+            int end = row + 1 < rowStarts.Count ? rowStarts[row + 1] - 1 : items.Count - 1;
+            rowEnds.Add(end);
+        }
+        for (int i = 0; i < items.Count; i++)
+        {
+            items[i].IsFirstInRow = rowStarts.Contains(i);
+            items[i].IsLastInRow = rowEnds.Contains(i);
         }
     }
 
@@ -1062,7 +1210,12 @@ public class VirtualKeyWindow : Form
         _data.WindowWidth = Width; _data.WindowHeight = Height;
         _data.TopMost = _topMostState; _data.PositionLocked = _posLocked; _data.WindowLocked = _winLocked;
         _data.TargetProcessName = _targetProc; _data.TargetWindowTitle = _targetTitle;
-        _data.VerticalMode = _vertical; _data.ScaleFactor = _scaleFactor;
+        _data.VerticalMode = _layoutMode == VirtualLayoutSerializer.LayoutMode.SingleColumn;
+        _data.LayoutMode = _layoutMode; _data.FixedColumns = _fixedColumns; _data.FixedRows = _fixedRows;
+        _data.ButtonScale = _buttonScale; _data.InnerPadding = _innerPadding; _data.ButtonGap = _buttonGap;
+        // ScaleFactor remains only as a legacy mirror for older readers; it is never read at runtime when ButtonScale exists.
+        _data.ScaleFactor = _buttonScale;
+        _data.WindowSizeLocked = _windowSizeLocked;
         _data.Buttons = [.. _btnManager.Buttons];
     }
 
@@ -1071,29 +1224,51 @@ public class VirtualKeyWindow : Form
         _targetProc = _data.TargetProcessName;
         _targetTitle = _data.TargetWindowTitle;
         _vertical = _data.VerticalMode;
+        _layoutMode = _data.LayoutMode;
+        if (_layoutMode == VirtualLayoutSerializer.LayoutMode.AutoGrid && _data.VerticalMode)
+            _layoutMode = VirtualLayoutSerializer.LayoutMode.SingleColumn;
+        _fixedColumns = Math.Clamp(_data.FixedColumns, 0, 12);
+        _fixedRows = Math.Clamp(_data.FixedRows, 0, 12);
+        _buttonScale = Math.Clamp(_data.ButtonScale > 0 ? _data.ButtonScale : _data.ScaleFactor, 0.4f, 2.0f);
+        _innerPadding = Math.Clamp(_data.InnerPadding, 2, 64);
+        _buttonGap = Math.Clamp(_data.ButtonGap, 0, 32);
+        _windowSizeLocked = _data.WindowSizeLocked;
+        _windowSizeInitialized = _data.WindowWidth > 0 && _data.WindowHeight > 0;
         _data.EdgeSnapDistance = Math.Clamp(_data.EdgeSnapDistance, 0, 200);
         _data.AutoHideDelayMs = Math.Clamp(_data.AutoHideDelayMs, 100, 60000);
         _data.AutoHidePeekPixels = Math.Clamp(_data.AutoHidePeekPixels, 1, 32);
-        _scaleFactor = _data.ScaleFactor > 0 ? _data.ScaleFactor : 1.0f;
-        int margin = Math.Max(1, (int)(BASE_MARGIN * GetEffectiveScale()));
-        _panel.Padding = new Padding(margin);
+        _buttonScale = Math.Clamp(_data.ButtonScale > 0 ? _data.ButtonScale : _data.ScaleFactor, 0.4f, 2.0f);
+        _innerPadding = Math.Clamp(_data.InnerPadding, 2, 64);
+        _buttonGap = Math.Clamp(_data.ButtonGap, 0, 32);
+        _fixedColumns = Math.Clamp(_data.FixedColumns, 0, 12);
+        _fixedRows = Math.Clamp(_data.FixedRows, 0, 12);
+        _layoutMode = _data.LayoutMode == VirtualLayoutSerializer.LayoutMode.AutoGrid && _data.VerticalMode
+            ? VirtualLayoutSerializer.LayoutMode.SingleColumn : _data.LayoutMode;
+        _windowSizeLocked = _data.WindowSizeLocked;
+        _windowSizeInitialized = _data.WindowWidth > 0 && _data.WindowHeight > 0;
+        _panel.Padding = new Padding(Math.Max(2, _innerPadding));
+        PositionResizeGrip();
 
         if (_data.Buttons.Count > 0)
         {
+            var savedSize = new Size(Math.Max(160, _data.WindowWidth), Math.Max(100, _data.WindowHeight));
+            Size = savedSize;
+            _windowSizeInitialized = true;
+            PositionResizeGrip();
             var savedLoc = new Point(_data.WindowX, _data.WindowY);
-            var testRect = new Rectangle(savedLoc, new Size(Math.Max(_data.WindowWidth, 100), Math.Max(_data.WindowHeight, 100)));
+            var testRect = new Rectangle(savedLoc, savedSize);
             Location = Screen.AllScreens.Any(s => s.WorkingArea.IntersectsWith(testRect))
                 ? savedLoc : new Point(Screen.PrimaryScreen!.WorkingArea.Width / 2 - Width / 2,
                     Screen.PrimaryScreen!.WorkingArea.Height / 2 - Height / 2);
             _topMostState = _data.TopMost; TopMost = _topMostState;
             _posLocked = _data.PositionLocked; _winLocked = _data.WindowLocked;
             foreach (var w in _widgets.Values) w.AllowDragging = !_posLocked;
-            _panel.WrapContents = false;
-            _panel.FlowDirection = _vertical ? FlowDirection.TopDown : FlowDirection.LeftToRight;
+            _panel.WrapContents = true;
+            _panel.FlowDirection = FlowDirection.LeftToRight;
             if (_winLocked) { FormBorderStyle = FormBorderStyle.None; ControlBox = false; Text = ""; }
             else { FormBorderStyle = FormBorderStyle.FixedSingle; ControlBox = true; }
             UpdateScale();
-            RecalculateSize();
+            RecalculateSize(!_windowSizeInitialized);
         }
         else
         {
@@ -1106,9 +1281,17 @@ public class VirtualKeyWindow : Form
 
     public void ReloadFromData()
     {
-        _scaleFactor = _data.ScaleFactor > 0 ? _data.ScaleFactor : 1.0f;
-        int margin = Math.Max(1, (int)(BASE_MARGIN * GetEffectiveScale()));
-        _panel.Padding = new Padding(margin);
+        _buttonScale = Math.Clamp(_data.ButtonScale > 0 ? _data.ButtonScale : _data.ScaleFactor, 0.4f, 2.0f);
+        _innerPadding = Math.Clamp(_data.InnerPadding, 2, 64);
+        _buttonGap = Math.Clamp(_data.ButtonGap, 0, 32);
+        _fixedColumns = Math.Clamp(_data.FixedColumns, 0, 12);
+        _fixedRows = Math.Clamp(_data.FixedRows, 0, 12);
+        _layoutMode = _data.LayoutMode == VirtualLayoutSerializer.LayoutMode.AutoGrid && _data.VerticalMode
+            ? VirtualLayoutSerializer.LayoutMode.SingleColumn : _data.LayoutMode;
+        _windowSizeLocked = _data.WindowSizeLocked;
+        _windowSizeInitialized = _data.WindowWidth > 0 && _data.WindowHeight > 0;
+        _panel.Padding = new Padding(Math.Max(2, _innerPadding));
+        PositionResizeGrip();
         _btnManager.LoadFrom(_data.Buttons);
         _vertical = _data.VerticalMode;
         _topMostState = _data.TopMost; TopMost = _topMostState;
@@ -1119,8 +1302,8 @@ public class VirtualKeyWindow : Form
         _data.AutoHideDelayMs = Math.Clamp(_data.AutoHideDelayMs, 100, 60000);
         _data.AutoHidePeekPixels = Math.Clamp(_data.AutoHidePeekPixels, 1, 32);
         foreach (var w in _widgets.Values) w.AllowDragging = !_posLocked;
-        _panel.WrapContents = false;
-        _panel.FlowDirection = _vertical ? FlowDirection.TopDown : FlowDirection.LeftToRight;
+        _panel.WrapContents = true;
+        _panel.FlowDirection = FlowDirection.LeftToRight;
         if (_winLocked) { FormBorderStyle = FormBorderStyle.None; ControlBox = false; Text = ""; }
         else { FormBorderStyle = FormBorderStyle.FixedSingle; ControlBox = true; UpdateTitle(); }
         UpdateScale();

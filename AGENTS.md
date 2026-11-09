@@ -20,6 +20,7 @@ KeyMacro/
 ├── skins/                   # 皮肤 PNG 资源目录
 ├── Models/
 │   ├── DataBundle.cs        # 统一导入导出数据模型
+│   ├── BackupFileEntry.cs   # 原地复制备份列表项模型 + BackupResult
 │   ├── MacroSequence.cs     # 数据模型 (序列 + 步骤)
 │   ├── PathHistory.cs       # 批量复制前缀/后缀历史记录
 │   ├── SpineCliEntry.cs     # CLI 任务数据模型（含 CliResult）
@@ -33,6 +34,7 @@ KeyMacro/
 │   ├── OperationLogger.cs   # 文件日志系统 (%APPDATA%\KeyMacro\logs\)
 │   ├── UiTheme.cs           # 通用深灰 UI 主题与资源加载（排除 VirtualKeyWindow 本体）
 │   ├── BatchCopyService.cs  # 批量复制执行引擎（冲突检测/进度/日志）
+│   ├── InplaceBackupService.cs # 原地复制备份引擎（只读扫描/不覆盖/INV-1~8）
 │   ├── SpineCliService.cs   # Spine.com CLI 进程调用封装
 │   ├── SpineHotkeyService.cs # Spine TXT 文件解析/保存 + 按键名格式转换 + 中文注解
 │   ├── VirtualButtonManager.cs # 虚拟按键列表管理（排序/间隔）
@@ -51,6 +53,8 @@ KeyMacro/
     ├── InputDialog.cs       # 通用输入对话框
     ├── SourceFilePicker.cs  # 源文件缩略图浏览+勾选弹窗
     ├── SubfolderSelectDialog.cs # 子文件夹勾选导入对话框
+    ├── FolderMultiSelectDialog.cs # 多选文件夹勾选弹窗（只读浏览）
+    ├── InplaceBackupPanel.cs # 「原地复制备份」Tab2 页面
     ├── VirtualKeyWindow.cs  # 虚拟按键浮动窗口
     ├── VkWindowManager.cs   # 多虚拟按键窗口管理器
     └── VirtualButtonWidget.cs # 虚拟按钮自绘控件
@@ -75,7 +79,7 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 
 ## 右键菜单体系
 - **按钮右键菜单**（`OnWidgetContextMenu`）：修改按钮名称 / 按钮循环延迟（仅循环按钮）/ 增加间隔 / 强制停止 / 删除当前按钮
-- **空白区域右键菜单**（`BuildBlankMenu`）：增加按钮 / 删除所有按钮 / 置顶/取消置顶 / 目标进程自动显示/隐藏 / 屏幕边缘吸附 / 边缘自动隐藏 / 透明度 / 按钮位置锁定/解锁 / 捕获/清除目标窗口 / 竖向模式 / 缩放(50-200%) / 窗口锁定/解锁 / 关闭窗口
+- **空白区域右键菜单**（`BuildBlankMenu`）：增加按钮 / 删除所有按钮 / 置顶/取消置顶 / 目标进程自动显示/隐藏 / 屏幕边缘吸附 / 边缘自动隐藏 / 透明度 / 按钮位置锁定/解锁 / 捕获/清除目标窗口 / 布局设置（含按钮比例、内边距、按钮间距、网格模式、窗口尺寸锁定）/ 窗口锁定/解锁 / 关闭窗口
 - 按钮循环延迟支持自定义数值（通过 InputBox）
 - **间隔**（Spacer）：通过"增加间隔"在按钮之间插入固定宽度空白分隔条，不可交互，随缩放等比变化
 
@@ -119,9 +123,11 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 - 按钮排序通过右键菜单执行上移/下移/移到最前/移到最后，不再使用左键拖动排序
 - 可按目标进程前台状态自动显示/隐藏；目标项目标题变化不要求重新捕获
 - 支持屏幕 `WorkingArea` 边缘吸附；边缘自动隐藏为可选功能且默认关闭，隐藏时保留露出区域
-- **布局方向**：横排（默认）/ 竖排，右键菜单切换。始终单排，无多排模式
-- **缩放**：右键菜单百分比预设（50/75/100/150/200%）+ 自定义输入（10-200%）
-- **无拖拽缩放，无最小/最大尺寸限制**
+- **布局模式**：支持自适应网格、单行、单列、固定列数（2/3/4 列）和固定行数（2/3/4 行）；旧 `VerticalMode` 自动迁移为单列/单行。
+- **窗口缩放**：右下角左键拖动改变窗口外框尺寸，窗口尺寸与按钮比例独立保存；最小尺寸为 160×100，缩放期间暂停自动隐藏和目标联动行为。
+- **按钮比例**：布局设置中支持 40%-200% 连续调整；内边距支持 2-64，按钮间距支持 0-32。
+- **窗口尺寸锁定**：锁定后禁用右下角缩放手柄；与无标题栏的窗口锁定分离。
+- **缩放统一规则**：运行时只使用“布局设置 → 按钮比例”；旧 `ScaleFactor` 仅用于读取旧配置时迁移，不再提供独立旧版缩放菜单。
 
 ## 虚拟按键布局算法
 - 基于基础常量计算，不依赖控件运行时属性：
@@ -166,7 +172,7 @@ BaseBtnWidth: SmallIcon=48  LargeIcon=96  LoopIcon=110
 
 ## DPI 缩放
 - `HighDpiMode.PerMonitorV2` 已在 `Program.cs` 中设置
-- **VirtualKeyWindow**：`GetEffectiveScale()` = `_scaleFactor * (DeviceDpi / 96f)` 合并系统 DPI 和用户缩放
+- **VirtualKeyWindow**：`GetEffectiveScale()` = `_buttonScale * (DeviceDpi / 96f)` 合并系统 DPI 和按钮比例；旧 `_scaleFactor` 不参与运行时计算
 - **VirtualButtonWidget**：`ScaleFactor` 接收 VKWindow 传入的有效缩放值，`Scaled(val)` 自动用于尺寸；字号改用按钮高度的比例（`Height * 0.17`），自动适配 DPI
 - **MainForm**：DataGridView 列宽在 `RefreshGrid()` 中乘以 `DeviceDpi / 96f`
 - **SequenceEditor**：`OnLoad` 中对 `_topPanel` 行高/列宽应用 DPI 系数
@@ -183,6 +189,16 @@ BaseBtnWidth: SmallIcon=48  LargeIcon=96  LoopIcon=110
 - **冲突处理**：每目标目录独立 `ConflictDialog` → 列出同名文件 → 覆盖/跳过/打开文件夹（`Path.GetFullPath` 标准化路径）
 - **历史记录**：前缀/后缀使用 ComboBox，输入自动记忆，关闭窗口自动保存，支持一键清理历史
 - **复制引擎**：`BatchCopyService` 异步执行，自动创建目录，进度状态栏，取消支持，OperationLogger 日志
+
+## 原地复制备份（V2.9 新增）
+- `BatchCopyWindow` 改为 `DarkTabControl` 双页：Tab1「批量复制到目的地」原页面原样迁入、零功能改动；Tab2「原地复制备份」；默认仍选中 Tab1。
+- Tab2：多选文件夹弹窗（`FolderMultiSelectDialog`，纯只读浏览）→ 递归只读扫描 → 后缀下拉（自动识别 + 全部）与关键词输入（AND、300ms 防抖）→ 五列勾选列表 + 全选/全不选（仅可见行）→ 备份后缀默认 `_bf` + 实时命名示例 → 原目录生成 `{原文件名}{后缀}{原扩展名}`。
+- **安全红线（不可绕过）**：只做本地复制、必须带后缀、不删改/不覆盖源文件、不对源文件做任何额外操作。技术化为 8 条不变式（INV-1~8）：唯一磁盘写入为 `File.Copy(src, dest, overwrite: false)`；后缀在 UI 与服务层双层校验；目标恒在原目录且位于所选根目录内；目标已存在一律自动跳过（不覆盖、不弹窗）；目标不等于任何源文件；源文件只读；源目录零副作用（日志只写 `%APPDATA%\KeyMacro\logs\`）；失败与取消零删除。
+- **禁止复用** `BatchCopyService` / `ConflictAction` / `ConflictDialog` 的复制语义（它们含创建目录、默认 Overwrite、`overwrite:true`）。`InplaceBackupService` 只参考其事件签名。
+- 列表采用 `DataGridView` 复选框列（项目 `UiTheme` 有完整自绘），规避 OwnerDraw `ListView` 未处理 `DrawItem` 导致勾选框不显示。
+- 窗口级：进度条与状态栏在 TabControl 之外共享；任一任务运行时另一页主按钮禁用、禁止切 Tab、关闭前先 Cancel 并等待任务结束；执行集合在点按钮时快照冻结，执行期锁定过滤/勾选/后缀。
+- 备份后缀历史存 `PathHistory.BackupSuffixHistory`（最近 10 条），与 Tab1 的 `SuffixHistory` 分离；载入时走同一 `ValidateSuffix()` 复校验。
+- 设计 / 审核 / 渲染图 / 实机截图：`docs/inplace-backup/`。
 
 ## 统一导入导出
 - 主工具栏"导入"/"导出"按钮，使用 `.kmp` 格式（JSON）
@@ -234,6 +250,8 @@ BaseBtnWidth: SmallIcon=48  LargeIcon=96  LoopIcon=110
 5. 修改完成后导出一个单独的.exe应用供测试，如遇应用已开启导致无法修改就强行终止应用再尝试导出
 
 ## 版本历史
+- **V2.9** (2026-11-09): 文件批量复制窗口新增「原地复制备份」Tab（小功能更新）：多选文件夹递归只读扫描、后缀/关键词双重过滤、逐行勾选与全选/全不选、自定义备份后缀、原目录生成带后缀副本。落实 8 条安全不变式，绝不覆盖/删改源文件；双 Tab 共享进度区并加入窗口级任务互斥与关闭保护。新增 `InplaceBackupService` / `InplaceBackupPanel` / `FolderMultiSelectDialog` / `BackupFileEntry`，`UiTheme` 增加 `FolderMultiSelect` 尺寸档与「取消备份」危险态归类。编译 0 警告、40 项真实磁盘安全验证全通过。
+- **V2.89** (2026-10-23): 修复 AUD-034，虚拟按键窗口支持右下角自由缩放、自适应网格/多行布局、按钮连续比例、统一内边距和间距配置；窗口尺寸与按钮比例独立保存，并兼容旧布局字段。
 - **V2.88** (2026-10-23): 修复 AUD-033，统一使用原生窗口可见状态判断，修复虚拟按键窗口显示/隐藏状态不同步导致窗口消失、管理器按钮无效和自动联动不显示。
 - **V2.87** (2026-10-23): 修复 AUD-032，目标进程联动改为不激活窗口的 Win32 显示/隐藏路径，避免前台振荡、窗口闪烁和误触发键盘输入。
 - **V2.86** (2026-10-23): 修复 AUD-029~031，虚拟按键窗口改为左键播放、中键移动、右键排序菜单；增加按目标进程前台状态自动显示/隐藏、屏幕边缘吸附和可选边缘自动隐藏；窗口实例查找改用 WindowData.Name。

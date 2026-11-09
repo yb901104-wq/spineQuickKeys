@@ -33,7 +33,7 @@ public partial class MainForm : Form
 
     public MainForm()
     {
-        Text = "spine宏助手（TANRY） V2.88";
+        Text = "spine宏助手（TANRY） V2.9";
         Icon = IconService.AppIcon;
         ClientSize = new Size(1440, 900);
         MinimumSize = new Size(1100, 650);

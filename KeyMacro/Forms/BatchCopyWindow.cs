@@ -30,10 +30,21 @@ public class BatchCopyWindow : Form
     private readonly Label _lblProgressCurrent = new();
     private readonly TextProgressBar _progressBar = new();
 
+    // ── Controls: Tabs (R2) ──
+    private readonly DarkTabControl _tabControl = new();
+    private readonly TabPage _tabCopy = new() { Text = "批量复制到目的地" };
+    private readonly TabPage _tabBackup = new() { Text = "原地复制备份" };
+    private readonly InplaceBackupPanel _backupPanel = new();
+    private readonly ToolTip _statusTip = new();
+
     // ── State ──
     private readonly BatchCopyService _copyService = new();
     private PathHistory _history = new();
     private readonly System.Windows.Forms.Timer _previewDebounce = new();
+    private bool _taskRunning;
+    private bool _closingAfterCancel;
+    private string _tab2Status = "就绪";
+    private string _tab2Tip = "";
 
     public BatchCopyWindow()
     {
@@ -48,6 +59,7 @@ public class BatchCopyWindow : Form
         BuildUI();
         UiTheme.Apply(this, UiWindowProfile.BatchCopy);
         LoadHistory();
+        WireBackupEvents();
 
         _previewDebounce.Interval = 300;
         _previewDebounce.Tick += (_, _) => { _previewDebounce.Stop(); UpdatePreview(); };
@@ -55,43 +67,124 @@ public class BatchCopyWindow : Form
 
     private void BuildUI()
     {
+        // ── Tab1：原有页面控件与布局原样迁入（进度区改为窗口级共享）──
+        _tabCopy.Controls.Add(BuildTab1Content());
+
+        // ── Tab2：原地复制备份 ──
+        _tabBackup.Controls.Add(_backupPanel);
+
+        _tabControl.Dock = DockStyle.Fill;
+        _tabControl.TabPages.Add(_tabCopy);
+        _tabControl.TabPages.Add(_tabBackup);
+        _tabControl.SelectedIndex = 0; // 默认仍选中 Tab1，不改变现有使用习惯
+        _tabControl.Selecting += (_, e) =>
+        {
+            // 窗口级单任务互斥：任一任务运行期间禁止切页，保证取消入口始终可见
+            if (_taskRunning) e.Cancel = true;
+        };
+
+        // ── 窗口级三段式：Tab / 共享进度 / 共享状态栏 ──
         var mainPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             Padding = new Padding(8),
             ColumnCount = 1,
-            RowCount = 7,
+            RowCount = 3,
+            BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA)
+        };
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
+
+        mainPanel.Controls.Add(_tabControl, 0, 0);
+        mainPanel.Controls.Add(BuildProgressPanel(), 0, 1);
+
+        _lblStatus.Text = "就绪";
+        _lblStatus.ForeColor = Color.Gray;
+        _lblStatus.Height = 20;
+        _lblStatus.Dock = DockStyle.Fill;      // 状态栏要显示完整汇总文字，不能沿用默认 100px 宽度
+        _lblStatus.AutoEllipsis = true;
+        _lblStatus.Margin = new Padding(0, 4, 0, 0);
+        mainPanel.Controls.Add(_lblStatus, 0, 2);
+
+        Controls.Add(mainPanel);
+    }
+
+    /// <summary>
+    /// Tab1 内容：完全沿用改造前的 5 行布局（源列表 / 目标路径标题 / 目标路径 / 间隔 / 开始复制），
+    /// 不改动任何控件、文案、事件与业务逻辑；仅把进度区与状态栏交给窗口级共享。
+    /// </summary>
+    private Control BuildTab1Content()
+    {
+        var panel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            Padding = new Padding(8),
+            ColumnCount = 1,
+            RowCount = 5,
             BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA)
         };
 
-        mainPanel.Controls.Add(BuildSourcePanel(), 0, 0);
-        mainPanel.Controls.Add(new Label
+        panel.Controls.Add(BuildSourcePanel(), 0, 0);
+        panel.Controls.Add(new Label
         {
             Text = "目标路径",
             Font = new Font("微软雅黑", 10, FontStyle.Bold),
             Height = 24,
             Margin = new Padding(0, 4, 0, 0)
         }, 0, 1);
-        mainPanel.Controls.Add(BuildTargetPanel(), 0, 2);
-        mainPanel.Controls.Add(new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA) }, 0, 3);
-        mainPanel.Controls.Add(BuildActionPanel(), 0, 4);
-        mainPanel.Controls.Add(BuildProgressPanel(), 0, 5);
+        panel.Controls.Add(BuildTargetPanel(), 0, 2);
+        panel.Controls.Add(new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA) }, 0, 3);
+        panel.Controls.Add(BuildActionPanel(), 0, 4);
 
-        _lblStatus.Text = "就绪";
-        _lblStatus.ForeColor = Color.Gray;
-        _lblStatus.Height = 20;
-        _lblStatus.Margin = new Padding(0, 4, 0, 0);
-        mainPanel.Controls.Add(_lblStatus, 0, 6);
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 238));
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
+        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 14));
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+        return panel;
+    }
 
-        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 238));
-        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
-        mainPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 14));
-        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
-        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
-        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
+    private void WireBackupEvents()
+    {
+        _backupPanel.ProgressRequested += (text, current, total) => SetProgress(current, total, text);
+        _backupPanel.StatusRequested += (text, tip) =>
+        {
+            _tab2Status = text;
+            _tab2Tip = string.IsNullOrWhiteSpace(tip) ? text : tip;
+            if (_tabControl.SelectedIndex == 1) ApplyStatus(_tab2Status, _tab2Tip);
+        };
+        _tabControl.SelectedIndexChanged += (_, _) =>
+        {
+            if (_tabControl.SelectedIndex == 1) ApplyStatus(_tab2Status, _tab2Tip);
+            else ApplyStatus("就绪", "就绪");
+        };
+        _backupPanel.BusyChanged += _ => UpdateTaskLock();
+        // UiTheme.Apply 会重设 Label 前景色，套用主题后恢复示例文字的青/红状态
+        _backupPanel.RefreshVisualState();
+        UpdateTaskLock();
+    }
 
-        Controls.Add(mainPanel);
+    private void ApplyStatus(string text, string tip)
+    {
+        if (IsDisposed) return;
+        _lblStatus.Text = text;
+        _statusTip.SetToolTip(_lblStatus, tip);
+    }
+
+    /// <summary>
+    /// 窗口级单任务互斥：任一 Tab 有任务运行时，另一页主按钮禁用、切页被禁止。
+    /// Tab1 运行时它自己的主按钮就是取消入口，保持可用。
+    /// </summary>
+    private void UpdateTaskLock()
+    {
+        if (IsDisposed) return;
+        var tab1Running = _copyService.IsRunning;
+        var tab2Running = _backupPanel.IsBusy;
+        _taskRunning = tab1Running || tab2Running;
+
+        _btnStartCopy.Enabled = !tab2Running;
+        _backupPanel.SetExternalBusy(tab1Running);
     }
 
     // ══════════════════════════════════════════════
@@ -572,14 +665,50 @@ public class BatchCopyWindow : Form
         _cmbSuffix.Text = current;
     }
 
+    protected override void OnFormClosing(FormClosingEventArgs e)
+    {
+        if (_taskRunning && !_closingAfterCancel)
+        {
+            // 关闭保护：先取消两页任务并等待结束，再真正关闭；所有事件回调先判 IsDisposed
+            e.Cancel = true;
+            _copyService.Cancel();
+            _backupPanel.Cancel();
+            OperationLogger.Info("BatchCopyWindow: close while task running, cancelling first");
+            _ = WaitForTasksAndCloseAsync();
+        }
+        base.OnFormClosing(e);
+    }
+
+    private async Task WaitForTasksAndCloseAsync()
+    {
+        var start = Environment.TickCount64;
+        while (_taskRunning && Environment.TickCount64 - start < 30000)
+            await Task.Delay(100);
+        if (_taskRunning)
+            OperationLogger.Warn("BatchCopyWindow: wait for task cancellation timed out (30s)");
+        _closingAfterCancel = true;
+        if (!IsDisposed)
+        {
+            try { BeginInvoke(new Action(Close)); }
+            catch (InvalidOperationException) { }
+        }
+    }
+
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
         base.OnFormClosed(e);
+        _copyService.Cancel();
+        _backupPanel.Cancel();
+
         // Save current combo text to history on close
         if (!string.IsNullOrEmpty(_cmbPrefix.Text))
             SavePrefixHistory(_cmbPrefix.Text.Trim());
         if (!string.IsNullOrEmpty(_cmbSuffix.Text))
             SaveSuffixHistory(_cmbSuffix.Text.Trim());
+
+        // Tab1 历史写回之后再写 Tab2 后缀历史（内部会从磁盘重载最新历史，避免互相覆盖）
+        try { InplaceBackupPanel.PersistSuffixHistory(_backupPanel.CurrentSuffix); }
+        catch (Exception ex) { OperationLogger.Warn($"BatchCopyWindow: persist backup suffix failed: {ex.Message}"); }
     }
 
     // ══════════════════════════════════════════════
@@ -639,6 +768,7 @@ public class BatchCopyWindow : Form
             _copyService.Cancel();
             return;
         }
+        if (_backupPanel.IsBusy) return; // 窗口级单任务互斥
 
         if (_sourceFiles.Count == 0)
         {
@@ -698,7 +828,17 @@ public class BatchCopyWindow : Form
         _lblStatus.ForeColor = Color.DarkBlue;
         SetProgress(0, _sourceFiles.Count * targetPaths.Count, "准备复制...");
 
-        await _copyService.CopyFilesAsync(_sourceFiles, targetPaths, OnConflictAsync);
+        var copyTask = _copyService.CopyFilesAsync(_sourceFiles, targetPaths, OnConflictAsync);
+        UpdateTaskLock();
+        try
+        {
+            await copyTask;
+        }
+        finally
+        {
+            // 服务异常路径不触发 Completed，必须在 await 返回后统一解锁
+            UpdateTaskLock();
+        }
     }
 
     private void SetProgress(int current, int total, string text)

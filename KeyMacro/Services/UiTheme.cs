@@ -19,6 +19,7 @@ public enum UiWindowProfile
     ReNameTool,
     InputDialog,
     SubfolderSelect,
+    FolderMultiSelect,
     GenericDialog
 }
 
@@ -33,8 +34,11 @@ public static class UiTheme
     public static readonly Color List = FromHex("#202023");
     public static readonly Color Border = FromHex("#5E5E60");
     public static readonly Color BorderStrong = FromHex("#727274");
-    public static readonly Color Text = FromHex("#E6E6E6");
-    public static readonly Color Muted = FromHex("#B8B8B8");
+    public static readonly Color Text = FromHex("#F2F4F7");
+    public static readonly Color Muted = FromHex("#C7CDD4");
+    public static readonly Color MenuSurface = FromHex("#202328");
+    public static readonly Color MenuHover = FromHex("#355A70");
+    public static readonly Color MenuDangerHover = FromHex("#713C3C");
     public static readonly Color Disabled = FromHex("#777777");
     public static readonly Color Blue = FromHex("#2388C9");
     public static readonly Color Cyan = FromHex("#39C5D8");
@@ -69,14 +73,16 @@ public static class UiTheme
     public static void Apply(ContextMenuStrip menu)
     {
         menu.Renderer = new DarkMenuRenderer();
-        menu.BackColor = FromHex("#29292B");
+        menu.BackColor = MenuSurface;
         menu.ForeColor = Text;
-        menu.Font = BodyFont(9f);
+        menu.Font = BodyFont(9.5f);
+        menu.ShowImageMargin = false;
+        menu.ShowCheckMargin = true;
         foreach (ToolStripItem item in menu.Items)
         {
-            item.BackColor = FromHex("#29292B");
+            item.BackColor = MenuSurface;
             item.ForeColor = IsDangerText(item.Text) ? Red : Text;
-            item.Font = item.Enabled ? BodyFont(9f) : BodyFont(9f);
+            item.Font = BodyFont(9.5f);
         }
     }
 
@@ -97,6 +103,7 @@ public static class UiTheme
             UiWindowProfile.ReNameTool => (new Size(1440, 900), new Size(1080, 680)),
             UiWindowProfile.InputDialog => (new Size(520, 220), new Size(420, 180)),
             UiWindowProfile.SubfolderSelect => (new Size(820, 620), new Size(640, 460)),
+            UiWindowProfile.FolderMultiSelect => (new Size(820, 620), new Size(640, 460)),
             _ => (new Size(620, 430), new Size(420, 260))
         };
 
@@ -793,6 +800,7 @@ public static class UiTheme
             return false;
         return text.Contains("删除全部")
             || text.Contains("取消全部")
+            || text.Contains("取消备份") // Tab2 执行中的主按钮转红（R2）
             || text.Contains("强制停止")
             || text.Contains("释放");
     }
@@ -867,23 +875,28 @@ public static class UiTheme
     {
         protected override void OnRenderToolStripBackground(ToolStripRenderEventArgs e)
         {
-            using var brush = new SolidBrush(FromHex("#29292B"));
+            using var brush = new SolidBrush(MenuSurface);
             e.Graphics.FillRectangle(brush, e.AffectedBounds);
         }
 
         protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e)
         {
             var rect = new Rectangle(Point.Empty, e.Item.Size);
-            var bg = e.Item.Selected ? FromHex("#39474D") : FromHex("#29292B");
+            var bg = e.Item.Selected ? MenuHover : MenuSurface;
             if (IsDangerText(e.Item.Text) && e.Item.Selected)
-                bg = FromHex("#473434");
+                bg = MenuDangerHover;
             using var brush = new SolidBrush(bg);
             e.Graphics.FillRectangle(brush, rect);
+            if (e.Item.Selected)
+            {
+                using var accent = new SolidBrush(Cyan);
+                e.Graphics.FillRectangle(accent, new Rectangle(2, 2, 3, Math.Max(1, rect.Height - 4)));
+            }
         }
 
         protected override void OnRenderSeparator(ToolStripSeparatorRenderEventArgs e)
         {
-            using var pen = new Pen(FromHex("#48484A"));
+            using var pen = new Pen(FromHex("#5E6972"));
             e.Graphics.DrawLine(pen, 8, e.Item.Height / 2, e.Item.Width - 8, e.Item.Height / 2);
         }
 

@@ -6,6 +6,15 @@ namespace KeyMacro.Services;
 
 public class VirtualLayoutSerializer
 {
+    public enum LayoutMode
+    {
+        AutoGrid,
+        SingleRow,
+        SingleColumn,
+        FixedColumns,
+        FixedRows
+    }
+
     private static readonly string AppDataDir =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "KeyMacro");
@@ -44,7 +53,17 @@ public class VirtualLayoutSerializer
         public string? SkinPath { get; set; }
         public bool SingleLineMode { get; set; } = true;
         public bool VerticalMode { get; set; }
+        /// <summary>Legacy field. Read only for migration; runtime uses ButtonScale.</summary>
+        /// <summary>Legacy field retained for backward-compatible JSON loading.</summary>
         public float ScaleFactor { get; set; } = 1.0f;
+        public LayoutMode LayoutMode { get; set; } = LayoutMode.AutoGrid;
+        public int FixedColumns { get; set; }
+        public int FixedRows { get; set; }
+        public float ButtonScale { get; set; } = 1.0f;
+        public int InnerPadding { get; set; } = 10;
+        public int ButtonGap { get; set; } = 4;
+        public bool WindowSizeLocked { get; set; }
+        public bool ResizeHandleEnabled { get; set; } = true;
         // Optional process-aware visibility and edge behavior. Defaults preserve legacy behavior.
         public bool AutoVisibilityEnabled { get; set; }
         public bool EdgeSnapEnabled { get; set; } = true;
@@ -94,6 +113,7 @@ public class VirtualLayoutSerializer
                 if (doc.RootElement.TryGetProperty("Windows", out _))
                 {
                     var global = JsonSerializer.Deserialize<GlobalLayoutData>(json, JsonOptions) ?? new GlobalLayoutData();
+                    MigrateLayoutSettings(global, doc.RootElement);
                     OperationLogger.Info($"VirtualLayoutSerializer.LoadAll: loaded {global.Windows.Count} windows from {_lastLoadPath}");
                     ApplyDefaultSkin(global);
                     return global;
@@ -155,6 +175,31 @@ public class VirtualLayoutSerializer
         catch (Exception ex)
         {
             OperationLogger.Error($"VirtualLayoutSerializer.SaveAll: failed: {ex.Message}");
+        }
+    }
+
+    private static void MigrateLayoutSettings(GlobalLayoutData global, JsonElement root)
+    {
+        if (!root.TryGetProperty("Windows", out var windows)) return;
+        foreach (var window in global.Windows)
+        {
+            var source = windows.EnumerateArray().FirstOrDefault(item =>
+                item.TryGetProperty("Name", out var name) && name.GetString() == window.Name);
+            if (source.ValueKind == JsonValueKind.Undefined) continue;
+
+            bool hasLayoutMode = source.TryGetProperty("LayoutMode", out _);
+            bool hasButtonScale = source.TryGetProperty("ButtonScale", out _);
+            if (!hasLayoutMode)
+                window.LayoutMode = window.VerticalMode ? LayoutMode.SingleColumn : LayoutMode.SingleRow;
+            if (!hasButtonScale)
+                window.ButtonScale = window.ScaleFactor > 0 ? window.ScaleFactor : 1.0f;
+            window.FixedColumns = Math.Clamp(window.FixedColumns, 0, 12);
+            window.FixedRows = Math.Clamp(window.FixedRows, 0, 12);
+            window.ButtonScale = Math.Clamp(window.ButtonScale, 0.4f, 2.0f);
+            window.InnerPadding = Math.Clamp(window.InnerPadding, 2, 64);
+            window.ButtonGap = Math.Clamp(window.ButtonGap, 0, 32);
+            // After migration, ButtonScale is the only active scale value.
+            window.ScaleFactor = window.ButtonScale;
         }
     }
 

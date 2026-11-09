@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>文件批量复制 · 原地复制备份 · 渲染图</title>
+<style>
+:root{
+  --app:#2B2B2B; --workspace:#3A3A3C; --panel:#454547; --panel-alt:#505052;
+  --input:#262628; --well:#1E1E20; --list:#202023; --list-alt:#454547; --list-alt2:#404042;
+  --border:#5E5E60; --border-strong:#727274; --text:#E6E6E6; --muted:#B8B8B8;
+  --blue:#2388C9; --cyan:#39C5D8; --orange:#F08A3C; --green:#6BBF59; --red:#D95C5C;
+  --sel:#5B7782; --header:#2B2B2D;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1440px;height:900px;overflow:hidden;background:#151516}
+body{font-family:"Microsoft YaHei UI","Microsoft YaHei","Segoe UI",sans-serif;color:var(--text);font-size:12px;-webkit-font-smoothing:antialiased}
+.mono{font-family:Consolas,"Courier New",monospace}
+
+.window{width:1440px;height:900px;background:var(--app);display:flex;flex-direction:column;border:1px solid #101012;position:relative}
+
+/* ── Title bar ── */
+.titlebar{height:32px;flex:0 0 32px;background:#202023;border-bottom:1px solid #141416;display:flex;align-items:center;justify-content:space-between;padding:0 0 0 10px}
+.tb-left{display:flex;align-items:center;gap:8px;font-size:11.5px;color:#E6E6E6;letter-spacing:.2px}
+.appicon{width:16px;height:16px;border-radius:3px;background:linear-gradient(160deg,#2E86C9,#1B5E8E);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;border:1px solid #4AA3DE}
+.tb-right{display:flex;height:100%}
+.tb-btn{width:44px;height:100%;display:flex;align-items:center;justify-content:center;color:#B8B8B8}
+.tb-btn.close:hover{background:#C42B2B;color:#fff}
+
+/* ── Tabs ── */
+.tabbar{height:52px;flex:0 0 52px;display:flex;align-items:flex-end;gap:6px;padding:0 16px 6px;background:var(--app)}
+.tab{width:150px;height:34px;border-radius:7px;display:flex;align-items:center;justify-content:center;position:relative;font-size:12px;letter-spacing:.3px}
+.tab.inactive{background:#333335;border:1px solid var(--border);color:var(--muted)}
+.tab.active{background:var(--panel-alt);border:1px solid var(--blue);color:#FFFFFF;font-weight:700}
+.tab.active::before{content:"";position:absolute;left:10px;right:10px;top:3px;height:3px;background:var(--cyan);border-radius:2px}
+
+/* ── Page shell ── */
+.page{margin:0 16px;flex:1;min-height:0;background:var(--workspace);border:1px solid var(--border);border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:4px}
+.card-head{height:20px;display:flex;align-items:center;justify-content:space-between;padding:0 2px;font-size:11px;font-weight:700;color:var(--text);letter-spacing:.3px}
+.hint{font-size:11px;color:var(--muted);font-weight:400}
+
+/* Buttons */
+.btn{height:28px;min-width:88px;padding:0 14px;border-radius:5px;border:1px solid var(--border-strong);background:#3F3F42;color:var(--text);font-size:11.5px;display:inline-flex;align-items:center;justify-content:center;letter-spacing:.3px;box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 1px 0 rgba(0,0,0,.35)}
+.btn.tool{background:linear-gradient(180deg,#2E93CE,#1F74AC);border-color:#4BA8DE;color:#fff;font-weight:600}
+.btn.small{height:24px;min-width:62px;padding:0 10px;font-size:11px}
+.btn.primary{height:36px;min-width:196px;background:linear-gradient(180deg,#79CB66,#57A94A);border-color:#8ED67C;color:#0E2610;font-weight:700;font-size:13px;letter-spacing:1px;box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 1px 0 rgba(0,0,0,.4)}
+
+/* Inputs */
+.field{height:30px;background:var(--input);border:1px solid var(--border-strong);border-radius:5px;display:flex;align-items:center;padding:0 10px;color:var(--text);font-size:12px;box-shadow:inset 0 2px 4px rgba(0,0,0,.55)}
+.field.focus{border-color:var(--blue);box-shadow:inset 0 2px 4px rgba(0,0,0,.55),0 0 0 1px rgba(35,136,201,.35)}
+.field .ph{color:#8A8A8D}
+.combo{width:168px;justify-content:space-between}
+.combo .arrow{width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid var(--muted)}
+.lbl{font-size:11.5px;color:var(--text);white-space:nowrap}
+
+/* A row */
+.src{height:66px;flex:0 0 66px;padding:8px 12px;display:flex;flex-direction:column;gap:7px}
+.src .toolrow{display:flex;align-items:center;gap:8px}
+.src .count{margin-left:auto;font-size:11.5px;color:var(--muted)}
+.src .count b{color:var(--cyan);font-weight:600}
+
+/* B row */
+.filter{height:60px;flex:0 0 60px;padding:10px 12px;display:flex;align-items:center;gap:10px}
+.filter .search{width:330px}
+.filter .note{margin-left:auto;font-size:11px;color:var(--muted)}
+
+/* C list */
+.listcard{flex:1;min-height:0;padding:8px 10px 10px;display:flex;flex-direction:column;gap:7px}
+.listcard .card-head{padding:0 2px}
+.listcard .head-actions{display:flex;align-items:center;gap:7px}
+.listcard .head-actions .stat{font-size:11px;color:var(--muted);margin-right:6px}
+.listwrap{flex:1;min-height:0;background:var(--list);border:1px solid var(--border);border-radius:3px;overflow:hidden;display:flex;flex-direction:column}
+.lrow{display:grid;grid-template-columns:44px 280px 92px 104px 1fr;align-items:center;flex:0 0 30px}
+.lhead{flex:0 0 28px;background:var(--header);border-bottom:1px solid var(--border);font-size:11px;font-weight:700;color:var(--text)}
+.lhead>div{padding-left:10px;border-right:1px solid #45454A;height:100%;display:flex;align-items:center}
+.lhead>div:first-child{padding-left:0;justify-content:center}
+.lhead>div:last-child{border-right:none}
+.lrow.data{font-size:11.5px;border-bottom:1px solid rgba(0,0,0,.16)}
+.lrow.data:nth-child(odd){background:var(--list-alt)}
+.lrow.data:nth-child(even){background:var(--list-alt2)}
+.lrow.data.selected{background:var(--sel);color:#fff}
+.lrow.data>div{padding-left:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;height:100%;display:flex;align-items:center}
+.lrow.data>div:first-child{padding-left:0;justify-content:center}
+.lrow .path{font-family:Consolas,"Courier New",monospace;font-size:11px;color:#C7CDD4}
+.lrow.data.selected .path{color:#EAF1F5}
+.lrow .ext{color:var(--cyan);font-family:Consolas,monospace}
+.lrow .size{color:var(--muted);font-family:Consolas,monospace}
+.lrow .fname{font-family:Consolas,monospace}
+.cbx{width:15px;height:15px;border-radius:2px;background:var(--well);border:1px solid var(--border-strong);display:flex;align-items:center;justify-content:center}
+.cbx.on{background:#183D4D;border-color:var(--blue)}
+.cbx.on svg{display:block}
+.cbx svg{display:none}
+.listempty{flex:1;background:var(--list)}
+
+/* D settings */
+.settings{height:76px;flex:0 0 76px;padding:10px 12px;display:flex;align-items:center;gap:12px}
+.settings .suffix{width:168px}
+.settings .sample{font-size:11.5px;color:var(--cyan);font-family:Consolas,monospace}
+.settings .sample .k{color:var(--muted);font-family:"Microsoft YaHei UI",sans-serif}
+.settings .go{margin-left:auto}
+
+/* Progress + status (window level, shared by both tabs) */
+.progress{height:56px;flex:0 0 56px;margin:0 16px;padding:5px 0 3px;display:flex;flex-direction:column;justify-content:center;gap:5px}
+.progress .cur{text-align:center;font-size:11px;color:var(--muted);font-family:Consolas,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar{height:22px;background:var(--well);border:1px solid var(--border-strong);border-radius:4px;position:relative;overflow:hidden;box-shadow:inset 0 2px 4px rgba(0,0,0,.65)}
+.bar .fill{position:absolute;left:0;top:0;bottom:0;width:0%;background:linear-gradient(180deg,#3A9FDC,#1D74AB)}
+.bar .val{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text);font-family:Consolas,monospace;letter-spacing:1px}
+.status{height:24px;flex:0 0 24px;margin:0 16px;display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--muted)}
+.status .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:7px}
+</style>
+</head>
+<body>
+<div class="window">
+
+  <!-- Title bar -->
+  <div class="titlebar">
+    <div class="tb-left"><span class="appicon">K</span><span>文件批量复制</span></div>
+    <div class="tb-right">
+      <div class="tb-btn"><svg width="11" height="11" viewBox="0 0 11 11"><path d="M1 5.5h9" stroke="#B8B8B8" stroke-width="1"/></svg></div>
+      <div class="tb-btn"><svg width="11" height="11" viewBox="0 0 11 11"><rect x="1.5" y="1.5" width="8" height="8" fill="none" stroke="#B8B8B8" stroke-width="1"/></svg></div>
+      <div class="tb-btn close"><svg width="11" height="11" viewBox="0 0 11 11"><path d="M1.5 1.5l8 8M9.5 1.5l-8 8" stroke="#B8B8B8" stroke-width="1"/></svg></div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabbar">
+    <div class="tab inactive">批量复制到目的地</div>
+    <div class="tab active">原地复制备份</div>
+  </div>
+
+  <!-- Page -->
+  <div class="page">
+
+    <!-- A: source toolbar -->
+    <div class="card src">
+      <div class="card-head"><span>源文件夹</span><span class="hint">选择多个文件夹，自动递归收集其下全部文件</span></div>
+      <div class="toolrow">
+        <div class="btn tool">选择文件</div>
+        <div class="btn">移除选中</div>
+        <div class="btn">清空列表</div>
+        <div class="count">已扫描 <b>12</b> 个文件 · 显示 <b>12</b> · 已勾选 <b>6</b></div>
+      </div>
+    </div>
+
+    <!-- B: filters -->
+    <div class="card filter">
+      <span class="lbl">后缀</span>
+      <div class="field combo"><span>全部</span><span class="arrow"></span></div>
+      <span class="lbl" style="margin-left:14px">文件名包含</span>
+      <div class="field search focus"><span class="ph">输入关键词过滤（大小写不敏感，留空显示全部）</span></div>
+      <div class="note">两项条件同时生效 · 过滤只影响显示，不改变已勾选状态</div>
+    </div>
+
+    <!-- C: file list -->
+    <div class="card listcard">
+      <div class="card-head">
+        <span>文件列表</span>
+        <div class="head-actions">
+          <span class="stat">共 12 个文件 / 6 个已勾选</span>
+          <div class="btn small">全选</div>
+          <div class="btn small">全不选</div>
+        </div>
+      </div>
+      <div class="listwrap">
+        <div class="lrow lhead">
+          <div></div><div>文件名</div><div>类型</div><div>大小</div><div>所在目录</div>
+        </div>
+        <div class="lrow data"><div><span class="cbx on"><svg width="11" height="11" viewBox="0 0 12 12"><path d="M1.5 6.2L4.5 9L10.5 2.6" fill="none" stroke="#39C5D8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div><div class="fname">hero_run.png</div><div class="ext">.png</div><div class="size">248 KB</div><div class="path">images\char\hero</div></div>
+        <div class="lrow data"><div><span class="cbx on"><svg width="11" height="11" viewBox="0 0 12 12"><path d="M1.5 6.2L4.5 9L10.5 2.6" fill="none" stroke="#39C5D8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div><div class="fname">hero_idle.png</div><div class="ext">.png</div><div class="size">182 KB</div><div class="path">images\char\hero</div></div>
+        <div class="lrow data selected"><div><span class="cbx on"><svg width="11" height="11" viewBox="0 0 12 12"><path d="M1.5 6.2L4.5 9L10.5 2.6" fill="none" stroke="#39C5D8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div><div class="fname">G5.spine</div><div class="ext">.spine</div><div class="size">86 KB</div><div class="path">projects\G5</div></div>
+        <div class="lrow data"><div><span class="cbx on"><svg width="11" height="11" viewBox="0 0 12 12"><path d="M1.5 6.2L4.5 9L10.5 2.6" fill="none" stroke="#39C5D8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div><div class="fname">G5.json</div><div class="ext">.json</div><div class="size">1.2 MB</div><div class="path">projects\G5</div></div>
+        <div class="lrow data"><div><span class="cbx on"><svg width="11" height="11" viewBox="0 0 12 12"><path d="M1.5 6.2L4.5 9L10.5 2.6" fill="none" stroke="#39C5D8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div><div class="fname">G5.atlas</div><div class="ext">.atlas</div><div class="size">48 KB</div><div class="path">projects\G5</div></div>
+        <div class="lrow data"><div><span class="cbx"></span></div><div class="fname">walk.skel</div><div class="ext">.skel</div><div class="size">320 KB</div><div class="path">exports\anim</div></div>
+        <div class="lrow data"><div><span class="cbx on"><svg width="11" height="11" viewBox="0 0 12 12"><path d="M1.5 6.2L4.5 9L10.5 2.6" fill="none" stroke="#39C5D8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div><div class="fname">ribbon.json</div><div class="ext">.json</div><div class="size">640 KB</div><div class="path">projects\ribbon</div></div>
+        <div class="lrow data"><div><span class="cbx"></span></div><div class="fname">export.json</div><div class="ext">.json</div><div class="size">2 KB</div><div class="path">projects\G5</div></div>
+        <div class="lrow data"><div><span class="cbx"></span></div><div class="fname">bg_01.png</div><div class="ext">.png</div><div class="size">1.8 MB</div><div class="path">images\bg</div></div>
+        <div class="lrow data"><div><span class="cbx"></span></div><div class="fname">ui_skin.psd</div><div class="ext">.psd</div><div class="size">12.4 MB</div><div class="path">assets\source</div></div>
+        <div class="lrow data"><div><span class="cbx"></span></div><div class="fname">README</div><div class="ext">（无扩展名）</div><div class="size">4 KB</div><div class="path">docs</div></div>
+        <div class="lrow data"><div><span class="cbx"></span></div><div class="fname">timeline.txt</div><div class="ext">.txt</div><div class="size">1 KB</div><div class="path">docs</div></div>
+        <div class="listempty"></div>
+      </div>
+    </div>
+
+    <!-- D: settings -->
+    <div class="card settings">
+      <span class="lbl">备份后缀</span>
+      <div class="field suffix focus mono">_bf</div>
+      <div class="sample"><span class="k">生成示例　</span>hero.png → hero_bf.png　<span class="k">（复制到各自原目录）</span></div>
+      <div class="btn primary go">开始批量备份</div>
+    </div>
+
+  </div>
+
+  <!-- Shared progress -->
+  <div class="progress">
+    <div class="cur">准备备份：6 个文件 · 当前处理对象将显示在这里</div>
+    <div class="bar"><div class="fill"></div><div class="val">0/6</div></div>
+  </div>
+  <div class="status">
+    <span><span class="dot"></span>就绪 · 勾选文件后点击「开始批量备份」，在原目录生成带后缀副本</span>
+    <span class="mono">1440 × 900</span>
+  </div>
+
+</div>
+</body>
+</html>
