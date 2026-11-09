@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>首页标签化整合 · 效果预览</title>
+<style>
+:root{
+  --app:#2B2B2B; --workspace:#3A3A3C; --panel:#454547; --panel-alt:#505052;
+  --well:#1E1E20; --list:#202023; --input:#262628;
+  --border:#5E5E60; --border-strong:#727274;
+  --text:#F2F4F7; --muted:#C7CDD4; --dim:#9AA0A8;
+  --blue:#2388C9; --cyan:#39C5D8; --orange:#F08A3C; --red:#D95C5C;
+  --green:#6BBF59; --purple:#7B5BC7; --disabled:#777777;
+  --doc:#171719; --card:#212124;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--doc);color:var(--text);
+  font-family:"Microsoft YaHei UI","Microsoft YaHei",Segoe UI,sans-serif;font-size:13px;line-height:1.55}
+.doc{max-width:1360px;margin:0 auto;padding:26px 24px 40px}
+h1{font-size:21px;margin:0 0 6px;font-weight:600;letter-spacing:.3px}
+.sub{color:var(--muted);font-size:12.5px;margin:0 0 18px}
+.badge{display:inline-block;background:#3B2A12;color:var(--orange);border:1px solid #6B4A18;
+  border-radius:4px;padding:1px 8px;font-size:11px;margin-left:8px;vertical-align:2px}
+
+/* 说明卡 */
+.notes{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+.note{background:var(--card);border:1px solid #38383C;border-radius:8px;padding:11px 13px}
+.note b{display:block;color:var(--cyan);font-size:12px;margin-bottom:4px;font-weight:600}
+.note span{color:var(--muted);font-size:11.5px;line-height:1.5}
+
+/* 前后对比 */
+.compare{display:grid;grid-template-columns:1fr 40px 1fr;gap:10px;align-items:center;margin-bottom:20px}
+.cmp{background:var(--card);border:1px solid #38383C;border-radius:8px;padding:12px 14px;min-height:96px}
+.cmp h3{margin:0 0 9px;font-size:12px;color:var(--muted);font-weight:600}
+.cmp .strip{display:flex;align-items:center;gap:3px;flex-wrap:wrap}
+.mini{height:18px;border-radius:3px;background:#4A4A4D;font-size:9px;color:#fff;
+  display:flex;align-items:center;justify-content:center;padding:0 5px;white-space:nowrap}
+.mini.hot{background:var(--orange)} .mini.vk{background:var(--cyan);color:#123}
+.mini.cli{background:var(--purple)} .mini.blue{background:var(--blue)}
+.mini.red{background:var(--red)} .mini.gray{background:#4A4A4D}
+.cmp .cap{color:var(--dim);font-size:11px;margin-top:9px}
+.arrow{text-align:center;color:var(--cyan);font-size:22px}
+.cmp2 .tabsmini{display:flex;gap:4px;flex-wrap:wrap}
+.tabmini{border:1px solid var(--border);border-bottom:2px solid transparent;border-radius:5px 5px 0 0;
+  padding:5px 9px;font-size:10.5px;color:var(--dim);background:#2E2E31}
+.tabmini.on{background:var(--panel-alt);border-color:var(--blue);border-top:3px solid var(--cyan);color:var(--text);font-weight:600}
+
+/* 模拟窗口 */
+.window{width:1280px;max-width:100%;background:var(--app);border:1px solid #4A4A4D;
+  border-radius:6px;overflow:hidden;box-shadow:0 18px 46px rgba(0,0,0,.55);margin:0 auto}
+.titlebar{height:32px;background:#202023;display:flex;align-items:center;justify-content:space-between;
+  padding:0 10px 0 12px;border-bottom:1px solid #333336}
+.titlebar .t{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:8px}
+.titlebar .ico{width:14px;height:14px;border-radius:3px;background:var(--blue);display:inline-block}
+.winctls{display:flex;gap:0}
+.winctls i{width:34px;height:30px;display:flex;align-items:center;justify-content:center;
+  font-style:normal;color:var(--muted);font-size:12px}
+.winctls i:last-child{background:#5A2020;color:#fff}
+
+/* 外层标签 */
+.maintabs{display:flex;gap:5px;padding:9px 12px 0;background:#262628;border-bottom:1px solid #4A4A4D;align-items:flex-end}
+.maintab{position:relative;border:1px solid var(--border);border-bottom:none;border-radius:7px 7px 0 0;
+  background:#333335;color:var(--muted);padding:9px 16px 10px;font-size:12px;cursor:pointer;
+  white-space:nowrap;transition:.14s;user-select:none}
+.maintab:hover{background:#3D3D40}
+.maintab.on{background:var(--panel-alt);border-color:var(--blue);color:var(--text);font-weight:600}
+.maintab.on::before{content:"";position:absolute;left:10px;right:10px;top:3px;height:3px;background:var(--cyan);border-radius:2px}
+.maintab .new{font-size:9px;color:var(--cyan);border:1px solid #2E6B75;border-radius:3px;padding:0 4px;margin-left:7px;font-weight:400;vertical-align:1px}
+
+.content{background:var(--workspace);height:660px;position:relative;overflow:hidden}
+.page{display:none;position:absolute;inset:0;flex-direction:column}
+.page.on{display:flex}
+
+/* 按钮栏 */
+.toolbar{display:flex;align-items:center;gap:2px;flex-wrap:wrap;padding:8px 12px;background:#2C2C2F;border-bottom:1px solid #454548;min-height:46px}
+.btn{border:1px solid #6A6A6D;border-radius:3px;padding:5px 9px;font-size:10.5px;color:#fff;
+  background:#4A4A4D;white-space:nowrap;line-height:16px;cursor:default;box-shadow:inset 0 1px 0 rgba(255,255,255,.07)}
+.btn.red{background:var(--red);border-color:#E47373}
+.btn.orange{background:var(--orange);border-color:#F5A869;color:#2A1A08}
+.btn.cyan{background:var(--cyan);border-color:#63D6E4;color:#0E2A30}
+.btn.blue{background:var(--blue);border-color:#4AA3DC}
+.btn.purple{background:var(--purple);border-color:#9B7FDE}
+.btn.green{background:var(--green);border-color:#8BD17B;color:#12300C}
+.btn.ghost{background:#3B3B3E}
+.sep{width:3px;height:22px;background:#8A8A8D;margin:0 6px;border-radius:1px}
+
+/* 列表标题 + 表格 */
+.listwrap{flex:1;margin:12px 16px 16px;border:1px solid var(--border);display:flex;flex-direction:column;background:#E1E7EA;min-height:0}
+.listtitle{height:28px;background:#3E474B;color:var(--text);font-size:11px;font-weight:600;
+  display:flex;align-items:center;padding-left:12px;border-bottom:1px solid var(--border)}
+.grid{flex:1;overflow:auto;background:#2C2C2F}
+table{border-collapse:collapse;width:100%;font-size:10.5px;color:#E9EDF1}
+th{background:var(--panel);color:var(--text);font-weight:600;height:29px;border:1px solid #5A5A5D;
+  text-align:center;position:sticky;top:0}
+td{height:27px;border:1px solid #4C4C4F;padding:0 8px;background:#303033;white-space:nowrap}
+tr:nth-child(even) td{background:#343437}
+tr.sel td{background:#3B3B3F}
+td.c{text-align:center;padding:0}
+td.edit{background:#6F5424 !important;color:#FFE9B8;text-align:center}
+td.check{text-align:center;color:var(--cyan)}
+.cellbtn{display:inline-block;background:#2D4249;border:1px solid #4C7A88;color:#BDE9F2;
+  border-radius:3px;padding:1px 10px;font-size:10px}
+.cellbtn.clear{background:#473434;border-color:#7A5555;color:#E7C8C8}
+.ghostrow td{background:#2C2C2F !important;border-color:#3C3C3F;color:#555}
+
+/* 页面说明条（窗口外） */
+.pagecap{display:none;padding:7px 16px;background:#262A2E;border-top:1px solid #3C4045;color:var(--muted);font-size:11px}
+.pagecap b{color:var(--cyan)}
+
+/* 内层子 Tab */
+.subtabs{display:flex;gap:3px;padding:7px 12px 0;background:#2F2F32;border-bottom:1px solid #4A4A4D}
+.subtab{border:1px solid var(--border);border-bottom:none;border-radius:5px 5px 0 0;background:#3A3A3D;
+  color:var(--muted);font-size:10.5px;padding:6px 13px;cursor:pointer;white-space:nowrap}
+.subtab.on{background:#4A4A4D;color:var(--text);border-color:var(--border-strong);font-weight:600}
+.subbody{display:none;flex:1;min-height:0;flex-direction:column;padding:12px 16px 16px;overflow:hidden}
+.subbody.on{display:flex}
+.section{height:24px;background:var(--well);border-left:3px solid var(--cyan);color:var(--text);
+  font-size:11px;font-weight:600;display:flex;align-items:center;padding-left:10px;margin-bottom:8px}
+.well{background:var(--list);border:1px solid var(--border);color:var(--muted);font-size:10.5px;padding:8px 10px}
+.input{background:var(--input);border:1px solid var(--border);color:var(--text);font-size:10.5px;padding:4px 8px;height:24px}
+.row{display:flex;gap:8px;align-items:center}
+.col{display:flex;flex-direction:column;gap:8px}
+.grow{flex:1;min-width:0}
+.lbl{font-size:10.5px;color:var(--muted)}
+.progress{height:24px;background:var(--well);border:1px solid var(--border-strong);position:relative;margin-top:8px}
+.progress .bar{height:100%;background:var(--blue);width:62%}
+.progress .txt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff}
+.statusbar{height:24px;background:#262628;border-top:1px solid #454548;display:flex;align-items:center;
+  justify-content:space-between;padding:0 12px;color:var(--dim);font-size:10px}
+
+/* 各功能页布局 */
+.rename-main{display:grid;grid-template-columns:1.18fr 1fr;gap:16px;flex:1;min-height:0}
+.rename-main .well{height:300px;overflow:auto}
+.rename-rules{display:flex;flex-direction:column;gap:14px}
+.rulebox{border:1px solid #4A4A4D;background:#353538;padding:10px 12px}
+.rulebox h4{margin:0 0 10px;font-size:11px;color:var(--muted);font-weight:600}
+.copy-main{display:flex;flex-direction:column;gap:10px;flex:1;min-height:0}
+.copy-target{display:grid;grid-template-columns:1.15fr 1fr;gap:14px;flex:1;min-height:0}
+.pathgrid{display:flex;flex-direction:column;gap:6px;flex:1;min-height:0}
+.pathrow{display:flex;gap:6px;align-items:flex-start}
+.pathrow .lbl{width:34px;padding-top:5px;flex:none}
+.pathrow .grow{display:flex;flex-direction:column;gap:4px}
+.bigbtn{height:34px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;border-radius:3px}
+.cli-top{display:flex;gap:8px;align-items:center;padding:9px 14px;background:#333336;border-bottom:1px solid #4A4A4D}
+.merge-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;flex:1;min-height:0}
+.mini-table{width:100%;border-collapse:collapse;font-size:10px}
+.mini-table th{background:#3E3E41;font-size:10px;height:22px;position:static}
+.mini-table td{height:22px;background:#303033}
+.hint{font-size:10px;color:var(--dim)}
+.chk{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:var(--muted)}
+.chk i{width:12px;height:12px;border:1px solid var(--border-strong);background:var(--input);display:inline-block}
+.chk.on i{background:var(--blue);box-shadow:inset 0 0 0 2px #2388C9}
+
+.legend{margin-top:18px;background:var(--card);border:1px solid #38383C;border-radius:8px;padding:12px 16px}
+.legend h3{margin:0 0 10px;font-size:12px;color:var(--muted)}
+.legend ul{margin:0;padding-left:18px;color:var(--muted);font-size:11.5px}
+.legend li{margin-bottom:5px}
+.legend code{background:#2E2E32;padding:1px 5px;border-radius:3px;color:var(--cyan);font-size:11px}
+.foot{margin-top:14px;color:var(--dim);font-size:11px;text-align:center}
+
+/* clean 截图模式 */
+body.clean .doc{padding:14px;max-width:1320px}
+body.clean .notes,body.clean .compare,body.clean .legend,body.clean .foot,body.clean h1,body.clean .sub,body.clean .pagecap{display:none}
+body.clean .window{box-shadow:none}
+</style>
+</head>
+<body>
+<div class="doc">
+  <h1>首页标签化整合 · 效果预览 <span class="badge">示意稿 · 未施工</span></h1>
+  <p class="sub">点击顶部标签切换页面。窗口内所有控件文案、分组与内部结构均按现有代码 1:1 示意；三个功能页为「原弹窗内容原样照搬」后的形态。</p>
+
+  <div class="notes">
+    <div class="note"><b>① 首页一层标签</b><span>顶部由「16 个按钮混排」改为 4 个标签，不再有全局工具栏。</span></div>
+    <div class="note"><b>② 快捷键页</b><span>图 1（11 个）+ 图 2（2 个）共 13 个按钮，连同「宏序列列表」整体平移，零重排。</span></div>
+    <div class="note"><b>③ 三个功能页</b><span>原弹窗窗体整体嵌入标签页，内部子 Tab 与全部控件结构照搬。</span></div>
+    <div class="note"><b>④ 红线</b><span>不改子页面布局，不改任何功能性、逻辑性内容；只搬入口 + 整合首页。</span></div>
+  </div>
+
+  <div class="compare">
+    <div class="cmp">
+      <h3>改造前 · 单层工具栏 + 3 个弹窗</h3>
+      <div class="strip">
+        <span class="mini gray">添加</span><span class="mini gray">编辑</span><span class="mini gray">删除</span>
+        <span class="mini red">删除全</span><span class="mini gray">复制序</span><span class="mini gray">暂停全</span>
+        <span class="mini hot">Spine热键编</span><span class="mini red">释放</span>
+        <span class="mini vk">开虚拟按</span><span class="mini vk">关虚拟按</span><span class="mini vk">管理虚拟按键</span>
+        <span class="mini hot">批量重命名…</span><span class="mini gray">批量复</span>
+        <span class="mini cli">CLI批量合并/导出</span><span class="mini gray">导入</span><span class="mini blue">导出</span>
+      </div>
+      <div class="cap">后 3 个按钮 → 各自弹出一个 1440×900 的独立窗口</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="cmp cmp2">
+      <h3>改造后 · 4 个标签页</h3>
+      <div class="tabsmini">
+        <span class="tabmini on">快捷键</span>
+        <span class="tabmini">批量重命名/spine解包整理</span>
+        <span class="tabmini">批量复制</span>
+        <span class="tabmini">CLI批量合并/导出</span>
+      </div>
+      <div class="cap">13 个按钮归入「快捷键」页；3 个弹窗变为 3 个常驻页面</div>
+    </div>
+  </div>
+
+  <!-- ============ 模拟主窗口 ============ -->
+  <div class="window" id="win">
+    <div class="titlebar">
+      <div class="t"><span class="ico"></span>spine宏助手（TANRY） V2.9</div>
+      <div class="winctls"><i>—</i><i>□</i><i>×</i></div>
+    </div>
+
+    <div class="maintabs" id="maintabs">
+      <div class="maintab on" data-tab="0">快捷键</div>
+      <div class="maintab" data-tab="1">批量重命名/spine解包整理<span class="new">原弹窗</span></div>
+      <div class="maintab" data-tab="2">批量复制<span class="new">原弹窗</span></div>
+      <div class="maintab" data-tab="3">CLI批量合并/导出<span class="new">原弹窗</span></div>
+    </div>
+
+    <div class="content">
+
+      <!-- ===== 页 0：快捷键 ===== -->
+      <section class="page on" data-page="0">
+        <div class="toolbar">
+          <span class="btn ghost">添加</span><span class="btn ghost">编辑</span><span class="btn ghost">删除</span>
+          <span class="btn red">删除全部</span><span class="btn ghost">复制序列</span><span class="btn ghost">暂停全部</span>
+          <span class="sep"></span>
+          <span class="btn orange">Spine热键编辑</span><span class="btn red">释放</span>
+          <span class="sep"></span>
+          <span class="btn cyan">开启虚拟按键</span><span class="btn cyan">关闭虚拟按键</span><span class="btn ghost">管理虚拟按键</span>
+          <span class="sep"></span>
+          <span class="btn ghost">导入</span><span class="btn blue">导出</span>
+        </div>
+        <div class="listwrap">
+          <div class="listtitle">宏序列列表</div>
+          <div class="grid">
+            <table>
+              <thead><tr>
+                <th style="width:66px">启用</th><th style="width:88px">选择</th><th>名称</th>
+                <th>触发快捷键</th><th>目标软件</th><th style="width:104px">间隔(ms)</th>
+                <th style="width:104px">循环(次)</th><th style="width:72px">步骤</th><th style="width:88px">清除</th>
+              </tr></thead>
+              <tbody>
+                <tr class="sel">
+                  <td class="check">☑</td><td class="c"><span class="cellbtn">选择</span></td>
+                  <td>循环附件(间隔2)</td><td>虚拟按键(导入/1/序列2)</td><td>全局</td>
+                  <td class="edit">100</td><td class="edit">1</td><td class="c">4</td>
+                  <td class="c"><span class="cellbtn clear">清除</span></td>
+                </tr>
+                <tr>
+                  <td class="check">☑</td><td class="c"><span class="cellbtn">选择</span></td>
+                  <td>循环附件(间隔1)</td><td>虚拟按键(导入/1/序列1)</td><td>全局</td>
+                  <td class="edit">100</td><td class="edit">1</td><td class="c">3</td>
+                  <td class="c"><span class="cellbtn clear">清除</span></td>
+                </tr>
+                <tr>
+                  <td class="check">☑</td><td class="c"><span class="cellbtn">选择</span></td>
+                  <td>全自动再生超（主要素锁）</td><td>虚拟按键(导入/1/全自动再生超)</td><td>全局</td>
+                  <td class="edit">100</td><td class="edit">1</td><td class="c">15</td>
+                  <td class="c"><span class="cellbtn clear">清除</span></td>
+                </tr>
+                <tr class="ghostrow"><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr class="ghostrow"><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr class="ghostrow"><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr class="ghostrow"><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr class="ghostrow"><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr class="ghostrow"><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr class="ghostrow"><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr class="ghostrow"><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr class="ghostrow"><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 页 1：批量重命名 ===== -->
+      <section class="page" data-page="1">
+        <div class="subtabs" data-group="rename">
+          <div class="subtab on" data-sub="0">重命名</div>
+          <div class="subtab" data-sub="1">SPINE文件整理</div>
+          <div class="subtab" data-sub="2">SPINE图集自动解包</div>
+        </div>
+        <div class="subbody on" data-subpage="rename-0">
+          <div class="rename-main">
+            <div class="col">
+              <div class="section">文件路径</div>
+              <div class="well grow">D:\assets\a.png<br>D:\assets\b.png<br>D:\assets\c.png</div>
+              <div class="row">
+                <span class="btn ghost">选择文件</span><span class="btn ghost">选择文件夹</span>
+                <span class="btn ghost">清空列表</span><span class="input grow">D:\assets</span>
+              </div>
+            </div>
+            <div class="col">
+              <div class="section">命名规则</div>
+              <div class="rename-rules">
+                <div class="rulebox">
+                  <h4>全名替换：</h4>
+                  <div class="row"><span class="lbl">新名字：</span><span class="input grow">new_name</span><span class="btn blue">统一重命名</span></div>
+                </div>
+                <div class="rulebox">
+                  <h4>关键字替换：</h4>
+                  <div class="row"><span class="lbl">关键词：</span><span class="input grow">old</span></div>
+                  <div class="row" style="margin-top:8px"><span class="lbl">替换词：</span><span class="input grow">new</span><span class="btn cyan">局部替换</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="progress"><div class="bar"></div><div class="txt">2 / 3</div></div>
+        </div>
+        <div class="subbody" data-subpage="rename-1">
+          <div class="section">待整理文件</div>
+          <div class="well" style="height:220px">D:\export\hero.skel.bytes<br>D:\export\hero.atlas.txt<br>D:\export\hero.png</div>
+          <div class="section" style="margin-top:12px">整理配置</div>
+          <div class="row"><span class="lbl" style="width:96px">目标文件夹：</span><span class="input" style="width:340px">D:\organized</span><span class="btn ghost">选择文件夹</span></div>
+          <div class="row" style="margin-top:8px"><span class="lbl" style="width:96px">命名后缀：</span><span class="input" style="width:340px"></span><span class="btn ghost">选择路径</span></div>
+          <div class="row" style="margin-top:10px"><span class="chk on"><i></i>同时还原 .skel.bytes / .atlas.txt 后缀</span>
+            <span class="btn ghost" style="margin-left:auto">清空列表</span><span class="btn blue">开始整理</span></div>
+          <div class="progress"><div class="bar" style="width:0%"></div><div class="txt">就绪</div></div>
+        </div>
+        <div class="subbody" data-subpage="rename-2">
+          <div class="section">Atlas 文件</div>
+          <div class="well" style="height:270px">D:\export\hero.atlas<br>D:\export\npc.atlas</div>
+          <div class="section" style="margin-top:12px">解包操作</div>
+          <div class="row"><span class="lbl" style="width:96px">目标目录：</span><span class="input" style="width:340px">D:\export</span>
+            <span class="btn ghost">选择文件夹</span><span class="btn ghost">清空列表</span><span class="btn blue" style="margin-left:auto">开始解包</span></div>
+          <div class="progress"><div class="bar" style="width:0%"></div><div class="txt">就绪</div></div>
+        </div>
+      </section>
+
+      <!-- ===== 页 2：批量复制 ===== -->
+      <section class="page" data-page="2">
+        <div class="subtabs" data-group="copy">
+          <div class="subtab on" data-sub="0">批量复制到目的地</div>
+          <div class="subtab" data-sub="1">原地复制备份</div>
+        </div>
+        <div class="subbody on" data-subpage="copy-0">
+          <div class="copy-main">
+            <div class="col" style="height:170px">
+              <div class="row"><span class="btn blue">选择文件</span><span class="btn ghost">移除选中</span><span class="btn ghost">清空列表</span></div>
+              <div class="well grow">D:\assets\1201.png<br>D:\assets\zzps-skin.json<br>D:\assets\run.atlas</div>
+              <div class="hint">已选 3 个文件</div>
+            </div>
+            <div class="section">目标路径</div>
+            <div class="copy-target">
+              <div class="pathgrid">
+                <div class="pathrow"><span class="lbl">前缀</span><span class="grow"><span class="input">D:\exports</span></span><span class="btn ghost">选择文件夹</span></div>
+                <div class="pathrow"><span class="lbl">中间</span><span class="grow"><span class="well" style="height:112px">targets1<br>targets2<br>targets3<br>targets4</span></span>
+                  <span class="col" style="gap:6px"><span class="btn ghost">添加行</span><span class="btn ghost">删除行</span></span></div>
+                <div class="pathrow"><span class="lbl">后缀</span><span class="grow"><span class="input">images</span></span><span class="btn ghost">清理历史</span></div>
+              </div>
+              <div class="col"><div class="lbl">预览目标</div><div class="well grow">D:\exports\targets1\images<br>D:\exports\targets2\images<br>D:\exports\targets3\images<br>D:\exports\targets4\images</div></div>
+            </div>
+            <div class="bigbtn btn green">开始复制</div>
+            <div class="progress"><div class="bar" style="width:78%"></div><div class="txt">复制中: zzps-skin.json → targets4</div></div>
+          </div>
+        </div>
+        <div class="subbody" data-subpage="copy-1">
+          <div class="row"><span class="btn ghost">选择文件夹</span><span class="btn ghost">刷新扫描</span>
+            <span class="hint">只读扫描 · 不覆盖原文件 · INV-1 ~ INV-8</span></div>
+          <div class="well grow" style="margin-top:10px;overflow:auto">
+            <table class="mini-table"><thead><tr><th style="width:38px">☑</th><th>文件名</th><th>所在目录</th><th style="width:110px">状态</th></tr></thead>
+            <tbody><tr><td class="c">☑</td><td>hero.skel</td><td>D:\proj\assets</td><td>待备份</td></tr>
+            <tr><td class="c">☑</td><td>hero.atlas</td><td>D:\proj\assets</td><td>待备份</td></tr>
+            <tr><td class="c">☐</td><td>hero.png</td><td>D:\proj\assets</td><td>已跳过</td></tr></tbody></table>
+          </div>
+          <div class="row"><span class="lbl">后缀：</span><span class="input" style="width:260px">INV-1</span>
+            <span class="btn blue" style="margin-left:auto">执行原地复制备份</span></div>
+          <div class="progress"><div class="bar" style="width:0%"></div><div class="txt">就绪</div></div>
+        </div>
+      </section>
+
+      <!-- ===== 页 3：CLI ===== -->
+      <section class="page" data-page="3">
+        <div class="cli-top">
+          <span class="lbl">Spine.com 路径:</span>
+          <span class="input" style="width:430px;background:#FFFAE6;color:#243B75">D:\Program Files\Spine\Spine.com</span>
+          <span class="btn ghost">检测</span><span class="btn ghost">选择</span><span class="btn red">取消CLI</span>
+          <span class="chk on" style="color:var(--green)"><i style="background:var(--green)"></i>有效</span>
+        </div>
+        <div class="subtabs" data-group="cli">
+          <div class="subtab on" data-sub="0">合并</div>
+          <div class="subtab" data-sub="1">批量导出</div>
+        </div>
+        <div class="subbody on" data-subpage="cli-0">
+          <div class="section">合并任务</div>
+          <div class="merge-grid">
+            <div class="col">
+              <div class="lbl">源文件</div>
+              <div class="well grow" style="padding:0;overflow:auto">
+                <table class="mini-table"><thead><tr><th>文件名</th><th>动画</th><th>路径</th></tr></thead>
+                <tbody><tr><td>G5.json</td><td>全部</td><td>projects\G5.json</td></tr>
+                <tr><td>ribbon.json</td><td>walk_idle</td><td>projects\ribbon.json</td></tr></tbody></table>
+              </div>
+              <div class="row"><span class="btn ghost">添加源文件</span><span class="btn ghost">删除源文件</span><span class="btn cyan">动画选择</span></div>
+              <div class="row" style="margin-top:6px"><span class="lbl">-from</span><span class="input" style="width:150px">默认</span></div>
+              <div class="hint">规则：只能一边多选（1源→N目标 或 N源→1目标）</div>
+            </div>
+            <div class="col">
+              <div class="lbl">目标文件</div>
+              <div class="well grow" style="padding:0;overflow:auto">
+                <table class="mini-table"><thead><tr><th>文件名</th><th>路径</th></tr></thead>
+                <tbody><tr><td>G5.spine</td><td>projects\G5.spine</td></tr></tbody></table>
+              </div>
+              <div class="row"><span class="btn ghost">添加目标文件</span><span class="btn ghost">删除目标文件</span></div>
+              <div class="row" style="margin-top:6px"><span class="lbl">-to</span><span class="input" style="width:150px">默认</span></div>
+              <div class="row" style="margin-top:10px"><span class="btn blue">执行合并</span><span class="chk"><i></i>实验功能：CLI背景合并(4.3)</span></div>
+            </div>
+          </div>
+          <div class="progress"><div class="bar" style="width:44%"></div><div class="txt">实验合并: G5_target_copy.spine</div></div>
+        </div>
+        <div class="subbody" data-subpage="cli-1">
+          <div class="row"><span class="lbl">源目录</span><span class="input grow">D:\spine_projects</span>
+            <span class="btn ghost">浏览</span><span class="btn ghost">扫描</span></div>
+          <div class="well grow" style="margin-top:10px;padding:0;overflow:auto">
+            <table class="mini-table"><thead><tr><th style="width:38px">☑</th><th>文件</th><th>export.json</th><th>状态</th></tr></thead>
+            <tbody><tr><td class="c">☑</td><td>G5.spine</td><td>finish</td><td>就绪</td></tr>
+            <tr><td class="c">☑</td><td>ribbon.spine</td><td>demotion</td><td>就绪</td></tr>
+            <tr><td class="c">☐</td><td>npc.spine</td><td>自定义</td><td>未勾选</td></tr></tbody></table>
+          </div>
+          <div class="row"><span class="lbl">输出目录</span><span class="input grow">D:\exports\images</span><span class="btn ghost">浏览</span></div>
+          <div class="row" style="margin-top:10px"><span class="chk on"><i style="background:var(--blue)"></i>finish</span>
+            <span class="chk"><i></i>demotion</span><span class="chk"><i></i>自定义</span>
+            <span class="btn blue" style="margin-left:auto">批量导出</span><span class="btn ghost">打包</span></div>
+          <div class="progress"><div class="bar" style="width:0%"></div><div class="txt">就绪</div></div>
+        </div>
+      </section>
+
+    </div>
+    <div class="statusbar"><span id="statusLeft">就绪 · 快捷键页：13 个功能按钮 + 宏序列列表（原样平移）</span><span>仅搬迁入口 / 不改子页面布局 / 不改功能逻辑</span></div>
+  </div>
+
+  <div class="pagecap" id="pagecap"><b>预览说明：</b>本窗口为结构示意，控件文案与分组按现有代码绘制；实际像素以运行时截图为准。</div>
+
+  <div class="legend">
+    <h3>看图要点</h3>
+    <ul>
+      <li>顶部 4 个标签是<b>唯一新增的顶层容器</b>；「批量重命名…」「批量复制」「CLI…」三个按钮不再以按钮形式存在。</li>
+      <li>「快捷键」页 = 原 <code>rootLayout</code>（工具栏 + 宏序列列表）<b>整体挂到 TabPage 下</b>，控件属性、顺序、事件一行不改。</li>
+      <li>三个功能页保留各自原有的<b>内部子 Tab</b>（3 / 2 / 2 个）与全部控件结构，形成「外层 4 标签 + 内层子标签」的双层结构 —— 这是「所有结构照搬」的必然结果。</li>
+      <li>弹窗标题栏在嵌入后消失（<code>FormBorderStyle=None</code>），由标签文字承担标识；此点与其余已知行为差异详见施工文档 §4.6。</li>
+      <li>预览为示意稿，<b>不代表已修改代码</b>；施工需用户确认后按《施工文档》S1–S9 执行。</li>
+    </ul>
+  </div>
+  <div class="foot">spineQuickKeys · 首页标签化整合 · 施工前预览 · 2026-11-09</div>
+</div>
+
+<script>
+(function(){
+  var caps=[
+    "就绪 · 快捷键页：13 个功能按钮 + 宏序列列表（原样平移）",
+    "就绪 · 批量重命名/spine解包整理：原 Form1 整体嵌入，内部 3 个子 Tab 保留",
+    "就绪 · 批量复制：原 BatchCopyWindow 整体嵌入，内部 2 个子 Tab 保留",
+    "就绪 · CLI批量合并/导出：原 BatchCliWindow 整体嵌入，顶栏 + 2 个子 Tab 保留"
+  ];
+  function activate(i){
+    document.querySelectorAll('.maintab').forEach(function(t){t.classList.toggle('on',+t.dataset.tab===i);});
+    document.querySelectorAll('.page').forEach(function(p){p.classList.toggle('on',+p.dataset.page===i);});
+    var s=document.getElementById('statusLeft'); if(s) s.textContent=caps[i];
+  }
+  document.querySelectorAll('.maintab').forEach(function(t){
+    t.addEventListener('click',function(){activate(+t.dataset.tab);});
+  });
+  // 内层子 Tab：仅切换高亮与示意内容，不改变外层标签
+  document.querySelectorAll('.subtabs').forEach(function(group){
+    var key=group.dataset.group;
+    group.querySelectorAll('.subtab').forEach(function(st){
+      st.addEventListener('click',function(){
+        group.querySelectorAll('.subtab').forEach(function(x){x.classList.remove('on');});
+        st.classList.add('on');
+        document.querySelectorAll('[data-subpage^="'+key+'-"]').forEach(function(b){
+          b.classList.toggle('on', b.dataset.subpage===key+'-'+st.dataset.sub);
+        });
+      });
+    });
+  });
+  // URL 参数：#tab=0..3 指定初始页；?clean=1 隐藏说明用于出图
+  var m=location.hash.match(/tab=(\d)/); activate(m?Math.min(3,Math.max(0,+m[1])):0);
+  if(/[?&]clean=1/.test(location.search)) document.body.classList.add('clean');
+})();
+</script>
+</body>
+</html>

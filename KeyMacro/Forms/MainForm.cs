@@ -1,3 +1,4 @@
+using KeyMacro.Controls;
 using KeyMacro.Models;
 using KeyMacro.Services;
 using System.Security.Cryptography;
@@ -20,10 +21,14 @@ public partial class MainForm : Form
     private Button _btnSpine = null!, _btnSpineRelease = null!;
     private Button _btnVkOpen = null!, _btnVkClose = null!, _btnVkManage = null!;
     private Button _btnImport = null!, _btnExport = null!;
-    private Button _btnReName = null!;
-    private Button _btnBatchCopy = null!;
-    private Button _btnCli = null!;
     private ToolStripMenuItem? _pauseTrayItem;
+
+    // ── 首页标签页容器（只承载入口，子窗体内部零改动）──
+    private DarkTabControl _mainTabs = null!;
+    private TabPage _tabShortcut = null!, _tabRename = null!, _tabBatchCopy = null!, _tabCli = null!;
+    private ReNameTool.Form1? _renamePage;
+    private BatchCopyWindow? _copyPage;
+    private BatchCliWindow? _cliPage;
 
     private readonly VirtualLayoutSerializer _vkSerializer = new();
     private List<VirtualKeyWindow> _vkWindows = [];
@@ -73,9 +78,6 @@ public partial class MainForm : Form
         _btnVkOpen = CreateButton("开启虚拟按键", Color.FromArgb(0x00, 0xC8, 0x53), Color.White);
         _btnVkClose = CreateButton("关闭虚拟按键", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
         _btnVkManage = CreateButton("管理虚拟按键", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
-        _btnReName = CreateButton("批量重命名/spine解包整理", Color.FromArgb(0x6B, 0x46, 0xC3), Color.White);
-        _btnBatchCopy = CreateButton("批量复制", Color.FromArgb(0x6B, 0x46, 0xC3), Color.White);
-        _btnCli = CreateButton("CLI批量合并/导出", Color.FromArgb(0x6B, 0x46, 0xC3), Color.White);
         _btnImport = CreateButton("导入", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
         _btnExport = CreateButton("导出", Color.FromArgb(0xF0, 0xF0, 0xF0), Color.Black);
 
@@ -90,9 +92,6 @@ public partial class MainForm : Form
         _btnVkOpen.Click += (_, _) => OpenVirtualKeys();
         _btnVkClose.Click += (_, _) => CloseVirtualKeys();
         _btnVkManage.Click += (_, _) => OpenVkManager();
-        _btnReName.Click += (_, _) => { using var f = new ReNameTool.Form1(); f.ShowDialog(this); };
-        _btnBatchCopy.Click += (_, _) => { using var f = new BatchCopyWindow(); f.ShowDialog(this); };
-        _btnCli.Click += (_, _) => { using var f = new BatchCliWindow(); f.ShowDialog(this); };
         _btnImport.Click += (_, _) => ImportDataBundle();
         _btnExport.Click += (_, _) => ExportDataBundle();
 
@@ -102,8 +101,6 @@ public partial class MainForm : Form
             _btnSpine, _btnSpineRelease,
             Spacer(),
             _btnVkOpen, _btnVkClose, _btnVkManage,
-            Spacer(),
-            _btnReName, _btnBatchCopy, _btnCli,
             Spacer(),
             _btnImport, _btnExport
         ]);
@@ -190,7 +187,22 @@ public partial class MainForm : Form
         dgvPanel.Controls.Add(listFrame);
         rootLayout.Controls.Add(toolStrip, 0, 0);
         rootLayout.Controls.Add(dgvPanel, 0, 1);
-        Controls.Add(rootLayout);
+
+        // ── 首页标签化：原 rootLayout 整体作为「快捷键」页内容，控件与事件零改动 ──
+        _mainTabs = new DarkTabControl
+        {
+            Dock = DockStyle.Fill,
+            SizeMode = TabSizeMode.Normal
+        };
+        _tabShortcut = new TabPage("快捷键");
+        _tabRename = new TabPage("批量重命名/spine解包整理");
+        _tabBatchCopy = new TabPage("批量复制");
+        _tabCli = new TabPage("CLI批量合并/导出");
+        _mainTabs.TabPages.AddRange([_tabShortcut, _tabRename, _tabBatchCopy, _tabCli]);
+        _mainTabs.SelectedIndexChanged += MainTabs_SelectedIndexChanged;
+        _tabShortcut.Controls.Add(rootLayout);
+
+        Controls.Add(_mainTabs);
     }
 
     private static Button CreateButton(string text, Color backColor, Color foreColor)
@@ -299,6 +311,7 @@ public partial class MainForm : Form
             return;
         }
         OperationLogger.Info("Application shutting down");
+        DisposeEmbeddedPages();
         _hotkeyService.Dispose();
         _trayIcon.Dispose();
         IconService.Dispose();
@@ -1090,10 +1103,74 @@ public partial class MainForm : Form
         _hotkeyService.Dispose();
         _trayIcon.Visible = false;
         _trayIcon.Dispose();
+        DisposeEmbeddedPages();
         Application.Exit();
     }
 
     // ── Helpers ──
+
+    // ── 首页标签页承载：只搬迁入口，三个子窗体内部布局与逻辑零改动 ──
+
+    private static void EmbedPage(TabPage page, Form form)
+    {
+        form.ShowInTaskbar = false;
+        form.TopLevel = false;
+        form.FormBorderStyle = FormBorderStyle.None;
+        form.WindowState = FormWindowState.Normal;
+        form.Dock = DockStyle.Fill;
+        page.Controls.Add(form);
+        form.Visible = true;
+    }
+
+    private void EnsureEmbeddedPage(int index)
+    {
+        if (index == 1 && _renamePage == null)
+        {
+            _renamePage = new ReNameTool.Form1();
+            EmbedPage(_tabRename, _renamePage);
+        }
+        else if (index == 2 && _copyPage == null)
+        {
+            _copyPage = new BatchCopyWindow();
+            EmbedPage(_tabBatchCopy, _copyPage);
+        }
+        else if (index == 3 && _cliPage == null)
+        {
+            _cliPage = new BatchCliWindow();
+            EmbedPage(_tabCli, _cliPage);
+        }
+    }
+
+    private void MainTabs_SelectedIndexChanged(object? sender, EventArgs e)
+    {
+        EnsureEmbeddedPage(_mainTabs.SelectedIndex);
+    }
+
+    private void DisposeEmbeddedPages()
+    {
+        CloseEmbeddedPage(_renamePage);
+        _renamePage = null;
+        CloseEmbeddedPage(_copyPage);
+        _copyPage = null;
+        CloseEmbeddedPage(_cliPage);
+        _cliPage = null;
+    }
+
+    private static void CloseEmbeddedPage(Form? page)
+    {
+        if (page == null || page.IsDisposed) return;
+        try
+        {
+            // Close 触发子窗体原有的 FormClosing / FormClosed 链（含历史写回）
+            page.Close();
+            // 非顶层 Form 不在 Application.OpenForms 中，需显式释放
+            page.Dispose();
+        }
+        catch (Exception ex)
+        {
+            OperationLogger.Warn($"MainForm: close embedded page failed: {ex.Message}");
+        }
+    }
 
     private MacroSequence? GetSelectedSequence()
     {
