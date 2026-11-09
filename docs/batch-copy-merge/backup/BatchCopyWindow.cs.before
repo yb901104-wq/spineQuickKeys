@@ -1,0 +1,868 @@
+using KeyMacro.Controls;
+using KeyMacro.Models;
+using KeyMacro.Services;
+
+namespace KeyMacro.Forms;
+
+public class BatchCopyWindow : Form
+{
+    // ── Controls: Source ──
+    private readonly ListBox _lbSourceFiles = new();
+    private readonly Button _btnSelectFiles = new();
+    private readonly Button _btnRemoveSelected = new();
+    private readonly Button _btnClearFiles = new();
+    private readonly Label _lblSourceCount = new();
+    private readonly List<string> _sourceFiles = [];
+
+    // ── Controls: Target ──
+    private readonly DarkComboBox _cmbPrefix = new();
+    private readonly Button _btnBrowsePrefix = new();
+    private readonly TextBox _txtMiddle = new();
+    private readonly Button _btnAddMiddle = new();
+    private readonly Button _btnDelMiddle = new();
+    private readonly DarkComboBox _cmbSuffix = new();
+    private readonly ListBox _lbPreview = new();
+
+    // ── Controls: Action ──
+    private readonly Button _btnClearHistory = new();
+    private readonly Button _btnStartCopy = new();
+    private readonly Label _lblStatus = new();
+    private readonly Label _lblProgressCurrent = new();
+    private readonly TextProgressBar _progressBar = new();
+
+    // ── Controls: Tabs (R2) ──
+    private readonly DarkTabControl _tabControl = new();
+    private readonly TabPage _tabCopy = new() { Text = "批量复制到目的地" };
+    private readonly TabPage _tabBackup = new() { Text = "原地复制备份" };
+    private readonly InplaceBackupPanel _backupPanel = new();
+    private readonly ToolTip _statusTip = new();
+
+    // ── State ──
+    private readonly BatchCopyService _copyService = new();
+    private PathHistory _history = new();
+    private readonly System.Windows.Forms.Timer _previewDebounce = new();
+    private bool _taskRunning;
+    private bool _closingAfterCancel;
+    private string _tab2Status = "就绪";
+    private string _tab2Tip = "";
+
+    public BatchCopyWindow()
+    {
+        Text = "文件批量复制";
+        Icon = IconService.AppIcon;
+        ClientSize = new Size(1440, 900);
+        MinimumSize = new Size(1040, 680);
+        StartPosition = FormStartPosition.CenterParent;
+        ShowInTaskbar = true;
+        BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA);
+
+        BuildUI();
+        UiTheme.Apply(this, UiWindowProfile.BatchCopy);
+        LoadHistory();
+        WireBackupEvents();
+
+        _previewDebounce.Interval = 300;
+        _previewDebounce.Tick += (_, _) => { _previewDebounce.Stop(); UpdatePreview(); };
+    }
+
+    private void BuildUI()
+    {
+        // ── Tab1：原有页面控件与布局原样迁入（进度区改为窗口级共享）──
+        _tabCopy.Controls.Add(BuildTab1Content());
+
+        // ── Tab2：原地复制备份 ──
+        _tabBackup.Controls.Add(_backupPanel);
+
+        _tabControl.Dock = DockStyle.Fill;
+        _tabControl.TabPages.Add(_tabCopy);
+        _tabControl.TabPages.Add(_tabBackup);
+        _tabControl.SelectedIndex = 0; // 默认仍选中 Tab1，不改变现有使用习惯
+        _tabControl.Selecting += (_, e) =>
+        {
+            // 窗口级单任务互斥：任一任务运行期间禁止切页，保证取消入口始终可见
+            if (_taskRunning) e.Cancel = true;
+        };
+
+        // ── 窗口级三段式：Tab / 共享进度 / 共享状态栏 ──
+        var mainPanel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            Padding = new Padding(8),
+            ColumnCount = 1,
+            RowCount = 3,
+            BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA)
+        };
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
+
+        mainPanel.Controls.Add(_tabControl, 0, 0);
+        mainPanel.Controls.Add(BuildProgressPanel(), 0, 1);
+
+        _lblStatus.Text = "就绪";
+        _lblStatus.ForeColor = Color.Gray;
+        _lblStatus.Height = 20;
+        _lblStatus.Dock = DockStyle.Fill;      // 状态栏要显示完整汇总文字，不能沿用默认 100px 宽度
+        _lblStatus.AutoEllipsis = true;
+        _lblStatus.Margin = new Padding(0, 4, 0, 0);
+        mainPanel.Controls.Add(_lblStatus, 0, 2);
+
+        Controls.Add(mainPanel);
+    }
+
+    /// <summary>
+    /// Tab1 内容：完全沿用改造前的 5 行布局（源列表 / 目标路径标题 / 目标路径 / 间隔 / 开始复制），
+    /// 不改动任何控件、文案、事件与业务逻辑；仅把进度区与状态栏交给窗口级共享。
+    /// </summary>
+    private Control BuildTab1Content()
+    {
+        var panel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            Padding = new Padding(8),
+            ColumnCount = 1,
+            RowCount = 5,
+            BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA)
+        };
+
+        panel.Controls.Add(BuildSourcePanel(), 0, 0);
+        panel.Controls.Add(new Label
+        {
+            Text = "目标路径",
+            Font = new Font("微软雅黑", 10, FontStyle.Bold),
+            Height = 24,
+            Margin = new Padding(0, 4, 0, 0)
+        }, 0, 1);
+        panel.Controls.Add(BuildTargetPanel(), 0, 2);
+        panel.Controls.Add(new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA) }, 0, 3);
+        panel.Controls.Add(BuildActionPanel(), 0, 4);
+
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 238));
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
+        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 14));
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+        return panel;
+    }
+
+    private void WireBackupEvents()
+    {
+        _backupPanel.ProgressRequested += (text, current, total) => SetProgress(current, total, text);
+        _backupPanel.StatusRequested += (text, tip) =>
+        {
+            _tab2Status = text;
+            _tab2Tip = string.IsNullOrWhiteSpace(tip) ? text : tip;
+            if (_tabControl.SelectedIndex == 1) ApplyStatus(_tab2Status, _tab2Tip);
+        };
+        _tabControl.SelectedIndexChanged += (_, _) =>
+        {
+            if (_tabControl.SelectedIndex == 1) ApplyStatus(_tab2Status, _tab2Tip);
+            else ApplyStatus("就绪", "就绪");
+        };
+        _backupPanel.BusyChanged += _ => UpdateTaskLock();
+        // UiTheme.Apply 会重设 Label 前景色，套用主题后恢复示例文字的青/红状态
+        _backupPanel.RefreshVisualState();
+        UpdateTaskLock();
+    }
+
+    private void ApplyStatus(string text, string tip)
+    {
+        if (IsDisposed) return;
+        _lblStatus.Text = text;
+        _statusTip.SetToolTip(_lblStatus, tip);
+    }
+
+    /// <summary>
+    /// 窗口级单任务互斥：任一 Tab 有任务运行时，另一页主按钮禁用、切页被禁止。
+    /// Tab1 运行时它自己的主按钮就是取消入口，保持可用。
+    /// </summary>
+    private void UpdateTaskLock()
+    {
+        if (IsDisposed) return;
+        var tab1Running = _copyService.IsRunning;
+        var tab2Running = _backupPanel.IsBusy;
+        _taskRunning = tab1Running || tab2Running;
+
+        _btnStartCopy.Enabled = !tab2Running;
+        _backupPanel.SetExternalBusy(tab1Running);
+    }
+
+    // ══════════════════════════════════════════════
+    //  Source File Panel
+    // ══════════════════════════════════════════════
+
+    private Panel BuildSourcePanel()
+    {
+        var panel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 3,
+            Padding = new Padding(8),
+            BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3),
+            CellBorderStyle = TableLayoutPanelCellBorderStyle.Single
+        };
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
+
+        // Toolbar
+        var toolbar = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = false, Padding = new Padding(0, 2, 0, 4), BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3) };
+        _btnSelectFiles.Text = "选择文件";
+        _btnSelectFiles.AutoSize = true;
+        _btnSelectFiles.MinimumSize = new Size(90, 28);
+        _btnSelectFiles.FlatStyle = FlatStyle.Flat;
+        _btnSelectFiles.BackColor = Color.FromArgb(0x00, 0x78, 0xD7);
+        _btnSelectFiles.ForeColor = Color.White;
+        StyleButton(_btnSelectFiles);
+        _btnSelectFiles.Click += BtnSelectFiles_Click;
+        toolbar.Controls.Add(_btnSelectFiles);
+
+        _btnRemoveSelected.Text = "移除选中";
+        _btnRemoveSelected.AutoSize = true;
+        _btnRemoveSelected.MinimumSize = new Size(80, 28);
+        _btnRemoveSelected.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnRemoveSelected);
+        _btnRemoveSelected.Click += (_, _) =>
+        {
+            var indices = _lbSourceFiles.SelectedIndices.Cast<int>().OrderByDescending(i => i).ToList();
+            foreach (var i in indices)
+            {
+                if (i >= 0 && i < _sourceFiles.Count)
+                    _sourceFiles.RemoveAt(i);
+            }
+            RefreshSourceList();
+        };
+        toolbar.Controls.Add(_btnRemoveSelected);
+
+        _btnClearFiles.Text = "清空列表";
+        _btnClearFiles.AutoSize = true;
+        _btnClearFiles.MinimumSize = new Size(80, 28);
+        _btnClearFiles.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnClearFiles);
+        _btnClearFiles.Click += (_, _) => { _sourceFiles.Clear(); RefreshSourceList(); };
+        toolbar.Controls.Add(_btnClearFiles);
+
+        panel.Controls.Add(toolbar, 0, 0);
+
+        // File list
+        _lbSourceFiles.Dock = DockStyle.Fill;
+        _lbSourceFiles.Font = new Font("Consolas", 10);
+        _lbSourceFiles.IntegralHeight = false;
+        _lbSourceFiles.SelectionMode = SelectionMode.MultiExtended;
+        _lbSourceFiles.BorderStyle = BorderStyle.FixedSingle;
+        _lbSourceFiles.BackColor = Color.White;
+        panel.Controls.Add(_lbSourceFiles, 0, 1);
+
+        // Count label
+        _lblSourceCount.Dock = DockStyle.Bottom;
+        _lblSourceCount.Text = "已选 0 个文件";
+        _lblSourceCount.Height = 20;
+        _lblSourceCount.ForeColor = Color.Gray;
+        panel.Controls.Add(_lblSourceCount, 0, 2);
+
+        return panel;
+    }
+
+    private Control BuildProgressPanel()
+    {
+        var panel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            Padding = new Padding(0, 2, 0, 2),
+            BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA)
+        };
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 20));
+        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        _lblProgressCurrent.Dock = DockStyle.Fill;
+        _lblProgressCurrent.AutoEllipsis = true;
+        _lblProgressCurrent.TextAlign = ContentAlignment.MiddleCenter;
+        _lblProgressCurrent.ForeColor = Color.FromArgb(55, 55, 55);
+        _lblProgressCurrent.Text = "";
+
+        _progressBar.Dock = DockStyle.Fill;
+        _progressBar.Minimum = 0;
+        _progressBar.Maximum = 100;
+        _progressBar.Value = 0;
+        _progressBar.ProgressText = "0%";
+
+        panel.Controls.Add(_lblProgressCurrent, 0, 0);
+        panel.Controls.Add(_progressBar, 0, 1);
+        return panel;
+    }
+
+    private void BtnSelectFiles_Click(object? sender, EventArgs e)
+    {
+        using var picker = new SourceFilePicker();
+        if (picker.ShowDialog(this) == DialogResult.OK)
+        {
+            foreach (var f in picker.SelectedFiles)
+            {
+                if (!_sourceFiles.Contains(f))
+                    _sourceFiles.Add(f);
+            }
+            RefreshSourceList();
+        }
+    }
+
+    private void RefreshSourceList()
+    {
+        _lbSourceFiles.Items.Clear();
+        foreach (var f in _sourceFiles)
+            _lbSourceFiles.Items.Add(f);
+        _lblSourceCount.Text = _sourceFiles.Count > 0
+            ? $"已选 {_sourceFiles.Count} 个文件"
+            : "已选 0 个文件";
+    }
+
+    // ══════════════════════════════════════════════
+    //  Target Path Builder Panel
+    // ══════════════════════════════════════════════
+
+    private Panel BuildTargetPanel()
+    {
+        var panel = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3), Padding = new Padding(8) };
+        var layout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1,
+            BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3)
+        };
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60));
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40));
+
+        var inputLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 3,
+            RowCount = 5,
+            Padding = new Padding(8, 8, 14, 8),
+            BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3)
+        };
+        inputLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 60));
+        inputLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        inputLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92));
+        inputLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+        inputLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        inputLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+        inputLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+        inputLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+
+        inputLayout.Controls.Add(new Label { Text = "前缀", TextAlign = ContentAlignment.MiddleLeft, Dock = DockStyle.Fill }, 0, 0);
+        _cmbPrefix.DropDownStyle = ComboBoxStyle.DropDown;
+        _cmbPrefix.Font = new Font("Microsoft YaHei", 9);
+        _cmbPrefix.Dock = DockStyle.Fill;
+        _cmbPrefix.Margin = new Padding(0, 3, 10, 3);
+        _cmbPrefix.BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6);
+        _cmbPrefix.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
+        _cmbPrefix.AutoCompleteSource = AutoCompleteSource.ListItems;
+        _cmbPrefix.TextUpdate += (_, _) => DebouncePreview();
+        _cmbPrefix.SelectedIndexChanged += (_, _) => DebouncePreview();
+        inputLayout.Controls.Add(_cmbPrefix, 1, 0);
+
+        _btnBrowsePrefix.Text = "选择文件夹";
+        _btnBrowsePrefix.Dock = DockStyle.Fill;
+        _btnBrowsePrefix.AutoSize = false;
+        _btnBrowsePrefix.MinimumSize = new Size(82, 28);
+        _btnBrowsePrefix.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnBrowsePrefix, Color.FromArgb(0xF2, 0xF2, 0xF2), Color.Black);
+        _btnBrowsePrefix.Click += BtnBrowsePrefix_Click;
+        inputLayout.Controls.Add(_btnBrowsePrefix, 2, 0);
+
+        inputLayout.Controls.Add(new Label { Text = "中间", TextAlign = ContentAlignment.TopLeft, Dock = DockStyle.Fill, Padding = new Padding(0, 7, 0, 0) }, 0, 1);
+        _txtMiddle.Multiline = true;
+        _txtMiddle.Dock = DockStyle.Fill;
+        _txtMiddle.Font = new Font("Consolas", 10);
+        _txtMiddle.ScrollBars = ScrollBars.Vertical;
+        _txtMiddle.AcceptsReturn = true;
+        _txtMiddle.WordWrap = false;
+        _txtMiddle.BorderStyle = BorderStyle.FixedSingle;
+        _txtMiddle.BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6);
+        _txtMiddle.Margin = new Padding(0, 4, 10, 4);
+        _txtMiddle.TextChanged += (_, _) => DebouncePreview();
+        inputLayout.Controls.Add(_txtMiddle, 1, 1);
+
+        var middleBtnCol = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.TopDown,
+            AutoSize = false,
+            Padding = new Padding(0, 4, 0, 0),
+            WrapContents = false
+        };
+        _btnAddMiddle.Text = "添加行";
+        _btnAddMiddle.AutoSize = false;
+        _btnAddMiddle.Size = new Size(82, 30);
+        _btnAddMiddle.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnAddMiddle);
+        _btnAddMiddle.Click += BtnAddMiddle_Click;
+        middleBtnCol.Controls.Add(_btnAddMiddle);
+
+        _btnDelMiddle.Text = "删除行";
+        _btnDelMiddle.AutoSize = false;
+        _btnDelMiddle.Size = new Size(82, 30);
+        _btnDelMiddle.Margin = new Padding(3, 8, 3, 3);
+        _btnDelMiddle.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnDelMiddle);
+        _btnDelMiddle.Click += BtnDelMiddle_Click;
+        middleBtnCol.Controls.Add(_btnDelMiddle);
+        inputLayout.Controls.Add(middleBtnCol, 2, 1);
+
+        inputLayout.Controls.Add(new Label { Text = "后缀", TextAlign = ContentAlignment.MiddleLeft, Dock = DockStyle.Fill }, 0, 2);
+        _cmbSuffix.DropDownStyle = ComboBoxStyle.DropDown;
+        _cmbSuffix.Font = new Font("Microsoft YaHei", 9);
+        _cmbSuffix.Dock = DockStyle.Fill;
+        _cmbSuffix.Margin = new Padding(0, 3, 10, 3);
+        _cmbSuffix.BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6);
+        _cmbSuffix.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
+        _cmbSuffix.AutoCompleteSource = AutoCompleteSource.ListItems;
+        _cmbSuffix.TextUpdate += (_, _) => DebouncePreview();
+        _cmbSuffix.SelectedIndexChanged += (_, _) => DebouncePreview();
+        inputLayout.Controls.Add(_cmbSuffix, 1, 2);
+
+        _btnClearHistory.Text = "清理历史";
+        _btnClearHistory.AutoSize = false;
+        _btnClearHistory.Size = new Size(82, 30);
+        _btnClearHistory.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnClearHistory);
+        _btnClearHistory.Click += (_, _) =>
+        {
+            var result = MessageBox.Show(this, "确定要清理前缀和后缀的历史记录吗？",
+                "清理历史记录", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (result == DialogResult.Yes)
+            {
+                ConfigService.ClearPathHistory();
+                _history = new PathHistory();
+                _cmbPrefix.Items.Clear();
+                _cmbSuffix.Items.Clear();
+            }
+        };
+        inputLayout.Controls.Add(_btnClearHistory, 2, 2);
+
+        var previewPanel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            Padding = new Padding(14, 8, 8, 8),
+            BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3)
+        };
+        previewPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+        previewPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        previewPanel.Controls.Add(new Label { Text = "预览目标", TextAlign = ContentAlignment.MiddleLeft, Dock = DockStyle.Fill, Font = new Font("Microsoft YaHei UI", 9, FontStyle.Bold) }, 0, 0);
+        _lbPreview.Dock = DockStyle.Fill;
+        _lbPreview.Font = new Font("Consolas", 10);
+        _lbPreview.IntegralHeight = false;
+        _lbPreview.SelectionMode = SelectionMode.None;
+        _lbPreview.BorderStyle = BorderStyle.FixedSingle;
+        _lbPreview.BackColor = Color.White;
+        previewPanel.Controls.Add(_lbPreview, 0, 1);
+
+        layout.Controls.Add(inputLayout, 0, 0);
+        layout.Controls.Add(previewPanel, 1, 0);
+        panel.Controls.Add(layout);
+        return panel;
+    }
+
+    private void BtnBrowsePrefix_Click(object? sender, EventArgs e)
+    {
+        using var dialog = new FolderBrowserDialog();
+        if (!string.IsNullOrEmpty(_cmbPrefix.Text))
+            dialog.SelectedPath = _cmbPrefix.Text;
+
+        if (dialog.ShowDialog() == DialogResult.OK)
+        {
+            _cmbPrefix.Text = dialog.SelectedPath;
+            SavePrefixHistory(dialog.SelectedPath);
+
+            try
+            {
+                var subfolders = Directory.GetDirectories(dialog.SelectedPath)
+                    .Select(Path.GetFileName)
+                    .Where(name => !string.IsNullOrEmpty(name) && !name.StartsWith('.'))
+                    .Select(name => name!)
+                    .ToList();
+
+                if (subfolders.Count > 1)
+                {
+                    var result = MessageBox.Show(this,
+                        $"检测到 {subfolders.Count} 个子文件夹，是否导入到中间层列表？",
+                        "导入子文件夹", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+                    if (result == DialogResult.Yes)
+                    {
+                        using var selectDialog = new SubfolderSelectDialog(subfolders);
+                        if (selectDialog.ShowDialog(this) == DialogResult.OK)
+                        {
+                            var existing = _txtMiddle.Text.Trim();
+                            var lines = selectDialog.SelectedFolders;
+                            if (!string.IsNullOrEmpty(existing))
+                                _txtMiddle.Text = existing + Environment.NewLine + string.Join(Environment.NewLine, lines);
+                            else
+                                _txtMiddle.Text = string.Join(Environment.NewLine, lines);
+                            DebouncePreview();
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+    }
+
+    private void BtnAddMiddle_Click(object? sender, EventArgs e)
+    {
+        using var dialog = new InputDialog("添加中间路径", "输入中间路径项（可用 / 分隔多层级）:");
+        if (dialog.ShowDialog(this) == DialogResult.OK && !string.IsNullOrWhiteSpace(dialog.Result))
+        {
+            var text = _txtMiddle.Text.Trim();
+            if (!string.IsNullOrEmpty(text))
+                _txtMiddle.Text = text + Environment.NewLine + dialog.Result.Trim();
+            else
+                _txtMiddle.Text = dialog.Result.Trim();
+        }
+    }
+
+    private void BtnDelMiddle_Click(object? sender, EventArgs e)
+    {
+        var selStart = _txtMiddle.SelectionStart;
+        var lines = _txtMiddle.Lines.ToList();
+        if (lines.Count == 0) return;
+
+        // Determine which line(s) to remove based on cursor position
+        var lineIdx = _txtMiddle.GetLineFromCharIndex(selStart);
+        if (lineIdx >= 0 && lineIdx < lines.Count)
+        {
+            lines.RemoveAt(lineIdx);
+            _txtMiddle.Lines = [.. lines];
+            DebouncePreview();
+        }
+    }
+
+    private void DebouncePreview()
+    {
+        _previewDebounce.Stop();
+        _previewDebounce.Start();
+    }
+
+    private void UpdatePreview()
+    {
+        _lbPreview.Items.Clear();
+        foreach (var path in GetTargetPaths())
+            _lbPreview.Items.Add(path);
+    }
+
+    private List<string> GetTargetPaths()
+    {
+        var prefix = _cmbPrefix.Text.Trim();
+        var suffix = _cmbSuffix.Text.Trim();
+        var middle = _txtMiddle.Lines
+            .Select(l => l.Trim())
+            .Where(l => l.Length > 0)
+            .ToList();
+
+        if (middle.Count == 0 && string.IsNullOrEmpty(suffix))
+            return !string.IsNullOrEmpty(prefix) ? [prefix] : [];
+
+        var middleItems = middle.Count > 0 ? middle : [""];
+        return middleItems.Select(m =>
+        {
+            var parts = new List<string>();
+            if (!string.IsNullOrEmpty(prefix))
+                parts.Add(prefix.TrimEnd('/', '\\'));
+            parts.AddRange(SplitRelativePath(m));
+            parts.AddRange(SplitRelativePath(suffix));
+            return Path.Combine([.. parts]);
+        }).ToList();
+    }
+
+    private static IEnumerable<string> SplitRelativePath(string value)
+    {
+        return value.Trim()
+            .Trim('/', '\\')
+            .Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(part => part.Length > 0 && !Path.IsPathRooted(part));
+    }
+
+    // ══════════════════════════════════════════════
+    //  History Management
+    // ══════════════════════════════════════════════
+
+    private Panel BuildHistoryRow()
+    {
+        var panel = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            Padding = new Padding(0, 4, 0, 0),
+            BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA)
+        };
+
+        _btnClearHistory.Text = "清理历史记录";
+        _btnClearHistory.AutoSize = true;
+        _btnClearHistory.MinimumSize = new Size(110, 28);
+        _btnClearHistory.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnClearHistory);
+        _btnClearHistory.Click += (_, _) =>
+        {
+            var result = MessageBox.Show(this, "确定要清理前缀和后缀的历史记录吗？",
+                "清理历史记录", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (result == DialogResult.Yes)
+            {
+                ConfigService.ClearPathHistory();
+                _history = new PathHistory();
+                _cmbPrefix.Items.Clear();
+                _cmbSuffix.Items.Clear();
+            }
+        };
+        panel.Controls.Add(_btnClearHistory);
+
+        return panel;
+    }
+
+    private void LoadHistory()
+    {
+        _history = ConfigService.LoadPathHistory();
+        _cmbPrefix.Items.Clear();
+        foreach (var item in _history.PrefixHistory)
+            _cmbPrefix.Items.Add(item);
+        _cmbSuffix.Items.Clear();
+        foreach (var item in _history.SuffixHistory)
+            _cmbSuffix.Items.Add(item);
+    }
+
+    private void SavePrefixHistory(string path)
+    {
+        if (string.IsNullOrEmpty(path)) return;
+        _history.PrefixHistory.RemoveAll(p => p == path);
+        _history.PrefixHistory.Insert(0, path);
+        if (_history.PrefixHistory.Count > 50)
+            _history.PrefixHistory.RemoveRange(50, _history.PrefixHistory.Count - 50);
+        ConfigService.SavePathHistory(_history);
+        // Refresh dropdown without losing current text
+        var current = _cmbPrefix.Text;
+        _cmbPrefix.Items.Clear();
+        foreach (var item in _history.PrefixHistory)
+            _cmbPrefix.Items.Add(item);
+        _cmbPrefix.Text = current;
+    }
+
+    private void SaveSuffixHistory(string suffix)
+    {
+        if (string.IsNullOrEmpty(suffix)) return;
+        _history.SuffixHistory.RemoveAll(s => s == suffix);
+        _history.SuffixHistory.Insert(0, suffix);
+        if (_history.SuffixHistory.Count > 50)
+            _history.SuffixHistory.RemoveRange(50, _history.SuffixHistory.Count - 50);
+        ConfigService.SavePathHistory(_history);
+        var current = _cmbSuffix.Text;
+        _cmbSuffix.Items.Clear();
+        foreach (var item in _history.SuffixHistory)
+            _cmbSuffix.Items.Add(item);
+        _cmbSuffix.Text = current;
+    }
+
+    protected override void OnFormClosing(FormClosingEventArgs e)
+    {
+        if (_taskRunning && !_closingAfterCancel)
+        {
+            // 关闭保护：先取消两页任务并等待结束，再真正关闭；所有事件回调先判 IsDisposed
+            e.Cancel = true;
+            _copyService.Cancel();
+            _backupPanel.Cancel();
+            OperationLogger.Info("BatchCopyWindow: close while task running, cancelling first");
+            _ = WaitForTasksAndCloseAsync();
+        }
+        base.OnFormClosing(e);
+    }
+
+    private async Task WaitForTasksAndCloseAsync()
+    {
+        var start = Environment.TickCount64;
+        while (_taskRunning && Environment.TickCount64 - start < 30000)
+            await Task.Delay(100);
+        if (_taskRunning)
+            OperationLogger.Warn("BatchCopyWindow: wait for task cancellation timed out (30s)");
+        _closingAfterCancel = true;
+        if (!IsDisposed)
+        {
+            try { BeginInvoke(new Action(Close)); }
+            catch (InvalidOperationException) { }
+        }
+    }
+
+    protected override void OnFormClosed(FormClosedEventArgs e)
+    {
+        base.OnFormClosed(e);
+        _copyService.Cancel();
+        _backupPanel.Cancel();
+
+        // Save current combo text to history on close
+        if (!string.IsNullOrEmpty(_cmbPrefix.Text))
+            SavePrefixHistory(_cmbPrefix.Text.Trim());
+        if (!string.IsNullOrEmpty(_cmbSuffix.Text))
+            SaveSuffixHistory(_cmbSuffix.Text.Trim());
+
+        // Tab1 历史写回之后再写 Tab2 后缀历史（内部会从磁盘重载最新历史，避免互相覆盖）
+        try { InplaceBackupPanel.PersistSuffixHistory(_backupPanel.CurrentSuffix); }
+        catch (Exception ex) { OperationLogger.Warn($"BatchCopyWindow: persist backup suffix failed: {ex.Message}"); }
+    }
+
+    // ══════════════════════════════════════════════
+    //  Action Panel
+    // ══════════════════════════════════════════════
+
+    private Panel BuildActionPanel()
+    {
+        var panel = new Panel { Dock = DockStyle.Fill };
+        _btnStartCopy.Text = "开始复制";
+        _btnStartCopy.Dock = DockStyle.Fill;
+        _btnStartCopy.Font = new Font("微软雅黑", 12, FontStyle.Bold);
+        _btnStartCopy.FlatStyle = FlatStyle.Flat;
+        _btnStartCopy.BackColor = Color.FromArgb(0x00, 0xC8, 0x53);
+        _btnStartCopy.ForeColor = Color.White;
+        StyleButton(_btnStartCopy, Color.FromArgb(0x00, 0xC8, 0x53), Color.White);
+        _btnStartCopy.Click += BtnStartCopy_Click;
+        panel.Controls.Add(_btnStartCopy);
+        return panel;
+    }
+
+    private static void StyleButton(Button button)
+    {
+        StyleButton(button, button.BackColor == default ? Color.FromArgb(0xF2, 0xF2, 0xF2) : button.BackColor, button.ForeColor);
+    }
+
+    private static void StyleButton(Button button, Color backColor, Color foreColor)
+    {
+        button.BackColor = backColor;
+        button.ForeColor = foreColor;
+        button.Cursor = Cursors.Hand;
+        button.FlatAppearance.BorderColor = Color.FromArgb(0x8A, 0x8A, 0x8A);
+        button.FlatAppearance.MouseOverBackColor = Lighten(backColor);
+        button.FlatAppearance.MouseDownBackColor = Darken(backColor);
+    }
+
+    private static Color Lighten(Color color)
+    {
+        return Color.FromArgb(
+            Math.Min(255, color.R + 20),
+            Math.Min(255, color.G + 20),
+            Math.Min(255, color.B + 20));
+    }
+
+    private static Color Darken(Color color)
+    {
+        return Color.FromArgb(
+            Math.Max(0, color.R - 25),
+            Math.Max(0, color.G - 25),
+            Math.Max(0, color.B - 25));
+    }
+
+    private async void BtnStartCopy_Click(object? sender, EventArgs e)
+    {
+        if (_copyService.IsRunning)
+        {
+            _copyService.Cancel();
+            return;
+        }
+        if (_backupPanel.IsBusy) return; // 窗口级单任务互斥
+
+        if (_sourceFiles.Count == 0)
+        {
+            MessageBox.Show(this, "请先选择要复制的文件。", "提示",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var targetPaths = GetTargetPaths();
+        if (targetPaths.Count == 0)
+        {
+            MessageBox.Show(this, "请配置目标路径（至少一个有效目录）。", "提示",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        // Save current inputs to history
+        SavePrefixHistory(_cmbPrefix.Text.Trim());
+        SaveSuffixHistory(_cmbSuffix.Text.Trim());
+
+        Action<string, int, int>? onProgressReported = null;
+        onProgressReported = (msg, current, total) =>
+        {
+            if (IsDisposed) return;
+            BeginInvoke(new Action(() => SetProgress(current, total, msg)));
+        };
+        _copyService.ProgressReported += onProgressReported;
+
+        Action<string>? onProgress = null;
+        onProgress = msg =>
+        {
+            if (IsDisposed) return;
+            BeginInvoke(new Action(() => _lblStatus.Text = msg));
+        };
+        _copyService.ProgressChanged += onProgress;
+
+        Action<string>? onCompleted = null;
+        onCompleted = msg =>
+        {
+            if (IsDisposed) return;
+            BeginInvoke(new Action(() =>
+            {
+                _lblStatus.Text = msg;
+                _lblProgressCurrent.Text = msg;
+                _btnStartCopy.Text = "开始复制";
+                _btnStartCopy.BackColor = Color.FromArgb(0x00, 0xC8, 0x53);
+            }));
+            _copyService.Completed -= onCompleted;
+            _copyService.ProgressChanged -= onProgress;
+            _copyService.ProgressReported -= onProgressReported;
+        };
+        _copyService.Completed += onCompleted;
+
+        _btnStartCopy.Text = "取消复制";
+        _btnStartCopy.BackColor = Color.FromArgb(0xD9, 0x5C, 0x5C);
+        _lblStatus.Text = "复制中...";
+        _lblStatus.ForeColor = Color.DarkBlue;
+        SetProgress(0, _sourceFiles.Count * targetPaths.Count, "准备复制...");
+
+        var copyTask = _copyService.CopyFilesAsync(_sourceFiles, targetPaths, OnConflictAsync);
+        UpdateTaskLock();
+        try
+        {
+            await copyTask;
+        }
+        finally
+        {
+            // 服务异常路径不触发 Completed，必须在 await 返回后统一解锁
+            UpdateTaskLock();
+        }
+    }
+
+    private void SetProgress(int current, int total, string text)
+    {
+        total = Math.Max(1, total);
+        current = Math.Clamp(current, 0, total);
+        _progressBar.Maximum = total;
+        _progressBar.Value = current;
+        _progressBar.ProgressText = $"{current}/{total}";
+        _lblProgressCurrent.Text = text;
+    }
+
+    private Task<ConflictAction> OnConflictAsync(string targetDir, List<string> files, CancellationToken token)
+    {
+        if (IsDisposed) return Task.FromResult(ConflictAction.Overwrite);
+        var tcs = new TaskCompletionSource<ConflictAction>();
+        BeginInvoke(new Action(() =>
+        {
+            using var dialog = new ConflictDialog(targetDir, files);
+            dialog.ShowDialog(this);
+            if (dialog.Result == ConflictAction.CancelAll)
+                _copyService.Cancel();
+            tcs.TrySetResult(dialog.Result);
+        }));
+        return tcs.Task;
+    }
+}

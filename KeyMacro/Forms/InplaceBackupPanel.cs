@@ -24,6 +24,13 @@ public class InplaceBackupPanel : UserControl
     public bool IsBusy => _scanning || _backupRunning || _service.IsRunning;
     public string CurrentSuffix => _txtSuffix.Text;
 
+    // ── V2.91 合并页：宿主（BatchCopyWindow）使用的只读契约 ──
+    /// <summary>点按钮瞬间的勾选快照（含被过滤隐藏但已勾选的项，沿用 Tab2 原语义）。</summary>
+    public IReadOnlyList<string> CheckedFilesSnapshot =>
+        _scanned.Where(e => _checked.Contains(e.FullPath)).Select(e => e.FullPath).ToList();
+    public bool HasCheckedFiles => _checked.Count > 0;
+    public bool IsSuffixValid => SuffixValid;
+
     private readonly InplaceBackupService _service = new();
     private readonly System.Windows.Forms.Timer _filterDebounce = new();
     private readonly System.Windows.Forms.Timer _statusDebounce = new();
@@ -35,6 +42,14 @@ public class InplaceBackupPanel : UserControl
     private bool _suppressGridEvents;
     private string _completionDetail = "";
     private int _excludedCount;
+    // V2.91 合并页宿主态
+    private bool _suffixEnabledByHost = true;
+    private bool _suffixConfigDetached;
+    private bool _externalAction;
+    private bool _hostInplaceMode = true; // 宿主当前是否为原地复制模式；只影响状态栏文案
+    private TableLayoutPanel? _mainLayout;
+    private Control? _settingsCard;
+    private Control? _suffixConfigHost;
 
     // ── 纯内存数据 ──
     private readonly List<BackupFileEntry> _scanned = [];
@@ -110,8 +125,86 @@ public class InplaceBackupPanel : UserControl
         Add(main, BuildSourceCard(), 0, 0);
         Add(main, BuildFilterCard(), 0, 1);
         Add(main, BuildListCard(), 0, 2);
-        Add(main, BuildSettingsCard(), 0, 3);
+        var settings = BuildSettingsCard();
+        _settingsCard = settings;
+        Add(main, settings, 0, 3);
+        _mainLayout = main;
         Controls.Add(main);
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  V2.91 合并页：把 D 区拆给宿主复用（控件对象原样，事件/校验/示例/历史不变）
+    // ══════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// 把「备份后缀 + 命名示例」从 D 区抽出，返回可挂到宿主右列模式卡的容器；
+    /// 同时清空 D 区卡片内容（自带的两枚主按钮不再显示）。
+    /// 必须在宿主 UiTheme.Apply 之前调用，确保抽出的控件仍被主题递归覆盖。
+    /// </summary>
+    public Control DetachSuffixConfig()
+    {
+        if (_suffixConfigDetached) return _suffixConfigHost!;
+        _suffixConfigDetached = true;
+        _settingsCard?.Controls.Clear();
+
+        // 右列比原 D 区窄，示例文案改为独占一行，避免与「备份后缀」输入框挤成两行
+        var host = Grid(3, 2,
+            new RowStyle(SizeType.Absolute, 30),
+            new RowStyle(SizeType.Percent, 100));
+        host.BackColor = UiTheme.Panel;
+        host.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 74));
+        host.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 170));
+        host.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+        // 原 D 区用固定 Size + Anchor；挂到模式卡后改为 Dock，随右列宽度拉伸
+        _txtSuffix.Dock = DockStyle.Fill;
+        _lblSample.Dock = DockStyle.Fill;
+        Add(host, Lbl("备份后缀"), 0, 0);
+        Add(host, _txtSuffix, 1, 0);
+        Add(host, _lblSample, 0, 1);
+        host.SetColumnSpan(_lblSample, 3);
+
+        _suffixConfigHost = host;
+        return host;
+    }
+
+    /// <summary>隐藏 D 区行并让 A/B/C 撑满左列；主按钮改由宿主底部通栏按钮统一承担。</summary>
+    public void UseExternalAction()
+    {
+        _externalAction = true;
+        if (_settingsCard != null)
+        {
+            _settingsCard.Visible = false;
+            _settingsCard.Height = 0;
+        }
+        if (_mainLayout != null && _mainLayout.RowStyles.Count >= 4)
+            _mainLayout.RowStyles[3] = new RowStyle(SizeType.Absolute, 0);
+        _btnStartBackup.Visible = false;
+        _btnCancelBackup.Visible = false;
+    }
+
+    /// <summary>由宿主模式开关驱动：目标路径模式下备份后缀置灰，原地模式下启用。</summary>
+    public void SetSuffixInputEnabled(bool enabled)
+    {
+        _suffixEnabledByHost = enabled;
+        RefreshEnabledState();
+    }
+
+    /// <summary>由宿主模式开关驱动：只切换状态栏引导文案，不清空任何数据、不触发磁盘 I/O。</summary>
+    public void SetHostInplaceMode(bool inplace)
+    {
+        _hostInplaceMode = inplace;
+        RefreshStatusHint();
+    }
+
+    /// <summary>宿主底部通栏按钮在原地模式下的执行入口；内部校验、快照与 INV-1~8 全部原样。</summary>
+    public Task StartBackupFromHostAsync() => StartBackupAsync();
+
+    /// <summary>UiTheme.Apply 之后由宿主调用，刷新状态栏文案与示例文字颜色。</summary>
+    public void RefreshHostVisualState()
+    {
+        RefreshVisualState();
+        RefreshStatusHint();
     }
 
     /// <summary>
@@ -681,16 +774,24 @@ public class InplaceBackupPanel : UserControl
     {
         if (IsBusy || _externalBusy) return;
         var actionHint = _checked.Count > 0
-            ? $"已勾选 {_checked.Count} 个，点击「开始批量备份」在原目录生成带后缀副本"
-            : "勾选文件后点击「开始批量备份」，在原目录生成带后缀副本";
+            ? (_hostInplaceMode
+                ? $"已勾选 {_checked.Count} 个，点击「开始批量备份」在原目录生成带后缀副本"
+                : $"已勾选 {_checked.Count} 个，配置目标路径后点击「开始复制」")
+            : (_hostInplaceMode
+                ? "勾选文件后点击「开始批量备份」，在原目录生成带后缀副本"
+                : "勾选文件后配置目标路径并点击「开始复制」");
         var parts = new List<string> { $"就绪 · 已扫描 {_scanned.Count} 个文件 · {actionHint}" };
-        if (!SuffixValid)
-            parts.Add("备份后缀不合法，主按钮已禁用");
         if (_excludedCount > 0)
             parts.Add($"已排除 {_excludedCount} 个疑似备份文件");
-        var occupied = CountOccupiedTargets();
-        if (occupied > 0)
-            parts.Add($"{occupied} 个目标已存在，将自动跳过");
+        // 备份后缀校验与占用预检只在原地模式下有意义，目标模式不显示、不做多余的磁盘 stat
+        if (_hostInplaceMode)
+        {
+            if (!SuffixValid)
+                parts.Add("备份后缀不合法，主按钮已禁用");
+            var occupied = CountOccupiedTargets();
+            if (occupied > 0)
+                parts.Add($"{occupied} 个目标已存在，将自动跳过");
+        }
         StatusRequested?.Invoke(string.Join(" · ", parts), _completionDetail);
     }
 
@@ -831,13 +932,17 @@ public class InplaceBackupPanel : UserControl
         _btnDeselectAll.Enabled = !locked;
         _cmbExtension.Enabled = !locked;
         _txtKeyword.Enabled = !locked;
-        _txtSuffix.Enabled = !locked;
+        // V2.91：后缀输入框的启用态由宿主模式开关与运行锁共同决定
+        _txtSuffix.Enabled = !locked && _suffixEnabledByHost;
         _grid.Enabled = !locked;
 
         var canStart = !locked && _checked.Count > 0 && SuffixValid;
-        _btnStartBackup.Visible = !busy;
+        if (!_externalAction)
+        {
+            _btnStartBackup.Visible = !busy;
+            _btnCancelBackup.Visible = busy;
+        }
         _btnStartBackup.Enabled = canStart;
-        _btnCancelBackup.Visible = busy;
         _btnCancelBackup.Enabled = busy;
         _btnCancelBackup.Text = _scanning ? "取消扫描" : "取消备份";
     }

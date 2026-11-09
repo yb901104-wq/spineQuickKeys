@@ -54,7 +54,7 @@ KeyMacro/
     ├── SourceFilePicker.cs  # 源文件缩略图浏览+勾选弹窗
     ├── SubfolderSelectDialog.cs # 子文件夹勾选导入对话框
     ├── FolderMultiSelectDialog.cs # 多选文件夹勾选弹窗（只读浏览）
-    ├── InplaceBackupPanel.cs # 「原地复制备份」Tab2 页面
+    ├── InplaceBackupPanel.cs # 合并页左列（A/B/C）+ 可拆出的备份后缀配置
     ├── VirtualKeyWindow.cs  # 虚拟按键浮动窗口
     ├── VkWindowManager.cs   # 多虚拟按键窗口管理器
     └── VirtualButtonWidget.cs # 虚拟按钮自绘控件
@@ -189,8 +189,9 @@ BaseBtnWidth: SmallIcon=48  LargeIcon=96  LoopIcon=110
 - **冲突处理**：每目标目录独立 `ConflictDialog` → 列出同名文件 → 覆盖/跳过/打开文件夹（`Path.GetFullPath` 标准化路径）
 - **历史记录**：前缀/后缀使用 ComboBox，输入自动记忆，关闭窗口自动保存，支持一键清理历史
 - **复制引擎**：`BatchCopyService` 异步执行，自动创建目录，进度状态栏，取消支持，OperationLogger 日志
+- **V2.91 合并后变更**：上面「源文件选择 / 源列表操作」的 `SourceFilePicker` 单文件流程**本窗口不再调用**，统一走下一节的多文件夹只读扫描 + 五列勾选 Grid；目标路径区改名为「路径后缀」以区别「备份后缀」，并改为竖向堆叠放右列。
 
-## 原地复制备份（V2.9 新增）
+## 原地复制备份（V2.9 新增；V2.91 已合并进单页）
 - `BatchCopyWindow` 改为 `DarkTabControl` 双页：Tab1「批量复制到目的地」原页面原样迁入、零功能改动；Tab2「原地复制备份」；默认仍选中 Tab1。
 - Tab2：多选文件夹弹窗（`FolderMultiSelectDialog`，纯只读浏览）→ 递归只读扫描 → 后缀下拉（自动识别 + 全部）与关键词输入（AND、300ms 防抖）→ 五列勾选列表 + 全选/全不选（仅可见行）→ 备份后缀默认 `_bf` + 实时命名示例 → 原目录生成 `{原文件名}{后缀}{原扩展名}`。
 - **安全红线（不可绕过）**：只做本地复制、必须带后缀、不删改/不覆盖源文件、不对源文件做任何额外操作。技术化为 8 条不变式（INV-1~8）：唯一磁盘写入为 `File.Copy(src, dest, overwrite: false)`；后缀在 UI 与服务层双层校验；目标恒在原目录且位于所选根目录内；目标已存在一律自动跳过（不覆盖、不弹窗）；目标不等于任何源文件；源文件只读；源目录零副作用（日志只写 `%APPDATA%\KeyMacro\logs\`）；失败与取消零删除。
@@ -199,6 +200,8 @@ BaseBtnWidth: SmallIcon=48  LargeIcon=96  LoopIcon=110
 - 窗口级：进度条与状态栏在 TabControl 之外共享；任一任务运行时另一页主按钮禁用、禁止切 Tab、关闭前先 Cancel 并等待任务结束；执行集合在点按钮时快照冻结，执行期锁定过滤/勾选/后缀。
 - 备份后缀历史存 `PathHistory.BackupSuffixHistory`（最近 10 条），与 Tab1 的 `SuffixHistory` 分离；载入时走同一 `ValidateSuffix()` 复校验。
 - 设计 / 审核 / 渲染图 / 实机截图：`docs/inplace-backup/`。
+- **V2.91 合并（AUD-037）**：内层 `DarkTabControl` 双页移除，改为单页左右分栏。本面板的 A/B/C 区留在左列；D 区「备份后缀 + 生成示例」由 `DetachSuffixConfig()` 拆出挂到右列独立模式卡，D 区自带主按钮由 `UseExternalAction()` 隐藏，改由窗口底部通栏按钮承担。新增宿主契约 `CheckedFilesSnapshot` / `StartBackupFromHostAsync()` / `SetSuffixInputEnabled()` / `SetHostInplaceMode()` / `RefreshHostVisualState()`；状态栏引导文案随模式切换，目标模式下不做备份后缀校验与目标占用预检。INV-1~8、`BackupSuffixHistory` 分离、只读扫描语义全部不变。
+- 合并后的设计 / 预览 / 实机截图：`docs/batch-copy-merge/`（含 `runtime-merged.png`）。
 
 ## 统一导入导出
 - 主工具栏"导入"/"导出"按钮，使用 `.kmp` 格式（JSON）
@@ -250,6 +253,7 @@ BaseBtnWidth: SmallIcon=48  LargeIcon=96  LoopIcon=110
 5. 修改完成后导出一个单独的.exe应用供测试，如遇应用已开启导致无法修改就强行终止应用再尝试导出
 
 ## 版本历史
+- **V2.91** (2026-11-09): AUD-037 小修订，批量复制内层双 Tab 合并为单页左右分栏（816 : 556 弹性填满）：左列统一选源结构，右列「原地复制」独立勾选项 + 竖向目标路径；勾选后目标卡整卡置灰，主按钮按模式分派两个 Service；执行集合统一为勾选快照，运行中锁定模式开关替代禁止切 Tab；`SourceFilePicker` 本窗口不再调用。编译 0 警告 0 错误，实机渲染截图 BCM-001，单文件 exe 已发布。
 - **V2.9** (2026-11-09): 文件批量复制窗口新增「原地复制备份」Tab（小功能更新）：多选文件夹递归只读扫描、后缀/关键词双重过滤、逐行勾选与全选/全不选、自定义备份后缀、原目录生成带后缀副本。落实 8 条安全不变式，绝不覆盖/删改源文件；双 Tab 共享进度区并加入窗口级任务互斥与关闭保护。新增 `InplaceBackupService` / `InplaceBackupPanel` / `FolderMultiSelectDialog` / `BackupFileEntry`，`UiTheme` 增加 `FolderMultiSelect` 尺寸档与「取消备份」危险态归类。编译 0 警告、40 项真实磁盘安全验证全通过。
 - **V2.89** (2026-10-23): 修复 AUD-034，虚拟按键窗口支持右下角自由缩放、自适应网格/多行布局、按钮连续比例、统一内边距和间距配置；窗口尺寸与按钮比例独立保存，并兼容旧布局字段。
 - **V2.88** (2026-10-23): 修复 AUD-033，统一使用原生窗口可见状态判断，修复虚拟按键窗口显示/隐藏状态不同步导致窗口消失、管理器按钮无效和自动联动不显示。

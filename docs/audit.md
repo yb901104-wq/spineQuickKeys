@@ -53,6 +53,7 @@
 | AUD-034 | 虚拟按键窗口受固定横竖模式和固定缩放档位限制，无法独立调整窗口尺寸与内部布局 | 虚拟按键窗口布局 | 高 | 处理中 |
 | AUD-035 | 新旧按钮缩放入口同时存在并共享运行时状态，导致缩放范围和配置字段语义冲突 | 虚拟按键窗口布局 | 中 | 处理中 |
 | AUD-036 | 虚拟按键右键菜单背景与文字/选中状态对比不足，影响菜单可读性 | 虚拟按键窗口交互 | 中 | 处理中 |
+| AUD-037 | 批量复制内层双 Tab 合并为单页（选源结构统一 + 原地复制独立开关） | 批量复制 / 原地复制备份 | 中 | 已完成 |
 
 ## 问题详情
 
@@ -313,6 +314,26 @@
 - 建议处理：新增共用自绘 `TextProgressBar` 控件；CLI 底部进度区改为独立当前文件 `Label` + 自绘进度条，并覆盖普通合并、实验合并、批量导出、单纹理图；批量复制服务发出结构化进度事件，窗口底部显示当前复制/跳过项；ReNameTool 三个页签在列表与底部操作区之间增加同款进度区。
 - 验证方式：已通过 `dotnet build KeyMacro.sln`；已用截图 harness 生成模拟进度状态截图，确认 CLI、批量复制、ReNameTool 重命名页、整理页、解包页的当前处理文件文字在进度条上方可见，进度条中间序号可见，且未遮挡原有按钮、输入框、列表和状态区。
 - 备注：用户已确认将 TMP-20260602-003、TMP-20260602-004、TMP-20260602-005 合并录入并直接修复。修复过程中发现 ReNameTool 解包页列表高度会覆盖进度区，已同步缩短列表并复查截图。
+
+### AUD-037 批量复制内层双 Tab 合并为单页（V2.91）
+
+- 现状：`BatchCopyWindow`（已嵌入 `MainForm` 第 3 个主标签，外层 4 主 Tab 不动）内部用 `DarkTabControl` 分两页：Tab1「批量复制到目的地」（`SourceFilePicker` 单文件勾选 + 三段式目标路径 + 全量文件 × 全量路径）、Tab2「原地复制备份」（`InplaceBackupPanel` 多文件夹只读扫描 + 后缀/关键词过滤 + 五列勾选 Grid + 备份后缀 + INV-1~8）。两页来回切换，选源方式与目标语义割裂。
+- 目标：合成单页左右分栏。左列沿用 Tab2 选源结构；右列沿用 Tab1 目标路径结构但改为竖向堆叠；右列顶部新增独立勾选项「原地复制」，勾选后目标路径整卡置灰禁用，改由备份后缀决定输出名。底部主按钮通栏且文案随模式切换；进度条与状态栏仍窗口级共享。
+- 建议处理（分步，依据 `docs/batch-copy-merge/design.md` D1–D12 推荐默认）：
+  1. `InplaceBackupPanel`：A/B/C 区保持原样；把 D 区「备份后缀 + 示例」拆成可由宿主重新挂载的控件，隐藏 D 区自带主按钮与行；新增宿主调用入口 `StartBackupFromHostAsync()`、勾选快照 `CheckedFilesSnapshot`、后缀启用态 `SetSuffixInputEnabled()`、模式感知状态文案 `HostInplaceMode`、`UseExternalAction()`。
+  2. `BatchCopyWindow`：移除内层 `TabControl` 与 Tab1 旧的单文件源控件（`SourceFilePicker` 本窗口不再调用）；构建左右弹性分栏（816 : 556 填满内容区，保留 12px padding / 10px gap），右列 = 模式卡（勾选项 + 备份后缀）+ 目标卡（前缀 / 中间 / 路径后缀 / 预览目标，竖向）；底部主按钮 / 进度 / 状态栏维持通栏。
+  3. 模式路由：未勾选 → `BatchCopyService.CopyFilesAsync(勾选快照, GetTargetPaths(), OnConflictAsync)`；勾选 → `InplaceBackupPanel.StartBackupFromHostAsync()`。两个 Service **不合并**、不改 INV-1~8、不复用 `ConflictDialog`/覆盖语义。
+  4. 执行集合统一为「点按钮瞬间的勾选快照」（含被过滤隐藏项）；切换模式不清空源/扫描/勾选/过滤/目标路径输入，不触发磁盘 I/O；任务运行期间锁定模式开关与目标/后缀输入（替代原「禁止切 Tab」）。
+  5. 三套历史分离不变（`PrefixHistory` / `SuffixHistory` / `BackupSuffixHistory`），关闭窗口的历史写回与 Cancel + 等待任务结束保护不变；`UiTheme.Apply(this, UiWindowProfile.BatchCopy)` 与嵌入机制不变。
+  6. 版本：V2.9 → V2.91（用户指定版本号）；同步 `CLAUDE.md` / `AGENTS.md` / 验证用例；`dotnet build` + `dotnet publish` 产出单文件 exe。
+- 验证方式：`dotnet build KeyMacro.sln` 0 错误 0 警告；两模式手工用例见 `docs/verification/manual-verification-plan.md` 新增 BCM 小节（勾选项置灰范围、执行集合、切换保留、运行中锁定、冲突弹窗、INV-1~8 不覆盖、历史写回、关闭保护）。
+- 备注：状态 **已完成**（2026-11-09 18:37 立项，18:49 完成）。用户已拍板 R3 版式（外框通栏不收窄，两列各 +56px 拉长填满），并确认 D1–D9 按推荐默认执行、D12 采用「各 +56」。
+- 验证结果：
+  1. `dotnet build KeyMacro.sln` **0 警告 0 错误**（首次编译暴露 `_externalAction` 字段缺失与 WFO1000 序列化告警，已改为私有字段修复）。
+  2. 用项目自带 `RuntimeWindowCapture` 生成真实 WinForms 截图 `docs/verification/screenshots/BCM-001_merged_layout.png`，确认单页左右分栏、模式卡（勾选项 / 备份后缀 / 生成示例）、竖向目标路径卡（前缀 / 中间 / 路径后缀 / 预览目标）、底部主按钮 / 进度 / 状态栏齐全且无裁切；放大复核发现窄右列把「生成示例」挤成两行，已改为独占一行后复拍确认。
+  3. `dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true` 产出 18:59 单文件 exe（113,896,872 B，与旧版同字节数属 PE 对齐巧合）；18:55 按用户指定把版本号统一为 **V2.91** 后重新编译发布，UTF-16 校验新 exe 含 `V2.91` 且不含 `V3.0`；二进制检出本次新增符号 `StartBackupFromHostAsync` / `CheckedFilesSnapshot` / `BuildModeCard` / `ApplyMode` / `DetachSuffixConfig` / `UseExternalAction`，旧 V2.9 exe 全不含，两版二进制不相同。
+  4. 改动前三个源文件备份至 `docs/batch-copy-merge/backup/`，旧 exe 备份至 `KeyMacro/bin/Release/publish-v2.9-pre-merge/`（不与交付物并列呈现）。
+- **未做且不得宣称通过**：两模式真实交互回归（勾选、执行到磁盘、冲突弹窗、INV-1~8 不覆盖、切换保留、运行中锁定、三套历史写回、关闭保护）需用户真机手工确认，用例见 `docs/verification/manual-verification-plan.md` 的 BCM 小节。
 
 ## 后续维护规则
 
