@@ -203,6 +203,15 @@ BaseBtnWidth: SmallIcon=48  LargeIcon=96  LoopIcon=110
 - **V2.91 合并（AUD-037）**：内层 `DarkTabControl` 双页移除，改为单页左右分栏。本面板的 A/B/C 区留在左列；D 区「备份后缀 + 生成示例」由 `DetachSuffixConfig()` 拆出挂到右列独立模式卡，D 区自带主按钮由 `UseExternalAction()` 隐藏，改由窗口底部通栏按钮承担。新增宿主契约 `CheckedFilesSnapshot` / `StartBackupFromHostAsync()` / `SetSuffixInputEnabled()` / `SetHostInplaceMode()` / `RefreshHostVisualState()`；状态栏引导文案随模式切换，目标模式下不做备份后缀校验与目标占用预检。INV-1~8、`BackupSuffixHistory` 分离、只读扫描语义全部不变。
 - 合并后的设计 / 预览 / 实机截图：`docs/batch-copy-merge/`（含 `runtime-merged.png`）。
 
+## 批量复制并入 CLI 窗口 · 批量动画选择（V2.92 / AUD-038）
+- **入口重组**：外层主标签 4 → 3（删「批量复制」）；`BatchCliWindow` 内层 `DarkTabControl` 2 → 3，顺序固定 **批量复制 → 合并 → 批量导出**，默认选中「批量复制」。`BatchCopyWindow` 整体原样嵌入，形成 `MainForm → BatchCliWindow(TopLevel=false) → BatchCopyWindow(TopLevel=false)` 两层非顶层 Form 嵌套；`UiTheme.Apply(BatchCli)` 之后才创建子窗体，退出走 `Close()+Dispose()` 链触发 `BatchCopyWindow.OnFormClosed` 的三套历史写回。
+- **零改动边界**：`BatchCopyWindow` 内部左右分栏、A/B/C、模式卡、目标路径卡、底部主按钮/进度/状态**字节不变**；`BatchCopyService` / `InplaceBackupService` / `SpineCliService` / 合并页 `ShowAnimSelectForSource()` / `config.json` 与 `PathHistory` 结构零改动。
+- **动画列**：源列表 5 列 → 6 列（勾选 / 文件名 / 类型 / 大小 / **动画** / 所在目录）；`RefreshGrid()` 的完整路径 tooltip 由 `Cells[4]` 顺延到 `Cells[5]`。`UiTheme` 自绘勾选列只读 `grid.DefaultCellStyle`，需由 `RefreshVisualState()` 里注册的后置 `CellPainting` 补画红底。
+- **门槛**：点「选择动画」瞬间的**勾选快照（含被过滤隐藏项）必须全部是 `.spine`**，否则弹窗列出违规文件且不打开动画窗；Spine.com 路径从 `ConfigService.LoadCliSpinePath()` 读取（等价宿主顶栏落盘值，无效时明确提示）。
+- **语义**：弹窗 = 所有勾选 `.spine` 动画的**并集**（`OrdinalIgnoreCase` 同名合并、保留首次拼写）；确认后逐文件写入 `S ∩ A(f)` 并保留 `A(f)` 原始拼写，**每个文件永远只写自身已有的动画**；缺项 `M(f)` 令整行标红，**只是提醒**，不禁用勾选、不跳过执行、不改变执行集合。
+- **数据**：`BackupFileEntry` 新增 3 个纯内存展示字段（`AvailableAnimations` / `SelectedAnimations` / `HasMissingAnimations`），不持久化、不写回源文件、不参与复制/备份；读取结果按 `FullPath + LastWriteTimeUtc` 内存缓存；过滤/勾选变化/切 Tab 不重算不重新请求 CLI。
+- 设计 / 渲染图 / 施工文档 / 改前源码备份 / 5 张实机截图 / 语义断言报告：`docs/batch-copy-cli-integration/`；手工用例见 `docs/verification/manual-verification-plan.md` 的 BCC 小节。
+
 ## 统一导入导出
 - 主工具栏"导入"/"导出"按钮，使用 `.kmp` 格式（JSON）
 - 导出包含：Spine 热键编辑（如有打开）、序列设置、VK 布局、VK 设置
@@ -253,6 +262,9 @@ BaseBtnWidth: SmallIcon=48  LargeIcon=96  LoopIcon=110
 5. 修改完成后导出一个单独的.exe应用供测试，如遇应用已开启导致无法修改就强行终止应用再尝试导出
 
 ## 版本历史
+- **V2.94** (2026-11-09): AUD-040，批量导出页三项改造 + 一处状态 bug 根治。① 外层主标签「CLI批量合并/导出」→「批量复制/合成/导出」（顶层 `BatchCliWindow` 标题同步），内层子标签「合并」→「批量合并」；索引与两层嵌套零改动。② 导出页右侧新增第 3 列「导出预设」：底部「保存为导出预设」（深色 `InputDialog` 命名、同名拒绝）、三列列表、双击或「激活预设」完整录入源目录 / 全部文件路径 / 输出目录 / 导出配置名（含「其他」手填值），另有「删除预设」「删除全部预设」二次确认；预设**持久化到本地软件数据文档** `%APPDATA%\KeyMacro\export_presets.json`，每次变更立即落盘、重启恢复，独立新文件不改 `config.json` / `path_history.json`。③ 刷新状态右侧新增「批量生成导出配置」+ 备注「（必须 4.3 及以上版本才能使用）」：走真·CLI `Spine.com --ignore-unknown -i <file.spine> -o <目录>\<配置名> --last-export-settings`，按目录去重、已存在跳过、失败继续、**不写模板不静默降级**、进度与取消复用现有骨架。④ 根治「export.json 状态永远不正确，必须切配置名才刷新」：根因是 `_rbFinish.Checked = true` 写在 `CheckedChanged` 订阅之前，初始选中不触发事件，字段 `_exportConfigName` 一直停在 `"export.json"` 而 UI 是 `finish.export.json`；现改为单一真值源 `CurrentExportConfigName`（由 radio 实时计算）+「其他」手填值独立字段 + 修正初始化顺序，并在扫描 / 切换 / 激活预设 / 批量生成后联动刷新。改动 4 个 `.cs` + 新增 `Models/ExportPreset.cs`；AUD-038 动画 / AUD-039 过滤 / INV-1~8 零改动。编译 0 警告 0 错误、AUD-040 断言 33/33 PASS、AUD-038 10/10 与 AUD-039 14/14 回归通过、6 张实机截图。**未验证**：本机为 Spine Launcher 4.1.10，真实 CLI 生成配置文件需用户在 4.3+ 环境真机确认；命名弹窗、删除确认、重启后预设恢复、两模式磁盘回归待手工确认。
+- **V2.93** (2026-11-09): 修复 AUD-039，批量复制源文件列表不再按「备份后缀」静默排除疑似备份文件。此前 `InplaceBackupPanel.RebuildVisible` 用 `stem.EndsWith(suffix)` 剔除文件，若 `path_history.json` 的 `BackupSuffixHistory[0]` 为 `-n1`，就会把真实源文件 `*-n1.spine` 全部过滤掉（用户工程下 29 个 `-n1.spine` 每个文件夹恰好漏 1 个），且默认目标路径模式根本不生成带后缀副本却被一并误伤。现删除 `IsLikelyBackup` / `_excludedCount` 与状态栏「已排除」提示，扫描结果一律进入可见列表、是否勾选由用户决定；后缀变化只刷新命名示例与占用预检，防重复覆盖继续由 INV-4「目标已存在跳过」承担。仅改 `InplaceBackupPanel.cs`（+ `MainForm.cs` 版本号），扫描服务 / 复制服务 / 配置结构 / UI 布局 / INV-1~8 零改动。编译 0 警告 0 错误、AUD-039 断言 14/14 PASS（含真实目录 2835 个文件、29 个 `-n1.spine` 逐个核对）、真实目录实机截图 `docs/fix-n1-silent-exclude/runtime-n1-fixed.png`。**行为变化**：原地复制模式下勾选 `G2-n1.spine` 且后缀仍为 `-n1` 时会生成 `G2-n1-n1.spine`（不覆盖已有文件）；真实复制到磁盘与 INV-1~8 全量回归待真机确认。
+- **V2.92** (2026-11-09): AUD-038，批量复制并入「CLI批量合并/导出」成为其下第 1 个子页（外层 4→3 主标签、内层 2→3 子标签，两层非顶层 Form 嵌套）；批量复制源列表新增「选择动画」工具条与第 6 列「动画」，实现「全 `.spine` 门槛 → 并集动画弹窗 → 逐文件 `S ∩ A(f)` 交集写入 → 缺项整行标红仅提醒」。动画为纯内存展示元数据，复制/备份执行语义与 INV-1~8 零改动。编译 0 警告 0 错误、动画语义断言 10/10 PASS、5 张实机截图、单文件 exe 已发布；真实 Spine.com 读取、动画弹窗实机模态与两模式磁盘回归待真机确认（BCC 用例）。
 - **V2.91** (2026-11-09): AUD-037 小修订，批量复制内层双 Tab 合并为单页左右分栏（816 : 556 弹性填满）：左列统一选源结构，右列「原地复制」独立勾选项 + 竖向目标路径；勾选后目标卡整卡置灰，主按钮按模式分派两个 Service；执行集合统一为勾选快照，运行中锁定模式开关替代禁止切 Tab；`SourceFilePicker` 本窗口不再调用。编译 0 警告 0 错误，实机渲染截图 BCM-001，单文件 exe 已发布。
 - **V2.9** (2026-11-09): 文件批量复制窗口新增「原地复制备份」Tab（小功能更新）：多选文件夹递归只读扫描、后缀/关键词双重过滤、逐行勾选与全选/全不选、自定义备份后缀、原目录生成带后缀副本。落实 8 条安全不变式，绝不覆盖/删改源文件；双 Tab 共享进度区并加入窗口级任务互斥与关闭保护。新增 `InplaceBackupService` / `InplaceBackupPanel` / `FolderMultiSelectDialog` / `BackupFileEntry`，`UiTheme` 增加 `FolderMultiSelect` 尺寸档与「取消备份」危险态归类。编译 0 警告、40 项真实磁盘安全验证全通过。
 - **V2.89** (2026-10-23): 修复 AUD-034，虚拟按键窗口支持右下角自由缩放、自适应网格/多行布局、按钮连续比例、统一内边距和间距配置；窗口尺寸与按钮比例独立保存，并兼容旧布局字段。

@@ -157,6 +157,47 @@ public class ConfigService
         }
     }
 
+    // ── AUD-040：导出预设（独立文件，属于本地软件数据文档）──
+    private static readonly string ExportPresetsFile =
+        Path.Combine(AppDataDir, "export_presets.json");
+
+    public static List<ExportPreset> LoadExportPresets()
+        => LoadExportPresetsFrom(ExportPresetsFile);
+
+    public static void SaveExportPresets(List<ExportPreset> presets)
+        => SaveExportPresetsTo(ExportPresetsFile, presets);
+
+    /// <summary>供行为断言用临时文件验证完整读写，避免污染真实用户数据。</summary>
+    public static List<ExportPreset> LoadExportPresetsFrom(string path)
+    {
+        try
+        {
+            if (!File.Exists(path)) return [];
+            var json = File.ReadAllText(path);
+            return JsonSerializer.Deserialize<List<ExportPreset>>(json) ?? [];
+        }
+        catch (Exception ex)
+        {
+            OperationLogger.Error($"ConfigService.LoadExportPresets: failed: {ex.Message}");
+            return [];
+        }
+    }
+
+    public static void SaveExportPresetsTo(string path, List<ExportPreset> presets)
+    {
+        try
+        {
+            var dir = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
+            var json = JsonSerializer.Serialize(presets, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(path, json);
+        }
+        catch (Exception ex)
+        {
+            OperationLogger.Error($"ConfigService.SaveExportPresets: failed: {ex.Message}");
+        }
+    }
+
     private static void NormalizeTargetApp(MacroSequence seq)
     {
         if (string.IsNullOrWhiteSpace(seq.TargetAppPath)) return;

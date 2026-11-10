@@ -77,6 +77,15 @@ powershell -ExecutionPolicy Bypass -File docs/ui-refactor/tools/capture-window.p
 | `vk-blank-menu` | `VirtualKeyWindow` | 打开测试 VK 窗口并弹出空白区域右键菜单，便于检查新增按钮、窗口控制、目标窗口、缩放等菜单项 |
 | `vk-button-menu` | `VirtualKeyWindow` | 打开测试 VK 窗口并弹出按钮右键菜单，便于检查修改名称、按钮间距、强制停止、删除当前按钮 |
 | `tray-menu` | `MainForm` | 打开主窗口并弹出托盘菜单对象，便于检查打开主窗口、暂停全部、退出 |
+| `cli-batch-copy` | `BatchCliWindow` | AUD-038：顶层 CLI 窗口的「批量复制」子页，注入示例行验证 6 列动画列 / 标红 / 工具条 |
+| `mainform-cli-copy` | `MainForm` | AUD-038：真实两层非顶层 Form 嵌套（`MainForm → BatchCliWindow → BatchCopyWindow`）总览 |
+| `cli-batch-gate` | `MainForm` | AUD-038：勾选混入 `.atlas/.png` 后触发「选择动画」，截取 G2 门槛报错弹窗 |
+| `verify-animation-logic` | （不启动窗口） | AUD-038：反射调用产品代码纯逻辑方法，把并集/交集/标红/扩展名口径断言写入第二个参数指定的 .txt |
+| `mainform-cli-n1` | `MainForm` | AUD-039：用真实目录 `D:\动画工程\monster-spine-h细线\G2` 走产品扫描 + 过滤链路、后缀保持 `-n1`，验证 `G2-n1.spine` 出现在列表 |
+| `verify-n1-filter` | （不启动窗口） | AUD-039：反射调用产品 `RebuildVisible`，验证后缀不再影响可见性、过滤回归与真实目录零静默排除，结果写入第二个参数指定的 .txt |
+| `export-preset-overview` | `MainForm` | AUD-040：两层嵌套切到「批量导出」，注入 3 个示例预设，验证改名标签 / 右侧预设列 / 5 个新按钮 / 橙色 4.3 备注 |
+| `export-preset-activated` | `MainForm` | AUD-040：注入并高亮激活态，验证源目录 / 输出目录 / 状态列 ✅ / 「已激活」提示 |
+| `verify-export-preset` | （不启动窗口） | AUD-040：断言三处改名、状态单一真值源、预设 JSON 往返与默认落盘路径、CLI 参数构造、目录去重，结果写入第二个参数指定的 .txt |
 
 示例：
 

@@ -41,7 +41,6 @@ public class InplaceBackupPanel : UserControl
     private bool _suppressEvents;
     private bool _suppressGridEvents;
     private string _completionDetail = "";
-    private int _excludedCount;
     // V2.91 合并页宿主态
     private bool _suffixEnabledByHost = true;
     private bool _suffixConfigDetached;
@@ -72,6 +71,18 @@ public class InplaceBackupPanel : UserControl
     private readonly Button _btnDeselectAll = new() { Text = "全不选", Size = new Size(76, 28) };
     private readonly Label _lblVisibleCount = new() { Size = new Size(110, 28), TextAlign = ContentAlignment.MiddleLeft };
     private readonly DataGridView _grid = new();
+
+    // ── AUD-038 批量动画选择（纯内存；不写配置、不参与复制执行集合）──
+    private readonly Button _btnSelectAnimations = new() { Text = "选择动画", Size = new Size(92, 28) };
+    private readonly Label _lblAnimHint = new() { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true };
+    private readonly Label _lblAnimStat = new() { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleRight, AutoEllipsis = true };
+    private readonly SpineCliService _animCli = new();
+    // 缓存键 = FullPath，值 = (LastWriteTimeUtc.Ticks, 动画名列表)；文件被外部改动后自动失效
+    private readonly Dictionary<string, (long Ticks, List<string> Names)> _animCache = new(StringComparer.OrdinalIgnoreCase);
+    private CancellationTokenSource? _animCts;
+    private bool _animReading;
+    private bool _gridPaintWired;
+    private int _lastSelectedAnimationCount;
 
     // ── D 区 ──
     private readonly TextBox _txtSuffix = new() { Size = new Size(160, 30), Anchor = AnchorStyles.Left | AnchorStyles.Right };
@@ -315,7 +326,10 @@ public class InplaceBackupPanel : UserControl
     private Control BuildListCard()
     {
         var card = NewCard();
-        var inner = Grid(1, 2, new RowStyle(SizeType.Absolute, 34), new RowStyle(SizeType.Percent, 100));
+        var inner = Grid(1, 3,
+            new RowStyle(SizeType.Absolute, 34),
+            new RowStyle(SizeType.Absolute, 32),
+            new RowStyle(SizeType.Percent, 100));
 
         var head = Grid(2, 1, new RowStyle(SizeType.Percent, 100));
         head.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -337,8 +351,23 @@ public class InplaceBackupPanel : UserControl
         Add(head, actions, 1, 0);
         Add(inner, head, 0, 0);
 
+        // AUD-038：独立的批量动画工具条（按钮 + 门槛备注 + 本轮统计）
+        var animBar = Grid(3, 1, new RowStyle(SizeType.Percent, 100));
+        animBar.Padding = new Padding(0, 2, 0, 2);
+        animBar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+        animBar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        animBar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 200));
+        _btnSelectAnimations.Margin = new Padding(0, 0, 8, 0);
+        _lblAnimHint.Text = "只能在列表中确定勾选的所有文件里只有 .spine 文件的时候可用";
+        _lblAnimHint.ForeColor = UiTheme.Muted;
+        _lblAnimStat.Text = "";
+        Add(animBar, _btnSelectAnimations, 0, 0);
+        Add(animBar, _lblAnimHint, 1, 0);
+        Add(animBar, _lblAnimStat, 2, 0);
+        Add(inner, animBar, 0, 1);
+
         BuildGrid();
-        Add(inner, _grid, 0, 1);
+        Add(inner, _grid, 0, 2);
         card.Controls.Add(inner);
         return card;
     }
@@ -367,22 +396,28 @@ public class InplaceBackupPanel : UserControl
         });
         _grid.Columns.Add(new DataGridViewTextBoxColumn
         {
-            Name = "colFileName", HeaderText = "文件名", Width = 280, ReadOnly = true,
+            Name = "colFileName", HeaderText = "文件名", Width = 210, ReadOnly = true,
             SortMode = DataGridViewColumnSortMode.NotSortable
         });
         _grid.Columns.Add(new DataGridViewTextBoxColumn
         {
-            Name = "colType", HeaderText = "类型", Width = 100, ReadOnly = true,
+            Name = "colType", HeaderText = "类型", Width = 72, ReadOnly = true,
             SortMode = DataGridViewColumnSortMode.NotSortable
         });
         _grid.Columns.Add(new DataGridViewTextBoxColumn
         {
-            Name = "colSize", HeaderText = "大小", Width = 100, ReadOnly = true,
+            Name = "colSize", HeaderText = "大小", Width = 82, ReadOnly = true,
+            SortMode = DataGridViewColumnSortMode.NotSortable
+        });
+        // AUD-038：新增第 5 列「动画」；「所在目录」顺延为第 6 列（所有 Cells[4] 引用必须同步改为 Cells[5]）
+        _grid.Columns.Add(new DataGridViewTextBoxColumn
+        {
+            Name = "colAnimations", HeaderText = "动画", Width = 210, ReadOnly = true,
             SortMode = DataGridViewColumnSortMode.NotSortable
         });
         _grid.Columns.Add(new DataGridViewTextBoxColumn
         {
-            Name = "colDirectory", HeaderText = "所在目录", Width = 260, ReadOnly = true,
+            Name = "colDirectory", HeaderText = "所在目录", Width = 150, MinimumWidth = 130, ReadOnly = true,
             AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
             SortMode = DataGridViewColumnSortMode.NotSortable
         });
@@ -434,13 +469,14 @@ public class InplaceBackupPanel : UserControl
         _btnDeselectAll.Click += (_, _) => SetVisibleChecked(false);
         _btnStartBackup.Click += async (_, _) => await StartBackupAsync();
         _btnCancelBackup.Click += (_, _) => CancelCurrentOperation();
+        _btnSelectAnimations.Click += async (_, _) => await ShowBatchAnimSelectAsync();
 
         _cmbExtension.SelectedIndexChanged += (_, _) => { if (!_suppressEvents) DebounceFilter(); };
         _txtKeyword.TextChanged += (_, _) => DebounceFilter();
         _txtSuffix.TextChanged += (_, _) =>
         {
             UpdateSampleLabel();
-            DebounceFilter(); // 排除规则与占用预检随后缀重算
+            DebounceStatusHint(); // AUD-039：后缀只影响命名示例与占用预检，不再影响列表可见性
             RefreshEnabledState();
         };
 
@@ -531,7 +567,6 @@ public class InplaceBackupPanel : UserControl
         _checked.Clear();
         _roots.Clear();
         _visible.Clear();
-        _excludedCount = 0;
         _completionDetail = "";
 
         _suppressEvents = true;
@@ -610,18 +645,13 @@ public class InplaceBackupPanel : UserControl
     private static string ExtensionKey(BackupFileEntry entry) =>
         string.IsNullOrEmpty(entry.Extension) ? "(无扩展名)" : entry.Extension;
 
-    private static bool IsLikelyBackup(BackupFileEntry entry, string suffix)
-    {
-        if (!InplaceBackupService.ValidateSuffix(suffix, out _)) return false;
-        var stem = Path.GetFileNameWithoutExtension(entry.FileName);
-        return stem.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
-    }
+    // AUD-039：原 IsLikelyBackup（按备份后缀判定「疑似备份文件」并静默剔除）已删除。
+    // 该规则把真实源文件 G2-n1.spine 当成副本过滤掉（用户后缀历史为 -n1），
+    // 且目标路径模式根本不生成带后缀副本，无需此防护。防重复覆盖由 INV-4 负责。
 
     private void RebuildVisible()
     {
-        var suffix = _txtSuffix.Text;
-        var entries = _scanned.Where(e => !IsLikelyBackup(e, suffix)).ToList();
-        _excludedCount = _scanned.Count - entries.Count;
+        var entries = _scanned.ToList();
 
         var ext = _cmbExtension.SelectedItem as string ?? "全部";
         if (ext != "全部")
@@ -655,18 +685,75 @@ public class InplaceBackupPanel : UserControl
         foreach (var entry in _visible)
         {
             var dir = string.IsNullOrEmpty(entry.Directory) || entry.Directory == "." ? "(根目录)" : entry.Directory;
+            var animText = AnimationColumnText(entry);
             var index = _grid.Rows.Add(
                 _checked.Contains(entry.FullPath),
                 entry.FileName,
                 entry.ExtensionText,
                 entry.SizeText,
+                animText,
                 dir);
             var row = _grid.Rows[index];
             row.Tag = entry;
-            row.Cells[4].ToolTipText = entry.FullPath;
+            row.Cells[4].ToolTipText = entry.SelectedAnimations.Count > 0
+                ? string.Join(", ", entry.SelectedAnimations) : animText;
+            row.Cells[5].ToolTipText = entry.FullPath;  // AUD-038：目录列由 Cells[4] 顺延到 Cells[5]
+            if (entry.HasMissingAnimations) ApplyMissingRowStyle(row);
         }
         _suppressGridEvents = false;
         _lblVisibleCount.Text = $"当前显示 {_visible.Count} 个   ";
+        UpdateAnimationStat();
+    }
+
+    // ── AUD-038：动画列 / 标红样式 ──
+
+    /// <summary>未参与本轮批量选择或未选出动画的行显示「—」；参与但零匹配显示「（无匹配动画）」。</summary>
+    private static string AnimationColumnText(BackupFileEntry entry)
+    {
+        if (entry.SelectedAnimations.Count > 0) return string.Join(", ", entry.SelectedAnimations);
+        return entry.HasMissingAnimations ? "（无匹配动画）" : "—";
+    }
+
+    private static void ApplyMissingRowStyle(DataGridViewRow row)
+    {
+        var style = row.DefaultCellStyle;
+        style.BackColor = Color.FromArgb(0x5A, 0x2A, 0x2C);
+        style.ForeColor = Color.FromArgb(0xFF, 0xE3, 0xE3);
+        // 选中态单独配色，避免整行变蓝后红提示消失
+        style.SelectionBackColor = Color.FromArgb(0x7A, 0x35, 0x38);
+        style.SelectionForeColor = Color.White;
+    }
+
+    /// <summary>
+    /// UiTheme 对 DataGridViewCheckBoxCell 有自绘（只读 grid.DefaultCellStyle），会吞掉行级红底。
+    /// 本处理器在 RefreshVisualState() 里注册，晚于 UiTheme.Apply，因此后执行并覆盖首列底色。
+    /// </summary>
+    private void PaintMissingRowCheckbox(object? sender, DataGridViewCellPaintingEventArgs e)
+    {
+        if (e.Graphics == null || e.RowIndex < 0 || e.ColumnIndex != 0) return;
+        if (_grid.Rows[e.RowIndex].Tag is not BackupFileEntry entry || !entry.HasMissingAnimations) return;
+
+        var selected = (e.State & DataGridViewElementStates.Selected) != 0;
+        using var bg = new SolidBrush(selected
+            ? Color.FromArgb(0x7A, 0x35, 0x38) : Color.FromArgb(0x5A, 0x2A, 0x2C));
+        e.Graphics.FillRectangle(bg, e.CellBounds);
+
+        var value = e.Value is bool b && b;
+        var image = UiTheme.LoadImage(value ? "checks/checkbox_checked.png" : "checks/checkbox_unchecked.png");
+        var size = Math.Min(18, Math.Min(e.CellBounds.Width - 6, e.CellBounds.Height - 6));
+        if (size > 0)
+            e.Graphics.DrawImage(image, new Rectangle(
+                e.CellBounds.Left + (e.CellBounds.Width - size) / 2,
+                e.CellBounds.Top + (e.CellBounds.Height - size) / 2,
+                size, size));
+        e.Handled = true;
+    }
+
+    private void UpdateAnimationStat()
+    {
+        if (IsDisposed) return;
+        _lblAnimStat.Text = _lastSelectedAnimationCount > 0
+            ? $"本轮已选 {_lastSelectedAnimationCount} 个动画" : "";
     }
 
     private void Grid_CellValueChanged(object? sender, DataGridViewCellEventArgs e)
@@ -722,6 +809,14 @@ public class InplaceBackupPanel : UserControl
             _btnStartBackup.EnabledChanged += (_, _) => RefreshActionButtonText();
             _btnCancelBackup.EnabledChanged += (_, _) => RefreshActionButtonText();
         }
+        if (!_gridPaintWired)
+        {
+            _gridPaintWired = true;
+            // 注册时机必须晚于 UiTheme.Apply，才能覆盖勾选列的自绘底色
+            _grid.CellPainting += PaintMissingRowCheckbox;
+        }
+        _lblAnimHint.ForeColor = UiTheme.Muted;
+        UpdateAnimationStat();
         RefreshActionButtonText();
         UpdateSampleLabel();
         RefreshEnabledState();
@@ -781,8 +876,6 @@ public class InplaceBackupPanel : UserControl
                 ? "勾选文件后点击「开始批量备份」，在原目录生成带后缀副本"
                 : "勾选文件后配置目标路径并点击「开始复制」");
         var parts = new List<string> { $"就绪 · 已扫描 {_scanned.Count} 个文件 · {actionHint}" };
-        if (_excludedCount > 0)
-            parts.Add($"已排除 {_excludedCount} 个疑似备份文件");
         // 备份后缀校验与占用预检只在原地模式下有意义，目标模式不显示、不做多余的磁盘 stat
         if (_hostInplaceMode)
         {
@@ -910,6 +1003,8 @@ public class InplaceBackupPanel : UserControl
     {
         try { _scanCts?.Cancel(); }
         catch (ObjectDisposedException) { }
+        try { _animCts?.Cancel(); }
+        catch (ObjectDisposedException) { }
         _service.Cancel();
     }
 
@@ -930,6 +1025,7 @@ public class InplaceBackupPanel : UserControl
         _btnClearFiles.Enabled = !locked;
         _btnSelectAll.Enabled = !locked;
         _btnDeselectAll.Enabled = !locked;
+        _btnSelectAnimations.Enabled = !locked && !_animReading;
         _cmbExtension.Enabled = !locked;
         _txtKeyword.Enabled = !locked;
         // V2.91：后缀输入框的启用态由宿主模式开关与运行锁共同决定
@@ -947,6 +1043,269 @@ public class InplaceBackupPanel : UserControl
         _btnCancelBackup.Text = _scanning ? "取消扫描" : "取消备份";
     }
 
+    // ══════════════════════════════════════════════════════════
+    //  AUD-038 批量动画选择：门槛 / 并集弹窗 / 交集写入 / 标红提醒
+    //  红线：本节只读 .spine 元数据，不写磁盘、不碰 _checked、不改执行集合。
+    //  门槛 = 勾选快照 C 全是 .spine；弹窗 = ∪A(f)；写入 = S ∩ A(f)；标红仅提醒。
+    // ══════════════════════════════════════════════════════════
+
+    private void WarnAnimation(string message, string title = "提示")
+        // 两层非顶层 Form 嵌套下，用真正的顶层窗口作为 owner，避免模态层级落在子控件上
+        => MessageBox.Show(TopLevelControl ?? this, message, title, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+
+    private async Task ShowBatchAnimSelectAsync()
+    {
+        if (IsBusy || _externalBusy || _animReading) return;                  // G0
+        var snapshot = CheckedFilesSnapshot;                                  // C：全量勾选快照（D0=A）
+        if (snapshot.Count == 0)                                              // G1
+        {
+            WarnAnimation("请先勾选要处理的文件，再使用「选择动画」。");
+            return;
+        }
+
+        // G2：勾选项必须全部是 .spine（大小写不敏感；.spine.json 不算）
+        var invalid = snapshot.Where(p => !string.Equals(
+            Path.GetExtension(p), ".spine", StringComparison.OrdinalIgnoreCase)).ToList();
+        if (invalid.Count > 0)
+        {
+            var names = invalid.Take(10).Select(p => Path.GetFileName(p) ?? p).ToList();
+            if (invalid.Count > 10) names.Add($"…另有 {invalid.Count - 10} 个");
+            WarnAnimation(
+                $"无法勾选：已勾选的 {snapshot.Count} 个文件中有 {invalid.Count} 个不是 .spine 文件。\n\n"
+                + "只能在列表中确定勾选的所有文件里只有 .spine 文件的时候可用。\n\n"
+                + "以下文件不符合条件：\n" + string.Join("\n", names)
+                + "\n\n请取消勾选这些文件后再试。",
+                "无法使用动画选择");
+            return;                                                            // 零写入
+        }
+
+        // G3：复用窗口顶部保存到配置中的 Spine.com 路径（宿主每次变更都会落盘）
+        _animCli.SpinePath = ConfigService.LoadCliSpinePath() ?? "";
+        if (!_animCli.IsValid)
+        {
+            WarnAnimation("请先在窗口顶部设置有效的 Spine.com 路径，再使用「选择动画」。", "Spine.com 未配置");
+            return;
+        }
+
+        _animReading = true;
+        _animCts?.Dispose();
+        _animCts = new CancellationTokenSource();
+        var ct = _animCts.Token;
+        RefreshEnabledState();
+        var animByPath = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        var failed = 0;
+        try
+        {
+            StatusRequested?.Invoke($"正在读取 {snapshot.Count} 个 .spine 文件的动画…", "");
+            (animByPath, failed) = await ReadAnimationsAsync(snapshot, ct);
+        }
+        catch (Exception ex)
+        {
+            OperationLogger.Warn($"InplaceBackupPanel: batch animation read failed: {ex.Message}");
+            failed = snapshot.Count;
+        }
+        finally
+        {
+            _animCts?.Dispose();
+            _animCts = null;
+            _animReading = false;
+            RefreshEnabledState();
+        }
+        if (IsDisposed || ct.IsCancellationRequested) return;
+
+        var union = BuildUnion(snapshot, animByPath);                          // U
+        if (union.Count == 0)                                                  // G4
+        {
+            WarnAnimation("未能从已勾选文件读取动画列表，请确认 .spine 文件有效且 Spine.com 版本匹配。", "无可用动画");
+            return;
+        }
+
+        var selected = ShowBatchAnimationDialog(union, snapshot.Count, failed); // S
+        if (selected == null) return;                                          // 取消 = 零写入
+
+        ApplyBatchSelection(snapshot, selected, animByPath);
+    }
+
+    /// <summary>串行读取 A(f)，命中「FullPath + LastWriteTimeUtc」缓存时不重启 Spine.com 进程。</summary>
+    private async Task<(Dictionary<string, List<string>> ByPath, int Failed)> ReadAnimationsAsync(
+        IReadOnlyList<string> snapshot, CancellationToken ct)
+    {
+        var byPath = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        var failed = 0;
+        for (var i = 0; i < snapshot.Count; i++)
+        {
+            if (ct.IsCancellationRequested) break;
+            var path = snapshot[i];
+            StatusRequested?.Invoke($"读取动画中 {i + 1}/{snapshot.Count}：{Path.GetFileName(path)}", "");
+
+            long ticks;
+            try { ticks = File.GetLastWriteTimeUtc(path).Ticks; }
+            catch { ticks = 0; }
+
+            List<string> names;
+            if (_animCache.TryGetValue(path, out var cached) && cached.Ticks == ticks)
+            {
+                names = cached.Names;
+            }
+            else
+            {
+                try
+                {
+                    var info = await _animCli.GetProjectInfo(path, ct);
+                    names = info.AnimationNames
+                        .Where(n => !string.IsNullOrWhiteSpace(n))
+                        .Select(n => n.Trim())
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                }
+                catch (Exception ex)
+                {
+                    OperationLogger.Warn($"InplaceBackupPanel: read animations failed: {path}: {ex.Message}");
+                    names = [];
+                }
+                _animCache[path] = (ticks, names);
+            }
+
+            byPath[path] = names;
+            if (names.Count == 0) failed++;
+        }
+        return (byPath, failed);
+    }
+
+    /// <summary>U = ∪A(f)，按 C 的顺序、A(f) 内原顺序追加，忽略大小写去重且保留首次拼写。</summary>
+    private static List<string> BuildUnion(IReadOnlyList<string> snapshot,
+        Dictionary<string, List<string>> byPath)
+    {
+        var union = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var path in snapshot)
+        {
+            if (!byPath.TryGetValue(path, out var names)) continue;
+            foreach (var name in names)
+                if (seen.Add(name)) union.Add(name);
+        }
+        return union;
+    }
+
+    private List<string>? ShowBatchAnimationDialog(List<string> union, int fileCount, int failedCount)
+    {
+        using var dialog = new Form
+        {
+            Text = $"批量选择动画 — {fileCount} 个 .spine 文件",
+            Size = new Size(540, 600),
+            MinimumSize = new Size(460, 420),
+            StartPosition = FormStartPosition.CenterParent,
+            MinimizeBox = false,
+            MaximizeBox = false,
+            ShowInTaskbar = false,
+            FormBorderStyle = FormBorderStyle.Sizable,
+            BackColor = UiTheme.App
+        };
+
+        var clb = new DarkCheckedListBox
+        {
+            Dock = DockStyle.Fill,
+            CheckOnClick = true,
+            BorderStyle = BorderStyle.FixedSingle,
+            BackColor = UiTheme.List
+        };
+        foreach (var name in union) clb.Items.Add(name, true);   // 默认全勾
+
+        var summary = new Label
+        {
+            Dock = DockStyle.Top,
+            Height = 62,
+            Padding = new Padding(12, 8, 12, 6),
+            TextAlign = ContentAlignment.MiddleLeft,
+            Text = $"来源文件 {fileCount} 个 · 动画并集 {union.Count} 项"
+                 + (failedCount > 0 ? $" · {failedCount} 个文件未能读取动画" : "")
+                 + "\n同名动画已合并；部分文件可能不含所选动画，确认后按各文件实际拥有的动画填写，缺项仅标红提醒。"
+        };
+
+        var buttons = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Bottom,
+            Height = 52,
+            FlowDirection = FlowDirection.RightToLeft,
+            WrapContents = false,
+            Padding = new Padding(8)
+        };
+        var btnCancel = new Button { Text = "取消", AutoSize = true, MinimumSize = new Size(80, 30), FlatStyle = FlatStyle.Flat };
+        StyleAnimButton(btnCancel, UiTheme.PanelAlt, UiTheme.Text);
+        btnCancel.Click += (_, _) => { dialog.DialogResult = DialogResult.Cancel; dialog.Close(); };
+
+        var chosen = new List<string>();
+        var btnOk = new Button { Text = "确认", AutoSize = true, MinimumSize = new Size(80, 30), FlatStyle = FlatStyle.Flat };
+        StyleAnimButton(btnOk, UiTheme.Blue, Color.White);
+        btnOk.Click += (_, _) =>
+        {
+            chosen.AddRange(clb.CheckedItems.Cast<string>());
+            dialog.DialogResult = DialogResult.OK;
+            dialog.Close();
+        };
+
+        var btnNone = new Button { Text = "全不选", AutoSize = true, MinimumSize = new Size(80, 30), FlatStyle = FlatStyle.Flat };
+        StyleAnimButton(btnNone, UiTheme.PanelAlt, UiTheme.Text);
+        btnNone.Click += (_, _) => { for (var i = 0; i < clb.Items.Count; i++) clb.SetItemChecked(i, false); };
+
+        var btnAll = new Button { Text = "全选", AutoSize = true, MinimumSize = new Size(80, 30), FlatStyle = FlatStyle.Flat };
+        StyleAnimButton(btnAll, UiTheme.PanelAlt, UiTheme.Text);
+        btnAll.Click += (_, _) => { for (var i = 0; i < clb.Items.Count; i++) clb.SetItemChecked(i, true); };
+
+        buttons.Controls.AddRange([btnCancel, btnOk, btnNone, btnAll]);
+        dialog.Controls.Add(clb);
+        dialog.Controls.Add(buttons);
+        dialog.Controls.Add(summary);
+        UiTheme.Apply(dialog, UiWindowProfile.AnimationSelect);
+        summary.ForeColor = UiTheme.Cyan;
+        summary.BackColor = Color.FromArgb(0x24, 0x3B, 0x40);
+
+        return dialog.ShowDialog(TopLevelControl ?? this) == DialogResult.OK ? chosen : null;
+    }
+
+    private static void StyleAnimButton(Button button, Color back, Color fore)
+    {
+        button.BackColor = back;
+        button.ForeColor = fore;
+        button.Cursor = Cursors.Hand;
+        button.FlatAppearance.BorderColor = UiTheme.Border;
+        button.FlatAppearance.MouseOverBackColor = UiTheme.PanelAlt;
+    }
+
+    /// <summary>逐文件写入 E(f) = S ∩ A(f)；M(f) 只用于整行标红，不写入、不拦截执行。</summary>
+    private void ApplyBatchSelection(IReadOnlyList<string> snapshot, List<string> selected,
+        Dictionary<string, List<string>> animByPath)
+    {
+        var missingRows = 0;
+        foreach (var path in snapshot)
+        {
+            var entry = _scanned.FirstOrDefault(e =>
+                string.Equals(e.FullPath, path, StringComparison.OrdinalIgnoreCase));
+            if (entry == null) continue;
+            if (!animByPath.TryGetValue(path, out var available)) available = [];
+
+            var effective = new List<string>();
+            foreach (var name in selected)
+            {
+                var actual = available.FirstOrDefault(a =>
+                    string.Equals(a, name, StringComparison.OrdinalIgnoreCase));
+                if (actual != null) effective.Add(actual);
+            }
+
+            entry.AvailableAnimations = available;
+            entry.SelectedAnimations = effective;
+            entry.HasMissingAnimations = effective.Count < selected.Count;
+            if (entry.HasMissingAnimations) missingRows++;
+        }
+
+        _lastSelectedAnimationCount = selected.Count;
+        RefreshGrid();
+        var message = $"已为 {snapshot.Count} 个 .spine 文件写入动画（并集勾选 {selected.Count} 项）";
+        if (missingRows > 0)
+            message += $"，其中 {missingRows} 行缺少所选动画（仅标红提醒，不影响复制）";
+        StatusRequested?.Invoke(message, "");
+    }
+
     protected override void Dispose(bool disposing)
     {
         if (disposing)
@@ -956,6 +1315,8 @@ public class InplaceBackupPanel : UserControl
             _statusDebounce.Stop();
             _statusDebounce.Dispose();
             _scanCts?.Dispose();
+            _animCts?.Cancel();
+            _animCts?.Dispose();
         }
         base.Dispose(disposing);
     }

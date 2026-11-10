@@ -25,9 +25,8 @@ public partial class MainForm : Form
 
     // ── 首页标签页容器（只承载入口，子窗体内部零改动）──
     private DarkTabControl _mainTabs = null!;
-    private TabPage _tabShortcut = null!, _tabRename = null!, _tabBatchCopy = null!, _tabCli = null!;
+    private TabPage _tabShortcut = null!, _tabRename = null!, _tabCli = null!;
     private ReNameTool.Form1? _renamePage;
-    private BatchCopyWindow? _copyPage;
     private BatchCliWindow? _cliPage;
 
     private readonly VirtualLayoutSerializer _vkSerializer = new();
@@ -38,7 +37,7 @@ public partial class MainForm : Form
 
     public MainForm()
     {
-        Text = "spine宏助手（TANRY） V2.91";
+        Text = "spine宏助手（TANRY） V2.94";
         Icon = IconService.AppIcon;
         ClientSize = new Size(1440, 900);
         MinimumSize = new Size(1100, 650);
@@ -196,9 +195,8 @@ public partial class MainForm : Form
         };
         _tabShortcut = new TabPage("快捷键");
         _tabRename = new TabPage("批量重命名/spine解包整理");
-        _tabBatchCopy = new TabPage("批量复制");
-        _tabCli = new TabPage("CLI批量合并/导出");
-        _mainTabs.TabPages.AddRange([_tabShortcut, _tabRename, _tabBatchCopy, _tabCli]);
+        _tabCli = new TabPage("批量复制/合成/导出");
+        _mainTabs.TabPages.AddRange([_tabShortcut, _tabRename, _tabCli]);
         _mainTabs.SelectedIndexChanged += MainTabs_SelectedIndexChanged;
         _tabShortcut.Controls.Add(rootLayout);
 
@@ -1129,12 +1127,7 @@ public partial class MainForm : Form
             _renamePage = new ReNameTool.Form1();
             EmbedPage(_tabRename, _renamePage);
         }
-        else if (index == 2 && _copyPage == null)
-        {
-            _copyPage = new BatchCopyWindow();
-            EmbedPage(_tabBatchCopy, _copyPage);
-        }
-        else if (index == 3 && _cliPage == null)
+        else if (index == 2 && _cliPage == null)
         {
             _cliPage = new BatchCliWindow();
             EmbedPage(_tabCli, _cliPage);
@@ -1150,8 +1143,6 @@ public partial class MainForm : Form
     {
         CloseEmbeddedPage(_renamePage);
         _renamePage = null;
-        CloseEmbeddedPage(_copyPage);
-        _copyPage = null;
         CloseEmbeddedPage(_cliPage);
         _cliPage = null;
     }

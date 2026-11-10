@@ -20,8 +20,13 @@ public class BatchCliWindow : Form
 
     // ── Tab control ──
     private readonly DarkTabControl _tabControl = new();
+    private readonly TabPage _tabBatchCopy = new();
     private readonly TabPage _tabMerge = new();
     private readonly TabPage _tabExport = new();
+
+    // ── AUD-038：批量复制子页（两层非顶层 Form 嵌套，懒加载 + 退出清理）──
+    private BatchCopyWindow? _copyPage;
+    private bool _themeApplied;
 
     // ── Merge tab ──
     private readonly ListView _lvSource = new();
@@ -43,17 +48,41 @@ public class BatchCliWindow : Form
     private readonly Button _btnScan = new();
     private readonly ListView _lvExportFiles = new();
     private readonly Button _btnRefresh = new();
+    private readonly Button _btnBatchGenerate = new();   // AUD-040 R8
+    private readonly Label _lblVersionNote = new();      // AUD-040 U1：4.3 版本备注
     private readonly TextBox _txtOutputDir = new();
     private readonly Button _btnBrowseOutput = new();
     private readonly Button _btnExport = new();
     private readonly Button _btnPack = new();
+    private readonly Button _btnSavePreset = new();      // AUD-040 R3
     private readonly RadioButton _rbFinish = new();
     private readonly RadioButton _rbDemotion = new();
     private readonly RadioButton _rbOther = new();
-    private string _exportConfigName = "export.json";
+
+    // AUD-040 F1/F2：删掉会独立漂移的 _exportConfigName 字段。
+    // 单一真值源 CurrentExportConfigName 由 radio 实时计算；「其他」手填值单独保存。
+    private string _otherConfigName = "";
+    private bool _suppressConfigEvents;
+
+    // AUD-040 R4/R6：右侧预设列（内存列表 + 三列 ListView + 三个按钮）
+    private readonly List<ExportPreset> _presets = [];
+    private readonly ListView _lvPresets = new();
+    private readonly Label _lblPresetHeader = new();
+    private readonly Button _btnActivatePreset = new();
+    private readonly Button _btnDeletePreset = new();
+    private readonly Button _btnDeleteAllPresets = new();
 
     private readonly BindingList<SpineCliEntry> _exportEntries = [];
     private CancellationTokenSource? _cliCts;
+
+    /// <summary>AUD-040 F1：导出配置名的单一真值源，状态列 / 预设 / 批量生成统一读取。</summary>
+    private string CurrentExportConfigName =>
+        _rbOther.Checked ? _otherConfigName :
+        _rbDemotion.Checked ? "demotion.export.json" : "finish.export.json";
+
+    private ExportConfigSelection CurrentConfigSelection =>
+        _rbOther.Checked ? ExportConfigSelection.Other :
+        _rbDemotion.Checked ? ExportConfigSelection.Demotion : ExportConfigSelection.Finish;
 
     // ── Progress bar ──
     private readonly Label _lblProgressCurrent = new();
@@ -64,7 +93,7 @@ public class BatchCliWindow : Form
 
     public BatchCliWindow()
     {
-        Text = "CLI批量合并/导出";
+        Text = "批量复制/合成/导出";
         Icon = IconService.AppIcon;
         ClientSize = new Size(1440, 900);
         MinimumSize = new Size(1040, 680);
@@ -91,7 +120,18 @@ public class BatchCliWindow : Form
 
         Controls.Add(layout);
         UiTheme.Apply(this, UiWindowProfile.BatchCli);
+
+        // AUD-040 U1：主题递归会统一所有 Label 的文字色，套用主题后再把
+        // 「必须 4.3 及以上版本」备注改为醒目橙色，保证深色界面上可读。
+        _lblVersionNote.ForeColor = UiTheme.Orange;
+        _lblPresetHeader.ForeColor = UiTheme.Text;
+
         LoadSavedPath();
+
+        // AUD-038：子窗体必须在宿主 Apply 之后创建，否则 UiTheme 递归会覆盖 BatchCopy 自己的主题。
+        // 默认选中的是 index 0「批量复制」，构造完成后立即嵌入；后续切页由 SelectedIndexChanged 兜底。
+        _themeApplied = true;
+        EnsureCopyPage();
     }
 
     // ────────────────────── Top bar (shared) ──────────────────────
@@ -216,8 +256,67 @@ public class BatchCliWindow : Form
         _tabControl.BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA);
         BuildMergeTab();
         BuildExportTab();
+        // AUD-038：新子页固定插在「合并」之前；原两页内容零改动。
+        _tabBatchCopy.Text = "批量复制";
+        _tabControl.TabPages.Add(_tabBatchCopy);
         _tabControl.TabPages.Add(_tabMerge);
         _tabControl.TabPages.Add(_tabExport);
+        _tabControl.SelectedIndexChanged += (_, _) => EnsureCopyPage();
+    }
+
+    /// <summary>
+    /// AUD-038：把 BatchCopyWindow 整体嵌入第一页。两层非顶层 Form 嵌套时，
+    /// 创建时机必须晚于宿主 UiTheme.Apply，且关闭必须走 Close() 才会触发
+    /// BatchCopyWindow.OnFormClosed 的前缀/后缀/备份后缀历史写回。
+    /// </summary>
+    private void EnsureCopyPage()
+    {
+        if (!_themeApplied || _copyPage != null || _tabControl.SelectedIndex != 0) return;
+        try
+        {
+            _copyPage = new BatchCopyWindow();
+            _copyPage.ShowInTaskbar = false;
+            _copyPage.TopLevel = false;
+            _copyPage.FormBorderStyle = FormBorderStyle.None;
+            _copyPage.WindowState = FormWindowState.Normal;
+            _copyPage.Dock = DockStyle.Fill;
+            _tabBatchCopy.Controls.Add(_copyPage);
+            _copyPage.Visible = true;
+        }
+        catch (Exception ex)
+        {
+            OperationLogger.Warn($"BatchCliWindow: embed batch copy page failed: {ex.Message}");
+            _copyPage = null;
+        }
+    }
+
+    private void CloseCopyPage()
+    {
+        var page = _copyPage;
+        if (page == null) return;
+        _copyPage = null;
+        if (page.IsDisposed) return;
+        try
+        {
+            page.Close();   // 触发子窗体 FormClosing / FormClosed 链（含历史写回）
+            page.Dispose(); // 非顶层 Form 不在 Application.OpenForms 中，需显式释放
+        }
+        catch (Exception ex)
+        {
+            OperationLogger.Warn($"BatchCliWindow: close batch copy page failed: {ex.Message}");
+        }
+    }
+
+    protected override void OnFormClosed(FormClosedEventArgs e)
+    {
+        CloseCopyPage();
+        base.OnFormClosed(e);
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) CloseCopyPage();
+        base.Dispose(disposing);
     }
 
     // ────────────────────── Merge Tab ──────────────────────
@@ -252,7 +351,7 @@ public class BatchCliWindow : Form
 
     private void BuildMergeTab()
     {
-        _tabMerge.Text = "合并";
+        _tabMerge.Text = "批量合并";
         _tabMerge.Padding = new Padding(10);
         _tabMerge.BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA);
 
@@ -497,7 +596,7 @@ public class BatchCliWindow : Form
         if (entries.Any(e => e.FilePath.Equals(filePath, StringComparison.OrdinalIgnoreCase))) return;
 
         var dir = Path.GetDirectoryName(filePath);
-        var configPath = !string.IsNullOrEmpty(dir) ? Path.Combine(dir, _exportConfigName) : null;
+        var configPath = !string.IsNullOrEmpty(dir) ? Path.Combine(dir, CurrentExportConfigName) : null;
         var hasConfig = configPath != null && File.Exists(configPath);
 
         var entry = new SpineCliEntry
@@ -1091,11 +1190,15 @@ public class BatchCliWindow : Form
         var exportPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 2,
+            ColumnCount = 3,      // AUD-040 R4：列 2 = 导出预设
             RowCount = 6,
             Padding = new Padding(10),
             BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3)
         };
+        // 显式列样式：列 0 行标签 AutoSize、列 1 主体 Percent 100、列 2 预设 Absolute 320px
+        exportPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        exportPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        exportPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 340));
         exportPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         exportPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 250));
         exportPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -1157,35 +1260,67 @@ public class BatchCliWindow : Form
         _rbFinish.Text = "finish.export.json";
         _rbFinish.AutoSize = true;
         _rbFinish.Margin = new Padding(10, 5, 4, 0);
-        _rbFinish.Checked = true;
-        _rbFinish.CheckedChanged += (_, _) => { if (_rbFinish.Checked) { _exportConfigName = "finish.export.json"; RefreshExportStatus(); } };
 
         _rbDemotion.Text = "demotion.export.json";
         _rbDemotion.AutoSize = true;
         _rbDemotion.Margin = new Padding(10, 5, 4, 0);
-        _rbDemotion.CheckedChanged += (_, _) => { if (_rbDemotion.Checked) { _exportConfigName = "demotion.export.json"; RefreshExportStatus(); } };
 
         _rbOther.Text = "其他";
         _rbOther.AutoSize = true;
         _rbOther.Margin = new Padding(10, 5, 4, 0);
+
+        // AUD-040 F1/F2/F3/F5：单一真值源 CurrentExportConfigName 由 radio 实时计算，
+        // 事件只负责刷新状态；「其他」手填值写入 _otherConfigName。
+        // 订阅必须早于 Checked = true —— 旧代码先 Checked 后订阅，初始态不触发事件，
+        // 导致字段初值 "export.json" 与 UI 的 finish.export.json 从窗口创建起就不同步（用户报的 bug 根因）。
+        _rbFinish.CheckedChanged += (_, _) =>
+        {
+            if (!_suppressConfigEvents && _rbFinish.Checked) RefreshExportStatus();
+        };
+        _rbDemotion.CheckedChanged += (_, _) =>
+        {
+            if (!_suppressConfigEvents && _rbDemotion.Checked) RefreshExportStatus();
+        };
         _rbOther.CheckedChanged += (_, _) =>
         {
-            if (!_rbOther.Checked) return;
+            if (_suppressConfigEvents || !_rbOther.Checked) return;
             var name = Microsoft.VisualBasic.Interaction.InputBox(
-                "输入 export.json 文件名：", "指定导出配置", _exportConfigName);
+                "输入 export.json 文件名：", "指定导出配置",
+                string.IsNullOrWhiteSpace(_otherConfigName) ? "finish.export.json" : _otherConfigName);
             if (!string.IsNullOrWhiteSpace(name))
             {
-                _exportConfigName = name.Trim();
+                _otherConfigName = name.Trim();
                 RefreshExportStatus();
             }
             else
             {
+                // 回落 finish：会触发 finish 事件重算状态；other 因 Checked=false 直接返回，不会再次弹窗
                 _rbFinish.Checked = true;
             }
         };
 
+        _rbFinish.Checked = true;   // 订阅之后设置：初始态与真值源从窗口创建起就一致
+
+        // AUD-040 R8：刷新状态右侧新增「批量生成导出配置」，按当前配置名用 CLI 生成配置文件
+        _btnBatchGenerate.Text = "批量生成导出配置";
+        _btnBatchGenerate.AutoSize = true;
+        _btnBatchGenerate.MinimumSize = new Size(150, 34);
+        _btnBatchGenerate.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnBatchGenerate, Color.FromArgb(0x14, 0x87, 0x92), Color.White);
+        _btnBatchGenerate.Click += async (_, _) => await ExecuteBatchGenerateConfig();
+
+        // U1：按钮后固定备注，明确该功能只支持 Spine 4.3 及以上版本。
+        // ForeColor 会在 UiTheme.Apply 之后回填（主题递归会覆盖控件颜色），见构造函数。
+        _lblVersionNote.Text = "（必须 4.3 及以上版本才能使用）";
+        _lblVersionNote.AutoSize = true;
+        _lblVersionNote.Font = new Font("Microsoft YaHei UI", 8.5f, FontStyle.Bold);
+        _lblVersionNote.TextAlign = ContentAlignment.MiddleLeft;
+        _lblVersionNote.Margin = new Padding(2, 9, 0, 0);
+
         var refreshPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = false, Padding = new Padding(0, 8, 0, 4), BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3) };
         refreshPanel.Controls.Add(_btnRefresh);
+        refreshPanel.Controls.Add(_btnBatchGenerate);
+        refreshPanel.Controls.Add(_lblVersionNote);
         refreshPanel.Controls.Add(new Label { Text = "  |  导出配置:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft });
         refreshPanel.Controls.Add(_rbFinish);
         refreshPanel.Controls.Add(_rbDemotion);
@@ -1233,11 +1368,28 @@ public class BatchCliWindow : Form
         StyleButton(_btnPack, Color.FromArgb(0x6B, 0x46, 0xC3), Color.White);
         _btnPack.Click += async (_, _) => await ExecutePack();
 
-        actionPanel.Controls.AddRange([_btnExport, _btnPack]);
+        // AUD-040 R3：单纹理图右侧新增「保存为导出预设」
+        _btnSavePreset.Text = "保存为导出预设";
+        _btnSavePreset.AutoSize = true;
+        _btnSavePreset.MinimumSize = new Size(130, 36);
+        _btnSavePreset.BackColor = Color.FromArgb(0x6B, 0x46, 0xC3);
+        _btnSavePreset.ForeColor = Color.White;
+        _btnSavePreset.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnSavePreset, Color.FromArgb(0x6B, 0x46, 0xC3), Color.White);
+        _btnSavePreset.Click += (_, _) => SavePreset();
+
+        actionPanel.Controls.AddRange([_btnExport, _btnPack, _btnSavePreset]);
         exportPanel.Controls.Add(actionPanel, 1, 4);
+
+        BuildPresetColumn(exportPanel);
 
         exportContainer.Controls.Add(exportPanel, 0, 1);
         _tabExport.Controls.Add(exportContainer);
+
+        // AUD-040 U2：从本地软件数据文档 %APPDATA%\KeyMacro\export_presets.json 载入预设
+        _presets.Clear();
+        _presets.AddRange(ConfigService.LoadExportPresets());
+        RefreshPresetList();
     }
 
     private void ScanSourceDir(object? sender, EventArgs e)
@@ -1263,6 +1415,8 @@ public class BatchCliWindow : Form
             _lvExportFiles.Items.Clear();
             foreach (var f in picker.SelectedFolders)
                 AddExportEntry(_lvExportFiles, _exportEntries, f);
+            // AUD-040 F4：扫描后按单一真值源立即重算状态列，不再需要来回切换配置名
+            RefreshExportStatus();
         }
     }
 
@@ -1273,7 +1427,7 @@ public class BatchCliWindow : Form
             if (item.Tag is SpineCliEntry entry)
             {
                 var dir = Path.GetDirectoryName(entry.FilePath);
-                var configPath = !string.IsNullOrEmpty(dir) ? Path.Combine(dir, _exportConfigName) : null;
+                var configPath = !string.IsNullOrEmpty(dir) ? Path.Combine(dir, CurrentExportConfigName) : null;
                 var hasConfig = configPath != null && File.Exists(configPath);
                 entry.HasExportConfig = hasConfig;
                 entry.ExportConfigPath = hasConfig ? configPath : null;
@@ -1464,5 +1618,433 @@ public class BatchCliWindow : Form
             return false;
         }
         return true;
+    }
+
+    // ────────────────────── AUD-040：导出预设 ──────────────────────
+
+    /// <summary>
+    /// R4/R6：导出任务区第 3 列 = 预设列表（跨行 0~3）+ 三个按钮（行 4）。
+    /// 列 0/1 原有控件全部保留，文件列表仍跨列 0~1，不会侵占右列。
+    /// </summary>
+    private void BuildPresetColumn(TableLayoutPanel exportPanel)
+    {
+        var presetContainer = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3),
+            Padding = new Padding(0, 0, 0, 4)
+        };
+
+        _lblPresetHeader.Text = "导出预设（共 0 个）";
+        _lblPresetHeader.Dock = DockStyle.Top;
+        _lblPresetHeader.Height = 26;
+        _lblPresetHeader.TextAlign = ContentAlignment.MiddleLeft;
+        _lblPresetHeader.Font = new Font("Microsoft YaHei UI", 9, FontStyle.Bold);
+
+        _lvPresets.View = View.Details;
+        _lvPresets.FullRowSelect = true;
+        _lvPresets.MultiSelect = false;
+        _lvPresets.Dock = DockStyle.Fill;
+        _lvPresets.Activation = ItemActivation.Standard;
+        _lvPresets.Columns.Add("预设名", 148);
+        _lvPresets.Columns.Add("文件数", 58);
+        _lvPresets.Columns.Add("配置名", 126);
+        StyleListView(_lvPresets);
+        _lvPresets.ItemActivate += (_, _) => ActivateSelectedPreset();
+        _lvPresets.SelectedIndexChanged += (_, _) => RefreshPresetButtons();
+
+        presetContainer.Controls.Add(_lvPresets);        // Dock.Fill 先加
+        presetContainer.Controls.Add(_lblPresetHeader); // Dock.Top 后加
+        exportPanel.Controls.Add(presetContainer, 2, 0);
+        exportPanel.SetRowSpan(presetContainer, 4);
+
+        var presetButtons = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            AutoSize = false,
+            Padding = new Padding(0, 8, 0, 0),
+            BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3)
+        };
+
+        _btnActivatePreset.Text = "激活预设";
+        _btnActivatePreset.AutoSize = true;
+        _btnActivatePreset.MinimumSize = new Size(94, 36);
+        _btnActivatePreset.Margin = new Padding(2, 0, 2, 0);
+        _btnActivatePreset.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnActivatePreset, Color.FromArgb(0x00, 0x78, 0xD7), Color.White);
+        _btnActivatePreset.Click += (_, _) => ActivateSelectedPreset();
+
+        _btnDeletePreset.Text = "删除预设";
+        _btnDeletePreset.AutoSize = true;
+        _btnDeletePreset.MinimumSize = new Size(94, 36);
+        _btnDeletePreset.Margin = new Padding(2, 0, 2, 0);
+        _btnDeletePreset.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnDeletePreset);
+        _btnDeletePreset.Click += (_, _) => DeletePreset();
+
+        _btnDeleteAllPresets.Text = "删除全部预设";
+        _btnDeleteAllPresets.AutoSize = true;
+        _btnDeleteAllPresets.MinimumSize = new Size(94, 36);
+        _btnDeleteAllPresets.Margin = new Padding(2, 0, 2, 0);
+        _btnDeleteAllPresets.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnDeleteAllPresets, Color.FromArgb(0xD9, 0x5C, 0x5C), Color.White);
+        _btnDeleteAllPresets.Click += (_, _) => DeleteAllPresets();
+
+        presetButtons.Controls.AddRange([_btnActivatePreset, _btnDeletePreset, _btnDeleteAllPresets]);
+        exportPanel.Controls.Add(presetButtons, 2, 4);
+    }
+
+    /// <summary>R4：重建预设列表并同步按钮启用态。</summary>
+    private void RefreshPresetList()
+    {
+        _lvPresets.Items.Clear();
+        foreach (var p in _presets)
+        {
+            var item = new ListViewItem(p.Name);
+            item.SubItems.Add(p.FilePaths.Count.ToString());
+            item.SubItems.Add(ConfigDisplayName(p));
+            item.Tag = p;
+            item.ToolTipText = $"源目录: {p.SourceDir}\n输出目录: {p.OutputDir}\n创建时间: {p.CreatedAt:yyyy-MM-dd HH:mm}";
+            _lvPresets.Items.Add(item);
+        }
+        _lblPresetHeader.Text = $"导出预设（共 {_presets.Count} 个）";
+        RefreshPresetButtons();
+    }
+
+    private static string ConfigDisplayName(ExportPreset p) => p.ConfigSelection switch
+    {
+        ExportConfigSelection.Demotion => "demotion",
+        ExportConfigSelection.Other => string.IsNullOrWhiteSpace(p.OtherConfigName) ? "其他" : p.OtherConfigName,
+        _ => "finish"
+    };
+
+    private void RefreshPresetButtons()
+    {
+        var hasItems = _lvPresets.Items.Count > 0;
+        var hasSelection = _lvPresets.SelectedItems.Count > 0;
+        _btnActivatePreset.Enabled = hasSelection;
+        _btnDeletePreset.Enabled = hasSelection;
+        _btnDeleteAllPresets.Enabled = hasItems;
+    }
+
+    /// <summary>R3/R5：命名弹窗 + 同名拒绝（D3=B）+ 立即落盘（U2）。</summary>
+    private void SavePreset()
+    {
+        if (_exportEntries.Count == 0)
+        {
+            MessageBox.Show(this, "请先扫描并选择文件，再保存为导出预设。", "提示",
+                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        using var dlg = new InputDialog("保存为导出预设",
+            "请输入预设名称（源目录 / 文件列表 / 输出目录 / 导出配置名将一并保存）：",
+            $"预设 {_presets.Count + 1}");
+        if (dlg.ShowDialog(this) != DialogResult.OK) return;
+
+        var name = dlg.Result.Trim();
+        if (string.IsNullOrEmpty(name))
+        {
+            MessageBox.Show(this, "预设名称不能为空。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        if (_presets.Any(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)))
+        {
+            MessageBox.Show(this, $"已存在同名预设「{name}」，请换一个名字。", "同名预设",
+                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        var preset = new ExportPreset
+        {
+            Name = name,
+            SourceDir = _txtSourceDir.Text.Trim(),
+            OutputDir = _txtOutputDir.Text.Trim(),
+            FilePaths = _exportEntries.Select(e => e.FilePath).ToList(),
+            ConfigSelection = CurrentConfigSelection,
+            OtherConfigName = _otherConfigName,
+            CreatedAt = DateTime.Now
+        };
+        _presets.Add(preset);
+        ConfigService.SaveExportPresets(_presets);   // U2：立即落盘到本地软件数据文档
+        RefreshPresetList();
+        SelectPresetInList(name);
+        _lblPresetHeader.Text = $"导出预设（共 {_presets.Count} 个）· 已保存「{name}」";
+    }
+
+    private void SelectPresetInList(string name)
+    {
+        foreach (ListViewItem item in _lvPresets.Items)
+        {
+            if (!string.Equals(item.Text, name, StringComparison.OrdinalIgnoreCase)) continue;
+            item.Selected = true;
+            item.Focused = true;
+            break;
+        }
+        RefreshPresetButtons();
+    }
+
+    /// <summary>R7：双击列表项与「激活预设」按钮走同一入口。</summary>
+    private void ActivateSelectedPreset()
+    {
+        if (_lvPresets.SelectedItems.Count == 0) return;
+        if (_lvPresets.SelectedItems[0].Tag is ExportPreset preset)
+            ActivatePreset(preset);
+    }
+
+    /// <summary>
+    /// R7/F7：清空当前录入 → 恢复配置名与单选项 → 逐个注入预设路径 → 恢复目录 → 重算状态列。
+    /// 不自动扫描磁盘、不自动执行导出；已不存在的文件跳过并汇总提示（D12=A）。
+    /// </summary>
+    private void ActivatePreset(ExportPreset preset)
+    {
+        _exportEntries.Clear();
+        _lvExportFiles.Items.Clear();
+
+        // K8：必须先写 _otherConfigName 再置 Checked，且全程抑制 radio 事件，避免误弹 InputBox
+        _suppressConfigEvents = true;
+        try
+        {
+            _otherConfigName = preset.OtherConfigName ?? "";
+            switch (preset.ConfigSelection)
+            {
+                case ExportConfigSelection.Demotion: _rbDemotion.Checked = true; break;
+                case ExportConfigSelection.Other: _rbOther.Checked = true; break;
+                default: _rbFinish.Checked = true; break;
+            }
+        }
+        finally { _suppressConfigEvents = false; }
+
+        int added = 0, missing = 0;
+        foreach (var path in preset.FilePaths)
+        {
+            if (!File.Exists(path)) { missing++; continue; }
+            AddExportEntry(_lvExportFiles, _exportEntries, path);
+            added++;
+        }
+
+        _txtSourceDir.Text = preset.SourceDir;
+        _txtOutputDir.Text = preset.OutputDir;
+        RefreshExportStatus();     // F7：用恢复后的配置名重算 ✅/❌
+        _lblPresetHeader.Text = $"导出预设（共 {_presets.Count} 个）· 已激活「{preset.Name}」";
+
+        if (missing > 0)
+            MessageBox.Show(this,
+                $"已激活预设「{preset.Name}」：录入 {added} 个文件。\n另有 {missing} 个文件已不存在，已跳过。",
+                "激活预设", MessageBoxButtons.OK, MessageBoxIcon.Information);
+    }
+
+    /// <summary>R6：删除当前选中预设，二次确认（D14）、立即落盘、不清空当前录入内容。</summary>
+    private void DeletePreset()
+    {
+        if (_lvPresets.SelectedItems.Count == 0) return;
+        var name = _lvPresets.SelectedItems[0].Text;
+        if (MessageBox.Show(this,
+                $"确定删除预设「{name}」吗？\n（当前已录入的源目录 / 文件列表 / 输出目录不会被清空）",
+                "删除预设", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+
+        _presets.RemoveAll(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
+        ConfigService.SaveExportPresets(_presets);
+        RefreshPresetList();
+        _lblPresetHeader.Text = $"导出预设（共 {_presets.Count} 个）· 已删除「{name}」";
+    }
+
+    private void DeleteAllPresets()
+    {
+        if (_presets.Count == 0) return;
+        if (MessageBox.Show(this,
+                $"确定删除全部 {_presets.Count} 个导出预设吗？此操作不可撤销。\n（当前已录入内容不会被清空）",
+                "删除全部预设", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+
+        _presets.Clear();
+        ConfigService.SaveExportPresets(_presets);
+        RefreshPresetList();
+        _lblPresetHeader.Text = "导出预设（共 0 个）· 已清空";
+    }
+
+    // ────────────────────── AUD-040：批量生成导出配置（4.3+） ──────────────────────
+
+    /// <summary>
+    /// R9/D15：按「文件所在目录 + 当前配置名」构造目标路径，同目录多 .spine 只生成一次。
+    /// 纯函数，供行为断言直接调用。
+    /// </summary>
+    public static List<(string Project, string Target)> BuildGenerateTargets(
+        IEnumerable<string> filePaths, string configName)
+    {
+        var result = new List<(string Project, string Target)>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var path in filePaths)
+        {
+            var dir = Path.GetDirectoryName(path);
+            if (string.IsNullOrEmpty(dir)) continue;
+            var target = Path.Combine(dir, configName);
+            if (!seen.Add(target)) continue;
+            result.Add((path, target));
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// R9：用 CLI 在每个文件所在目录生成当前配置名的导出设置 JSON。
+    /// 复用 BeginCliOperation / ShowProgress / SetProgress / EndCliOperation 与 _cliCts。
+    /// U1：只走真·CLI（--last-export-settings），失败不写模板、不静默降级，
+    /// 二次确认与汇总都明确提示「必须 Spine 4.3 及以上版本」。
+    /// </summary>
+    private async Task ExecuteBatchGenerateConfig()
+    {
+        if (!_cli.IsValid)
+        {
+            MessageBox.Show(this, "请先设置有效的 Spine.com 路径。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        if (_exportEntries.Count == 0)
+        {
+            MessageBox.Show(this, "请先扫描并选择文件。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        var configName = CurrentExportConfigName;   // F3：单一真值源，含「其他」手填值
+        if (string.IsNullOrWhiteSpace(configName) ||
+            configName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+        {
+            MessageBox.Show(this, $"导出配置名「{configName}」不是合法文件名，请重新选择或重新填写「其他」。",
+                "配置名无效", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        var targets = BuildGenerateTargets(_exportEntries.Select(e => e.FilePath), configName);
+        if (targets.Count == 0)
+        {
+            MessageBox.Show(this, "未能从文件列表解析出有效的所在目录。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        // K4：会写入用户工程目录 → 二次确认 + 版本门槛 + 数量
+        var confirm = MessageBox.Show(this,
+            $"即将在 {targets.Count} 个目录中生成导出配置「{configName}」：\n\n" +
+            "• 每个文件所在目录各生成一份，已存在的同名配置会被跳过（不覆盖）\n" +
+            "• 该功能通过 CLI 的 --last-export-settings 读取项目内最近一次导出设置\n" +
+            "• 必须 Spine 4.3 及以上版本才能使用\n\n是否继续？",
+            "批量生成导出配置", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+        if (confirm != DialogResult.Yes) return;
+
+        _btnBatchGenerate.Enabled = false;
+        _btnBatchGenerate.Text = "生成中...";
+        _btnExport.Enabled = false;
+        _btnPack.Enabled = false;
+        var ct = BeginCliOperation();
+        ShowProgress(true);
+
+        int ok = 0, skipped = 0, failed = 0;
+        var failures = new List<string>();
+        var cancelled = false;
+
+        try
+        {
+            for (var i = 0; i < targets.Count; i++)
+            {
+                ct.ThrowIfCancellationRequested();
+                var (project, target) = targets[i];
+                SetProgress(i + 1, targets.Count, $"生成导出配置: {Path.GetFileName(project)}");
+
+                if (!File.Exists(project))
+                {
+                    failed++;
+                    failures.Add($"{Path.GetFileName(project)}: 源文件不存在");
+                    continue;
+                }
+                if (File.Exists(target)) { skipped++; continue; }   // D18=A 跳过不覆盖
+
+                try
+                {
+                    var result = await _cli.WriteLastExportSettings(project, target, ct);
+                    if (NormalizeGeneratedSettings(project, target))
+                    {
+                        ok++;
+                    }
+                    else
+                    {
+                        failed++;
+                        var reason = string.IsNullOrWhiteSpace(result.Error)
+                            ? (string.IsNullOrWhiteSpace(result.Output) ? "CLI 未生成配置文件" : result.Output.Trim())
+                            : result.Error.Trim();
+                        failures.Add($"{Path.GetFileName(project)}: {reason}");
+                        OperationLogger.Error($"BatchGenerateConfig failed: {project}: {reason}");
+                    }
+                }
+                catch (OperationCanceledException) { throw; }
+                catch (Exception ex)
+                {
+                    failed++;
+                    failures.Add($"{Path.GetFileName(project)}: {ex.Message}");
+                    OperationLogger.Error($"BatchGenerateConfig error: {project}: {ex.Message}");
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            cancelled = true;
+            MessageBox.Show(this, "批量生成已取消，已生成的配置文件保留（不回滚）。", "已取消",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        finally
+        {
+            ShowProgress(false);
+            EndCliOperation();
+            _btnBatchGenerate.Enabled = true;
+            _btnBatchGenerate.Text = "批量生成导出配置";
+            _btnExport.Enabled = true;
+            _btnPack.Enabled = true;
+            RefreshExportStatus();      // F6：新生成的配置立刻显示 ✅
+        }
+
+        if (!cancelled && (failed > 0 || ok > 0 || skipped > 0))
+        {
+            var msg = $"批量生成完成：成功 {ok} / 跳过（已存在）{skipped} / 失败 {failed}";
+            if (failures.Count > 0)
+                msg += $"\n\n失败清单：\n{string.Join("\n", failures.Take(12))}" +
+                       (failures.Count > 12 ? $"\n…… 其余 {failures.Count - 12} 条见日志" : "");
+            if (failed > 0)
+                msg += "\n\n若全部失败，请确认使用的是 Spine 4.3 及以上版本（--last-export-settings 为 4.3 参数）；" +
+                       "旧版本启动器不会生成配置文件。";
+            MessageBox.Show(this, msg, "批量生成结果", MessageBoxButtons.OK,
+                failed > 0 ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
+        }
+    }
+
+    /// <summary>
+    /// K3 兜底：部分 4.3 版本可能忽略 -o 的完整文件名，而在项目旁生成
+    /// &lt;项目名&gt;.export.json / project.export.json。此时把它改名为目标配置名。
+    /// 属于「CLI 产物命名兼容」，不是模板降级。
+    /// </summary>
+    private static bool NormalizeGeneratedSettings(string project, string target)
+    {
+        if (File.Exists(target)) return true;
+        var dir = Path.GetDirectoryName(project);
+        if (string.IsNullOrEmpty(dir)) return false;
+        var stem = Path.GetFileNameWithoutExtension(project);
+        string[] candidates =
+        [
+            Path.Combine(dir, stem + ".export.json"),
+            Path.Combine(dir, "project.export.json")
+        ];
+        foreach (var candidate in candidates)
+        {
+            if (!File.Exists(candidate) ||
+                string.Equals(candidate, target, StringComparison.OrdinalIgnoreCase)) continue;
+            try
+            {
+                if (File.Exists(target)) File.Delete(target);
+                File.Move(candidate, target);
+                return File.Exists(target);
+            }
+            catch (Exception ex)
+            {
+                OperationLogger.Warn($"BatchGenerateConfig: rename failed: {ex.Message}");
+            }
+        }
+        return false;
     }
 }

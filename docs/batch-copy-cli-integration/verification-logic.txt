@@ -1,0 +1,12 @@
+AUD-038 动画语义断言：10 PASS / 0 FAIL
+PASS | V10/V11 并集同名合并（忽略大小写、保留首次拼写） | walk,idle,attack,talk
+PASS | V14 f1 命中全部所选动画 → 不标红 | E(f1)=[walk,idle] red=False
+PASS | V14/D8 f2 大小写同名求交并保留 A(f) 原始拼写 → 标红 | E(f2)=[Walk] red=True
+PASS | V14 f3 只写自身已有动画 → 标红 | E(f3)=[idle] red=True
+PASS | V17 动画列文本 | walk, idle
+PASS | V21 再次确认全量覆盖、无旧结果残留 | E=(0,0,0)
+PASS | V15 零匹配显示「（无匹配动画）」并标红 | （无匹配动画）
+PASS | V18 未参与本轮的行显示「—」 | —
+PASS | G2 大小写不敏感 | .SPINE/.spine 通过
+PASS | G2 非 .spine 一律拦截 | .spine.json/.png/.atlas/无扩展名 均拦截
+说明：门槛弹窗、并集弹窗的模态显示与真实 Spine.com 读取需用户真机手工确认。

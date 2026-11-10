@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>批量复制并入 CLI 窗口 + 批量动画选择 · 渲染图（待审查）</title>
+<style>
+:root{
+  --app:#2B2B2B; --workspace:#3A3A3C; --panel:#454547; --panel-alt:#505052;
+  --input:#262628; --well:#1E1E20; --list:#202023; --list-alt:#454547; --list-alt2:#3D3D40;
+  --border:#5E5E60; --border-strong:#727274;
+  --text:#F2F4F7; --muted:#C7CDD4; --dim:#8A8A8D; --disabled:#777777;
+  --blue:#2388C9; --cyan:#39C5D8; --orange:#F08A3C; --red:#D95C5C; --green:#6BBF59;
+  --sel:#5B7782; --header:#2B2B2D; --doc:#171719; --card:#212124;
+  --redrow:#5A2A2C; --redrow-text:#FFE3E3;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1440px;background:var(--doc)}
+body{font-family:"Microsoft YaHei UI","Microsoft YaHei","Segoe UI",sans-serif;color:var(--text);font-size:12px;-webkit-font-smoothing:antialiased;overflow:auto}
+body.capture{height:900px;overflow:hidden}
+.mono{font-family:Consolas,"Courier New",monospace}
+
+/* ── 预览切换条（导出 PNG 时隐藏） ── */
+.switcher{position:fixed;top:6px;right:160px;z-index:90;display:flex;align-items:center;gap:4px;
+  background:#1B1B1D;border:1px solid #55555A;border-radius:16px;padding:4px 6px 4px 12px;
+  font-size:11px;color:var(--muted);box-shadow:0 3px 12px rgba(0,0,0,.7)}
+.switcher span{margin-right:5px;letter-spacing:.3px}
+.switcher button{height:22px;padding:0 10px;border-radius:11px;border:1px solid transparent;
+  background:#333336;color:var(--muted);font-size:10.5px;cursor:pointer;font-family:inherit}
+.switcher button:hover{background:#444448}
+.switcher button.active{background:#1C4E68;border-color:var(--cyan);color:#fff;font-weight:700}
+body.capture .switcher{display:none}
+
+/* ── 模拟窗口 ── */
+.window{width:1440px;height:900px;background:var(--app);display:flex;flex-direction:column;
+  border:1px solid #101012;position:relative;overflow:hidden}
+.titlebar{height:32px;flex:0 0 32px;background:#202023;border-bottom:1px solid #141416;
+  display:flex;align-items:center;justify-content:space-between;padding-left:10px}
+.tb-left{display:flex;align-items:center;gap:8px;font-size:11.5px;color:#E6E6E6}
+.appicon{width:16px;height:16px;border-radius:3px;background:linear-gradient(160deg,#2E86C9,#1B5E8E);
+  display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;border:1px solid #4AA3DE}
+.tb-right{display:flex;height:100%}
+.tb-btn{width:44px;height:100%;display:flex;align-items:center;justify-content:center;color:#B8B8B8;font-size:12px}
+.tb-btn:last-child{background:#5A2020;color:#fff}
+
+/* 外层主 Tab（改造后 3 页） */
+.maintabs{height:44px;flex:0 0 44px;display:flex;align-items:flex-end;gap:6px;padding:0 16px 6px;background:var(--app)}
+.mtab{height:34px;padding:0 15px;border-radius:7px;display:flex;align-items:center;white-space:nowrap;
+  font-size:11.5px;border:1px solid var(--border);background:#333335;color:var(--muted)}
+.mtab.active{background:var(--panel-alt);border-color:var(--blue);color:#fff;font-weight:700;position:relative}
+.mtab.active::before{content:"";position:absolute;left:10px;right:10px;top:3px;height:3px;background:var(--cyan);border-radius:2px}
+.mtab .gone{font-size:9px;color:var(--red);border:1px solid #7A4444;border-radius:3px;padding:0 4px;margin-left:7px;text-decoration:line-through}
+
+/* 宿主页：BatchCliWindow */
+.hostpage{flex:1;min-height:0;display:flex;flex-direction:column;background:var(--app)}
+.cli-top{height:48px;flex:0 0 48px;display:flex;align-items:center;gap:9px;padding:0 14px;
+  background:#333336;border-bottom:1px solid #4A4A4D}
+.cli-top .lbl{font-size:11.5px;color:var(--text);white-space:nowrap}
+.pathfield{width:600px;height:26px;background:#FFFAE6;border:1px solid #8A8A6A;border-radius:3px;
+  display:flex;align-items:center;padding:0 8px;color:#3A3418;font-size:11px}
+.ok{font-size:11px;color:#7DD87D}
+.cli-top .spacer{flex:1}
+.cli-top .note{font-size:10.5px;color:var(--dim);margin-left:4px}
+
+/* 内层子 Tab（改造后 3 页，顺序：批量复制 / 合并 / 批量导出） */
+.subtabs{height:38px;flex:0 0 38px;display:flex;align-items:flex-end;gap:4px;padding:0 14px 0;
+  background:#2F2F32;border-bottom:1px solid #4A4A4D}
+.subtab{height:30px;padding:0 18px;border:1px solid var(--border);border-bottom:none;border-radius:5px 5px 0 0;
+  background:#3A3A3D;color:var(--muted);font-size:11px;display:flex;align-items:center;gap:7px;white-space:nowrap;position:relative}
+.subtab.on{background:var(--panel-alt);color:#fff;border-color:var(--border-strong);font-weight:700}
+.subtab.on::before{content:"";position:absolute;left:8px;right:8px;top:2px;height:3px;background:var(--cyan);border-radius:2px}
+.subtab .new{font-size:9px;color:#0E2A30;background:var(--cyan);border-radius:3px;padding:0 5px;font-weight:700}
+
+/* 窗口级共享进度区（默认隐藏，仅 CLI 任务时显示） */
+.hostprogress{height:58px;flex:0 0 58px;background:#303033;border-top:1px solid #4A4A4D;
+  display:flex;align-items:center;justify-content:center;gap:10px;color:var(--dim);font-size:10.5px}
+.hostprogress .ph{width:1100px;height:20px;border:1px dashed #55555A;border-radius:3px;
+  display:flex;align-items:center;justify-content:center;letter-spacing:.3px}
+
+/* ── 嵌入的 BatchCopyWindow 内容 ── */
+.bcw{flex:1;min-height:0;display:flex;flex-direction:column;background:var(--app)}
+.bcw-page{margin:8px 16px 0;flex:1;min-height:0;background:var(--workspace);border:1px solid var(--border);
+  border-radius:4px;padding:12px;display:flex;gap:10px}
+.col{min-width:0;display:flex;flex-direction:column;gap:10px}
+.col.left{flex:1 1 816px}
+.col.right{flex:1 1 556px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:4px}
+.card-head{height:20px;display:flex;align-items:center;justify-content:space-between;font-size:11px;
+  font-weight:700;color:var(--text)}
+.hint{font-size:10.5px;color:var(--muted);font-weight:400}
+.tag{font-size:10px;color:var(--cyan);border:1px solid #2C616B;background:#1C3B42;border-radius:3px;padding:1px 6px}
+.tag.new{color:#2A1A08;background:var(--orange);border-color:#F5A869;font-weight:700}
+.tag.warn{color:#F0B4B4;border-color:#7A4444;background:#3A2426}
+
+.btn{height:28px;min-width:88px;padding:0 12px;border-radius:5px;border:1px solid var(--border-strong);
+  background:#3F3F42;color:var(--text);font-size:11.5px;display:inline-flex;align-items:center;justify-content:center;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 1px 0 rgba(0,0,0,.35)}
+.btn.blue{background:linear-gradient(180deg,#2E93CE,#1F74AC);border-color:#4BA8DE;color:#fff;font-weight:600}
+.btn.cyan{background:linear-gradient(180deg,#2AA9BD,#148792);border-color:#4ED3E2;color:#fff;font-weight:700}
+.btn.small{height:26px;min-width:76px;padding:0 9px;font-size:11px}
+.btn.xs{height:24px;min-width:62px;padding:0 8px;font-size:10.5px}
+.btn.danger{background:linear-gradient(180deg,#D96363,#B84545);border-color:#E47373;color:#fff;font-weight:600}
+
+.field{height:30px;background:var(--input);border:1px solid var(--border-strong);border-radius:5px;
+  display:flex;align-items:center;padding:0 10px;color:var(--text);font-size:11.5px;
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.55)}
+.field .ph{color:var(--dim)}
+.combo{justify-content:space-between}
+.arrow{width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid var(--muted)}
+.lbl{font-size:11.5px;color:var(--text);white-space:nowrap}
+
+/* A 区 */
+.src{height:66px;flex:0 0 66px;padding:8px 12px;display:flex;flex-direction:column;gap:7px}
+.src .toolrow{display:flex;align-items:center;gap:8px}
+.src .count{margin-left:auto;font-size:11px;color:var(--muted)}
+.src .count b{color:var(--cyan);font-weight:600}
+/* B 区 */
+.filter{height:60px;flex:0 0 60px;padding:10px 12px;display:flex;align-items:center;gap:9px}
+.filter .combo{width:150px;flex:0 0 150px}
+.filter .search{width:220px;flex:0 0 220px}
+.filter .note{margin-left:auto;font-size:10.5px;color:var(--muted)}
+/* C 区 */
+.listcard{flex:1;min-height:0;padding:8px 10px 10px;display:flex;flex-direction:column;gap:7px}
+.listcard .head-actions{display:flex;align-items:center;gap:7px;flex:0 0 24px}
+.listcard .head-actions .stat{font-size:11px;color:var(--muted);margin-left:auto;margin-right:4px}
+
+/* ★ 新增：动画工具条 */
+.animbar{flex:0 0 34px;display:flex;align-items:center;gap:10px;padding:0 9px;
+  background:#243B40;border:1px dashed #3E8F9C;border-radius:4px}
+.animbar .remark{font-size:10.5px;color:#BFDDE3;line-height:1.3;flex:1}
+.animbar .remark b{color:#fff;font-weight:600}
+.animbar .stat{font-size:10.5px;color:var(--cyan);white-space:nowrap}
+
+/* 6 列文件列表 */
+.listwrap{flex:1;min-height:0;background:var(--list);border:1px solid var(--border);border-radius:3px;
+  overflow:hidden;display:flex;flex-direction:column}
+.lrow{display:grid;grid-template-columns:40px 200px 72px 76px 236px 1fr;align-items:center;flex:0 0 29px}
+.lhead{flex:0 0 28px;background:var(--header);border-bottom:1px solid var(--border);font-size:11px;font-weight:700;color:var(--text)}
+.lhead>div{padding-left:9px;border-right:1px solid #45454A;height:100%;display:flex;align-items:center;gap:5px}
+.lhead>div:first-child{padding-left:0;justify-content:center}
+.lhead>div:last-child{border-right:none}
+.lhead .newcol{color:var(--cyan)}
+.lrow.data{font-size:11.5px;border-bottom:1px solid rgba(0,0,0,.18)}
+.lrow.data:nth-child(odd){background:var(--list-alt)}
+.lrow.data:nth-child(even){background:var(--list-alt2)}
+.lrow.data.checked{background:#3E4A4E}
+.lrow.data>div{padding-left:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;height:100%;display:flex;align-items:center}
+.lrow.data>div:first-child{padding-left:0;justify-content:center}
+.lrow .fname,.lrow .ext,.lrow .size,.lrow .path,.lrow .anim{font-family:Consolas,monospace;font-size:11px}
+.lrow .ext{color:var(--cyan)}
+.lrow .size,.lrow .path{color:var(--muted)}
+.lrow .anim{color:#BDE9F2}
+.lrow .anim.none{color:var(--dim)}
+.lrow.data.red{background:var(--redrow) !important;color:var(--redrow-text)}
+.lrow.data.red .fname,.lrow.data.red .ext,.lrow.data.red .size,.lrow.data.red .path{color:var(--redrow-text)}
+.lrow.data.red .anim{color:#FFC9C9;font-weight:700}
+.lrow.data.red .miss{font-size:9px;color:#FFB9B9;border:1px solid #A25A5A;border-radius:3px;padding:0 4px;margin-left:6px;flex:0 0 auto}
+.cbx{width:15px;height:15px;border-radius:2px;background:var(--well);border:1px solid var(--border-strong);
+  display:flex;align-items:center;justify-content:center;font-size:11px;color:transparent;line-height:1}
+.cbx.on{background:#183D4D;border-color:var(--blue);color:#7FDCF0}
+.listempty{flex:1;background:var(--list)}
+
+/* 右列：模式卡 / 目标卡 */
+.modecard{flex:0 0 104px;padding:8px 12px;display:flex;flex-direction:column;gap:7px}
+.mode-row{display:flex;align-items:center;gap:8px}
+.mode-title{font-size:12px;font-weight:700}
+.mode-hint{font-size:10.5px;color:var(--muted);padding-left:23px;line-height:1.35}
+.backupcfg{display:flex;align-items:center;gap:9px}
+.backupcfg .suffix{width:110px;flex:0 0 110px;height:28px}
+.backupcfg .sample{font-size:10.5px;color:var(--cyan);font-family:Consolas,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.targetcard{flex:1;min-height:0;padding:8px 12px 10px;display:flex;flex-direction:column;gap:7px}
+.tgt-row{display:flex;align-items:center;gap:8px;flex:0 0 30px}
+.tgt-row .lbl{width:56px;flex:0 0 56px}
+.tgt-middle{flex:1;min-height:0;display:flex;gap:8px}
+.tgt-middle .field{flex:1;height:auto;align-items:flex-start;padding:7px 10px;line-height:1.65;font-family:Consolas,monospace}
+.tgt-middle .field span{white-space:pre-line}
+.tgt-middle .colbtns{display:flex;flex-direction:column;gap:8px;flex:0 0 82px}
+.preview{flex:1;min-height:0;background:var(--list);border:1px solid var(--border);border-radius:3px;
+  padding:8px 10px;font-family:Consolas,monospace;font-size:11px;color:#C7CDD4;line-height:1.7;overflow:hidden;white-space:pre-line}
+
+/* 页面底部：主按钮 / 进度 / 状态 */
+.action{height:48px;flex:0 0 48px;margin:0 16px;padding:6px 0}
+.bigbtn{height:36px;width:100%;border-radius:5px;display:flex;align-items:center;justify-content:center;
+  font-size:12.5px;font-weight:700;color:#fff;background:linear-gradient(180deg,#2E93CE,#1F74AC);
+  border:1px solid #4BA8DE;box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+.progresswrap{height:56px;flex:0 0 56px;margin:0 16px;display:flex;flex-direction:column;gap:3px;padding:3px 0}
+.progresslabel{height:18px;display:flex;align-items:center;justify-content:center;font-size:10.5px;color:#D7D7D7}
+.progress{height:22px;background:var(--well);border:1px solid var(--border-strong);border-radius:3px;position:relative;overflow:hidden}
+.progress .bar{height:100%;background:linear-gradient(180deg,#2E93CE,#1F74AC);width:40%}
+.progress .txt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff}
+.statusbar{height:24px;flex:0 0 24px;margin:0 16px 6px;background:#262628;border:1px solid #454548;
+  display:flex;align-items:center;padding:0 10px;color:var(--muted);font-size:10.5px}
+.statusbar .dot{width:6px;height:6px;border-radius:50%;background:var(--green);margin-right:8px}
+.statusbar .hi{color:var(--cyan)}
+
+/* ── 合并页（场景 5） ── */
+.mergepage{flex:1;min-height:0;display:none;flex-direction:column;background:var(--workspace);margin:8px 16px;
+  border:1px solid var(--border);padding:12px}
+.mtitle{height:26px;background:#E1E7EA;color:#1C1C1C;font-size:11.5px;font-weight:700;
+  display:flex;align-items:center;padding-left:12px;border:1px solid #B9C3C8}
+.mergegrid{flex:1;min-height:0;display:grid;grid-template-columns:1fr 20px 1fr;gap:0;margin-top:10px}
+.mcol{display:flex;flex-direction:column;gap:8px;min-height:0}
+.mcol .h{font-size:11.5px;font-weight:700;color:var(--text)}
+.mlist{flex:1;min-height:0;background:#FFFFFF;border:1px solid #8A8A8D;color:#1A1A1A}
+.mrow{display:grid;grid-template-columns:170px 150px 1fr;font-size:11px;height:26px;align-items:center;border-bottom:1px solid #DCDCDC}
+.mhead{background:#E8E8E8;font-weight:700;height:27px}
+.mrow>div{padding-left:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mrow.target{grid-template-columns:220px 1fr}
+.mbtns{display:flex;gap:8px;margin-top:8px}
+.mbtns .spacer{flex:1}
+.mhint{font-size:10.5px;color:var(--dim);margin-top:8px}
+
+/* ── 弹窗遮罩与弹窗 ── */
+.overlay{position:absolute;inset:0;background:rgba(0,0,0,.58);display:none;align-items:center;justify-content:center;z-index:60}
+body.state-2 .overlay.gate{display:flex}
+body.state-3 .overlay.animdlg{display:flex}
+.dialog{background:var(--app);border:1px solid #6A6A6D;border-radius:5px;box-shadow:0 22px 60px rgba(0,0,0,.8);
+  display:flex;flex-direction:column;overflow:hidden}
+.dtitle{height:34px;flex:0 0 34px;background:#202023;border-bottom:1px solid #4A4A4D;
+  display:flex;align-items:center;padding:0 12px;font-size:12px;font-weight:700;color:#fff}
+.dtitle .ico{width:16px;height:16px;border-radius:50%;background:var(--red);color:#fff;font-size:11px;
+  display:flex;align-items:center;justify-content:center;margin-right:9px}
+.dtitle .ico.info{background:var(--cyan);color:#0E2A30}
+.dbody{padding:14px 16px;font-size:11.5px;color:var(--text);line-height:1.7}
+.dbody .lead{font-weight:700;color:#FFD9D9;font-size:12px;margin-bottom:8px}
+.dbody .list{margin:9px 0;padding:10px 12px;background:var(--well);border:1px solid var(--border);
+  border-radius:4px;font-family:Consolas,monospace;font-size:11px;color:#FFC9C9;line-height:1.65}
+.dbody .why{margin-top:10px;color:var(--muted);font-size:11px}
+.dfoot{height:52px;flex:0 0 52px;background:#2E2E31;border-top:1px solid #4A4A4D;
+  display:flex;align-items:center;justify-content:flex-end;gap:9px;padding:0 14px}
+.dialog.gate{width:560px}
+.gate .dbody{padding-bottom:6px}
+
+/* 动画选择弹窗 */
+.animdlg .dialog{width:540px;height:600px}
+.adsummary{flex:0 0 auto;padding:9px 14px;background:#243B40;border-bottom:1px solid #3E8F9C;font-size:10.5px;color:#D3EDF2;line-height:1.6}
+.adsummary b{color:#fff}
+.adsummary .k{color:var(--cyan);font-weight:700}
+.adlist{flex:1;min-height:0;background:var(--list);overflow:hidden;display:flex;flex-direction:column;padding:6px 0}
+.aditem{flex:0 0 34px;display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid #38383C}
+.aditem:nth-child(odd){background:#2B2B2E}
+.aditem .cbx{width:16px;height:16px}
+.aditem .nm{font-family:Consolas,monospace;font-size:12px;color:var(--text);min-width:110px}
+.aditem .src{font-size:10.5px;color:var(--dim);white-space:nowrap}
+.aditem .merged{font-size:9.5px;color:#0E2A30;background:var(--cyan);border-radius:3px;padding:1px 6px;font-weight:700;white-space:nowrap}
+.aditem .only{font-size:9.5px;color:var(--muted);border:1px solid #55555A;border-radius:3px;padding:1px 6px;white-space:nowrap}
+.adfoot{height:52px;flex:0 0 52px;background:#2E2E31;border-top:1px solid #4A4A4D;
+  display:flex;align-items:center;gap:8px;padding:0 14px}
+.adfoot .spacer{flex:1}
+.adfoot .tip{font-size:10px;color:var(--dim)}
+
+/* 场景 5 显示切换 */
+body.state-5 .bcw{display:none}
+body.state-5 .mergepage{display:flex}
+body.state-5 .hostprogress .ph{border-color:var(--cyan);color:var(--cyan)}
+
+/* ── 窗口外的审查说明区（导出 PNG 时隐藏） ── */
+.legend{display:none;width:1360px;margin:20px auto 40px;background:var(--card);border:1px solid #38383C;border-radius:8px;padding:16px 20px}
+body:not(.capture) .legend{display:block}
+.legend h2{font-size:15px;margin-bottom:10px;color:var(--cyan)}
+.legend h3{font-size:12.5px;margin:14px 0 7px;color:var(--text)}
+.legend p,.legend li{font-size:11.5px;color:var(--muted);line-height:1.75}
+.legend ul{padding-left:20px}
+.legend table{border-collapse:collapse;width:100%;font-size:11.5px;margin-top:6px}
+.legend th,.legend td{border:1px solid #45454A;padding:6px 9px;text-align:left;color:var(--muted)}
+.legend th{background:#2E2E32;color:var(--text)}
+.legend code{background:#2E2E32;padding:1px 5px;border-radius:3px;color:var(--cyan);font-family:Consolas,monospace}
+.legend .warnbox{background:#3A2426;border:1px solid #7A4444;border-radius:5px;padding:10px 13px;margin-top:12px;color:#F0B4B4;font-size:11.5px;line-height:1.7}
+</style>
+</head>
+<body class="state-1">
+
+<div class="switcher">
+  <span>渲染场景</span>
+  <button data-s="1">1 总览</button>
+  <button data-s="2">2 门槛报错</button>
+  <button data-s="3">3 动画弹窗</button>
+  <button data-s="4">4 标红结果</button>
+  <button data-s="5">5 子页顺序</button>
+</div>
+
+<div class="window" id="window">
+
+  <!-- 标题栏 -->
+  <div class="titlebar">
+    <div class="tb-left"><span class="appicon">K</span><span>spine宏助手（TANRY） V2.91</span></div>
+    <div class="tb-right"><div class="tb-btn">─</div><div class="tb-btn">□</div><div class="tb-btn">×</div></div>
+  </div>
+
+  <!-- 外层主 Tab：4 → 3 -->
+  <div class="maintabs">
+    <div class="mtab">快捷键</div>
+    <div class="mtab">批量重命名/spine解包整理</div>
+    <div class="mtab active">CLI批量合并/导出</div>
+  </div>
+
+  <div class="hostpage">
+    <!-- 窗口级顶栏 -->
+    <div class="cli-top">
+      <span class="lbl">Spine.com 路径:</span>
+      <div class="pathfield mono">C:\Program Files\Spine\Spine.com</div>
+      <div class="btn small">检测</div>
+      <div class="btn small">选择</div>
+      <div class="btn small danger">取消CLI</div>
+      <div class="ok">✅ 有效</div>
+      <div class="spacer"></div>
+      <div class="note">窗口级共享顶栏 · 批量复制页不依赖此路径（动画读取除外，见 D2/D4）</div>
+    </div>
+
+    <!-- 内层子 Tab：3 页，批量复制在「合并」之前 -->
+    <div class="subtabs">
+      <div class="subtab" id="stab0"><span class="new">并入</span> 批量复制</div>
+      <div class="subtab" id="stab1">合并</div>
+      <div class="subtab" id="stab2">批量导出</div>
+    </div>
+
+    <!-- 批量复制页：嵌入的 BatchCopyWindow 整体 -->
+    <div class="bcw">
+      <div class="bcw-page">
+        <!-- 左列 -->
+        <div class="col left">
+          <div class="card src">
+            <div class="card-head"><span>源文件夹</span><span class="hint">选择多个文件夹，自动递归收集其下全部文件（只读扫描）</span></div>
+            <div class="toolrow">
+              <div class="btn blue small">选择文件</div>
+              <div class="btn small">移除选中</div>
+              <div class="btn small">清空列表</div>
+              <div class="count">已扫描 <b>6</b> 个文件 / 显示 <b>6</b> / 已勾选 <b id="cnt">3</b></div>
+            </div>
+          </div>
+
+          <div class="card filter">
+            <span class="lbl">后缀</span>
+            <div class="field combo" style="width:150px;flex:0 0 150px"><span>全部</span><span class="arrow"></span></div>
+            <span class="lbl">文件名包含</span>
+            <div class="field" style="width:220px;flex:0 0 220px"><span class="ph">&nbsp;</span></div>
+            <span class="note">两项条件同时生效 · 过滤只影响显示</span>
+          </div>
+
+          <div class="card listcard">
+            <div class="head-actions">
+              <span class="card-head" style="flex:1">文件列表</span>
+              <span class="stat" id="viscount">当前显示 6 个</span>
+              <div class="btn xs">全选</div><div class="btn xs">全不选</div>
+            </div>
+
+            <!-- ★ 本次新增：动画工具条 -->
+            <div class="animbar">
+              <span class="tag new">新增</span>
+              <div class="btn cyan small">选择动画</div>
+              <span class="remark">只能在列表中确定勾选的所有文件里只有 <b>.spine</b> 文件的时候可用</span>
+              <span class="stat" id="animstat">本轮已选 0 个动画</span>
+            </div>
+
+            <div class="listwrap">
+              <div class="lrow lhead">
+                <div></div><div>文件名</div><div>类型</div><div>大小</div>
+                <div class="newcol">动画 <span class="tag new">新增列</span></div><div>所在目录</div>
+              </div>
+              <div id="rows"></div>
+              <div class="listempty"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右列 -->
+        <div class="col right">
+          <div class="card modecard">
+            <div class="mode-row"><div class="cbx"></div><span class="mode-title">原地复制（不设置目标路径）</span></div>
+            <div class="mode-hint">勾选后在各自原目录生成带后缀副本，右侧目标路径整卡不可用</div>
+            <div class="backupcfg">
+              <span class="lbl">备份后缀</span>
+              <div class="field suffix mono">_bf</div>
+              <span class="sample">生成示例　hero.spine → hero_bf.spine</span>
+            </div>
+          </div>
+
+          <div class="card targetcard">
+            <div class="card-head"><span>目标路径</span><span class="hint" id="tghint">&nbsp;</span></div>
+            <div class="tgt-row">
+              <span class="lbl">前缀</span>
+              <div class="field combo" style="flex:1"><span class="mono">D:/exports</span><span class="arrow"></span></div>
+              <div class="btn small" style="flex:0 0 82px">选择文件夹</div>
+            </div>
+            <div class="tgt-middle">
+              <span class="lbl" style="flex:0 0 56px;align-self:flex-start;padding-top:6px">中间</span>
+              <div class="field mono"><span>targets1&#10;targets2&#10;targets3&#10;targets4</span></div>
+              <div class="colbtns"><div class="btn small">添加行</div><div class="btn small">删除行</div></div>
+            </div>
+            <div class="tgt-row">
+              <span class="lbl">路径后缀</span>
+              <div class="field combo" style="flex:1"><span class="mono">images</span><span class="arrow"></span></div>
+              <div class="btn small" style="flex:0 0 82px">清理历史</div>
+            </div>
+            <div class="card-head" style="margin-top:2px"><span class="hint">预览目标</span></div>
+            <div class="preview">D:/exports/targets1/images&#10;D:/exports/targets2/images&#10;D:/exports/targets3/images&#10;D:/exports/targets4/images</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="action"><div class="bigbtn" id="startbtn">开始复制</div></div>
+      <div class="progresswrap">
+        <div class="progresslabel">复制到: hero.spine → targets4</div>
+        <div class="progress"><div class="bar"></div><div class="txt">4/10</div></div>
+      </div>
+      <div class="statusbar"><span class="dot"></span><span id="status">就绪 · 已扫描 6 个文件 · 已勾选 3 个，配置目标路径后点击「开始复制」</span></div>
+    </div>
+
+    <!-- 场景 5：合并页（原样，仅用于展示新子页顺序） -->
+    <div class="mergepage">
+      <div class="mtitle">合并任务</div>
+      <div class="mergegrid">
+        <div class="mcol">
+          <div class="h">源文件</div>
+          <div class="mlist">
+            <div class="mrow mhead"><div>文件名</div><div>动画</div><div>路径</div></div>
+            <div class="mrow"><div>hero.spine</div><div>全部</div><div>D:/proj/chars/hero/hero.spine</div></div>
+          </div>
+          <div class="mbtns"><div class="btn small">添加源文件</div><div class="btn small">删除源文件</div><div class="btn small cyan">动画选择</div></div>
+        </div>
+        <div></div>
+        <div class="mcol">
+          <div class="h">目标文件</div>
+          <div class="mlist">
+            <div class="mrow mhead target"><div>文件名</div><div>路径</div></div>
+            <div class="mrow target"><div>base.spine</div><div>D:/proj/base/base.spine</div></div>
+          </div>
+          <div class="mbtns"><div class="spacer"></div><div class="btn small">添加目标文件</div><div class="btn small">删除目标文件</div></div>
+        </div>
+      </div>
+      <div class="mbtns"><span class="lbl">--from:</span><div class="field" style="width:130px;height:26px"><span class="ph">默认</span></div>
+        <span class="lbl" style="margin-left:14px">--to:</span><div class="field" style="width:130px;height:26px"><span class="ph">默认</span></div>
+        <div class="spacer"></div><div class="btn blue">执行合并</div><span class="chk"><div class="cbx"></div> 实验功能：CLI骨架合并(4.3)</span></div>
+      <div class="mhint">规则：只能一边多选（1源→N目标 或 N源→1目标）　·　本页「动画选择」仍是单文件语义，本次零改动</div>
+    </div>
+  </div>
+
+  <!-- 窗口级共享进度区 -->
+  <div class="hostprogress"><div class="ph" id="hostph">窗口级共享进度区 · 仅合并 / 批量导出任务运行时显示（默认隐藏）</div></div>
+
+  <!-- 场景 2：门槛报错弹窗 -->
+  <div class="overlay gate">
+    <div class="dialog gate">
+      <div class="dtitle"><span class="ico">!</span>无法勾选</div>
+      <div class="dbody">
+        <div class="lead">已勾选的 4 个文件中有 1 个不是 .spine 文件。</div>
+        <div>动画选择只可在「已勾选文件全部为 <b>.spine</b>」时使用，请取消勾选下列文件后再试：</div>
+        <div class="list">atlas.png</div>
+        <div class="why">本次未打开动画选择弹窗，列表中所有动画数据保持不变。</div>
+      </div>
+      <div class="dfoot"><div class="btn blue">知道了</div></div>
+    </div>
+  </div>
+
+  <!-- 场景 3：批量动画选择弹窗 -->
+  <div class="overlay animdlg">
+    <div class="dialog">
+      <div class="dtitle"><span class="ico info">✓</span>批量选择动画 — 3 个 .spine 文件</div>
+      <div class="adsummary">
+        来源 <b>hero.spine</b> / <b>npc_01.spine</b> / <b>ui_icon.spine</b> 共 3 个文件 ·
+        合并同名项后共 <span class="k">7</span> 个动画 · 读取失败 <span class="k">0</span> 个<br>
+        同名动画已合并；部分文件可能不含所选动画，确认后<b>按各文件实际拥有的动画填写</b>，缺项仅标红提醒。
+      </div>
+      <div class="adlist">
+        <div class="aditem"><div class="cbx on">✓</div><span class="nm">idle</span><span class="merged">同名合并</span><span class="src">3 个文件共有</span></div>
+        <div class="aditem"><div class="cbx on">✓</div><span class="nm">walk</span><span class="merged">同名合并</span><span class="src">hero.spine / npc_01.spine</span></div>
+        <div class="aditem"><div class="cbx on">✓</div><span class="nm">attack</span><span class="only">仅有</span><span class="src">hero.spine</span></div>
+        <div class="aditem"><div class="cbx on">✓</div><span class="nm">run</span><span class="only">仅有</span><span class="src">npc_01.spine</span></div>
+        <div class="aditem"><div class="cbx"> </div><span class="nm">talk</span><span class="only">仅有</span><span class="src">npc_01.spine</span></div>
+        <div class="aditem"><div class="cbx"> </div><span class="nm">pop</span><span class="only">仅有</span><span class="src">ui_icon.spine</span></div>
+        <div class="aditem"><div class="cbx"> </div><span class="nm">loop</span><span class="only">仅有</span><span class="src">ui_icon.spine</span></div>
+      </div>
+      <div class="adfoot">
+        <div class="btn xs">全选</div><div class="btn xs">全不选</div>
+        <span class="tip">已勾 4 项：idle / walk / attack / run</span>
+        <div class="spacer"></div><div class="btn small">取消</div><div class="btn blue small">确认</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 审查说明（PNG 导出时隐藏） -->
+<div class="legend">
+  <h2>批量复制并入 CLI 窗口 + 批量动画选择 · 渲染图审查说明</h2>
+  <p>本页为<strong>设计渲染图（非实机截图）</strong>，按 <code>UiTheme</code> 深灰色板与 V2.91 真实布局绘制。
+     橙色「新增 / 新增列」角标是<strong>设计标注</strong>，实际 UI 不会出现。点击右上角按钮切换 5 个场景。</p>
+
+  <h3>5 个场景</h3>
+  <table>
+    <tr><th>#</th><th>场景</th><th>要审查什么</th></tr>
+    <tr><td>1</td><td>总览</td><td>外层 3 主标签；内层 3 子标签且「批量复制」在「合并」之前；新增动画工具条与备注、新增动画列；左右分栏原样保留</td></tr>
+    <tr><td>2</td><td>门槛报错</td><td>勾选项混入 <code>atlas.png</code> 时弹窗列出违规文件、不打开动画弹窗</td></tr>
+    <tr><td>3</td><td>动画弹窗</td><td>3 个 .spine 的动画<b>并集</b>（idle / walk 同名合并），共 7 项；勾选 4 项</td></tr>
+    <tr><td>4</td><td>标红结果</td><td>每个文件只写入自己已有的动画；<code>ui_icon.spine</code> 缺 3 项 → 整行标红但照常可复制</td></tr>
+    <tr><td>5</td><td>子页顺序</td><td>切到「合并」页，验证新子页插在最前、原合并页内容零改动</td></tr>
+  </table>
+
+  <h3>示例数据（自洽校验）</h3>
+  <table>
+    <tr><th>文件</th><th>自身动画 A(f)</th><th>批量选择 S</th><th>写入 E(f) = S ∩ A(f)</th><th>标红</th></tr>
+    <tr><td>hero.spine</td><td>idle, walk, attack</td><td rowspan="3">idle, walk, attack, run</td><td>idle, walk, attack</td><td>否</td></tr>
+    <tr><td>npc_01.spine</td><td>idle, walk, run, talk</td><td>idle, walk, run</td><td>否</td></tr>
+    <tr><td>ui_icon.spine</td><td>idle, pop, loop</td><td>idle</td><td><b style="color:#FFB9B9">是（缺 3 项，仅提醒）</b></td></tr>
+  </table>
+
+  <div class="warnbox">
+    <b>需重点拍板的两处：</b><br>
+    ① <b>D0 门槛口径</b>：「列表中确定勾选的所有文件」= 全量勾选项（含被过滤隐藏项，与执行集合一致）还是仅当前可见行？当前图按「全量勾选项」绘制。<br>
+    ② <b>D3 双进度区</b>：图中同时出现「批量复制页自带进度条」与「窗口级共享进度区」（标为占位），是否接受？
+  </div>
+
+  <h3>其余待拍板项</h3>
+  <p>D1 外层标签文字 · D2 顶栏显隐 · D4 动画读取来源（CLI / 直接解析 .spine JSON） · D5 动画列位置 · D6 按钮位置 ·
+     D7 备注文字 · D8 同名去重的大小写规则 · D9 标红样式 · D10 未勾选项显示 · D11 跨页任务互斥 · D12 版本号与文档同步 · D13 动画数据下游用途。
+     详见同目录 <code>施工文档.md</code> 第 9 节。</p>
+</div>
+
+<script>
+(function(){
+  var params = new URLSearchParams(location.search);
+  var s = parseInt(params.get('s') || '1', 10);
+  if (isNaN(s) || s < 1 || s > 5) s = 1;
+  var capture = params.get('capture') === '1';
+  if (capture) document.body.classList.add('capture');
+
+  var ROWS = [
+    {name:'hero.spine',    ext:'.spine', size:'2.4 MB', dir:'D:/proj/chars/hero', anim:'—'},
+    {name:'hero_b.spine',  ext:'.spine', size:'2.1 MB', dir:'D:/proj/chars/hero', anim:'—'},
+    {name:'npc_01.spine',  ext:'.spine', size:'1.8 MB', dir:'D:/proj/chars/npc',  anim:'—'},
+    {name:'ui_icon.spine', ext:'.spine', size:'842 KB', dir:'D:/proj/ui',         anim:'—'},
+    {name:'atlas.png',     ext:'.png',   size:'3.6 MB', dir:'D:/proj/chars/hero', anim:'—'},
+    {name:'export.json',   ext:'.json',  size:'12 KB',  dir:'D:/proj',            anim:'—'}
+  ];
+
+  var CFG = {
+    1:{checks:[0,2,3], anims:{}, reds:[], sub:0, stat:'本轮已选 0 个动画',
+       status:'就绪 · 已扫描 6 个文件 · 已勾选 3 个，配置目标路径后点击「开始复制」'},
+    2:{checks:[0,2,3,4], anims:{}, reds:[], sub:0, stat:'本轮已选 0 个动画',
+       status:'就绪 · 已扫描 6 个文件 · 已勾选 4 个，配置目标路径后点击「开始复制」'},
+    3:{checks:[0,2,3], anims:{}, reds:[], sub:0, stat:'本轮已选 0 个动画',
+       status:'就绪 · 已扫描 6 个文件 · 已勾选 3 个，配置目标路径后点击「开始复制」'},
+    4:{checks:[0,2,3],
+       anims:{0:'idle, walk, attack', 2:'idle, walk, run', 3:'idle'},
+       reds:[3], sub:0, stat:'本轮已选 4 个动画 · 1 行标红',
+       status:'已为 3 个文件写入动画，其中 1 行缺少所选动画（仅提醒）· 复制行为不受影响'},
+    5:{checks:[], anims:{}, reds:[], sub:1, stat:'本轮已选 0 个动画',
+       status:'就绪 · 已扫描 6 个文件 · 已勾选 3 个，配置目标路径后点击「开始复制」'}
+  };
+
+  function setState(n){
+    s = n;
+    document.body.className = (capture ? 'capture ' : '') + 'state-' + n;
+    var cfg = CFG[n];
+    for (var i = 0; i < 3; i++)
+      document.getElementById('stab'+i).classList.toggle('on', i === cfg.sub);
+
+    var html = '';
+    ROWS.forEach(function(r, i){
+      var checked = cfg.checks.indexOf(i) >= 0;
+      var red = cfg.reds.indexOf(i) >= 0;
+      var anim = cfg.anims[i] || '—';
+      var cls = 'lrow data' + (checked ? ' checked' : '') + (red ? ' red' : '');
+      var miss = red ? '<span class="miss">缺 3 项</span>' : '';
+      html += '<div class="' + cls + '">' +
+        '<div><div class="cbx' + (checked ? ' on' : '') + '">' + (checked ? '✓' : ' ') + '</div></div>' +
+        '<div class="fname">' + r.name + '</div>' +
+        '<div class="ext">' + r.ext + '</div>' +
+        '<div class="size">' + r.size + '</div>' +
+        '<div class="anim' + (anim === '—' ? ' none' : '') + '">' + anim + miss + '</div>' +
+        '<div class="path">' + r.dir + '</div>' +
+      '</div>';
+    });
+    document.getElementById('rows').innerHTML = html;
+    document.getElementById('cnt').textContent = cfg.checks.length;
+    document.getElementById('animstat').textContent = cfg.stat;
+    document.getElementById('status').textContent = cfg.status;
+    document.getElementById('hostph').textContent = n === 5
+      ? '窗口级共享进度区 · 执行合并 / 批量导出时在此显示进度'
+      : '窗口级共享进度区 · 仅合并 / 批量导出任务运行时显示（默认隐藏）';
+    var btns = document.querySelectorAll('.switcher button');
+    for (var j = 0; j < btns.length; j++)
+      btns[j].classList.toggle('active', parseInt(btns[j].getAttribute('data-s'),10) === n);
+    try { history.replaceState(null, '', location.pathname + '?s=' + n + (capture ? '&capture=1' : '')); } catch(e){}
+  }
+
+  var btns = document.querySelectorAll('.switcher button');
+  for (var k = 0; k < btns.length; k++) {
+    (function(b){ b.addEventListener('click', function(){ setState(parseInt(b.getAttribute('data-s'),10)); }); })(btns[k]);
+  }
+  setState(s);
+})();
+</script>
+</body>
+</html>

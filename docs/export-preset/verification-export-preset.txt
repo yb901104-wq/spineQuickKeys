@@ -1,0 +1,35 @@
+AUD-040 导出预设 / 状态修复 / CLI 生成断言：33 PASS / 0 FAIL
+PASS | V1 顶层窗口标题改名 | 批量复制/合成/导出
+PASS | V2 子标签「合并」→「批量合并」 | 批量合并
+PASS | V1 外层主标签改名 | 批量复制/合成/导出
+PASS | V1 外层仍是 3 个主标签 | 3 个
+PASS | V21 初始真值源=finish.export.json（旧代码为 export.json） | finish.export.json
+PASS | V21 初始 radio = finish | finish=on
+PASS | V21 产品代码已删除 _exportConfigName 字段 | 字段不存在
+PASS | V23 切 demotion 后真值源立即变化 | demotion.export.json
+PASS | V23 切回 finish 后真值源立即变化 | finish.export.json
+PASS | V24 「其他」手填值成为真值源 | mycfg.export.json
+PASS | V22 配置不存在时状态=❌ | ❌
+PASS | V22 点刷新状态后状态=✅（不再需要切配置名） | ✅
+PASS | V22 删除配置后刷新回=❌ | ❌
+PASS | U1 4.3 版本备注存在 | （必须 4.3 及以上版本才能使用）
+PASS | U1 备注使用 UiTheme.Orange 醒目色 | Color [A=255, R=240, G=138, B=60]
+PASS | R3 保存为导出预设按钮 | 按钮存在
+PASS | R8 批量生成导出配置按钮 | 按钮存在
+PASS | R6 三个预设按钮文本 | 激活/删除/删除全部
+PASS | R4 预设列表 3 列 | 预设名/文件数/配置名
+PASS | V9 空列表时三个按钮禁用 | 均禁用
+PASS | U2 预设 JSON 往返：数量 | 2 个
+PASS | U2 中文预设名与路径保留 | G2 系列导出 / 2 个文件
+PASS | U2 其他手填名与单选项保留 | Other / mycfg.export.json
+PASS | U2 创建时间保留 | 2026-11-09T20:00:00
+PASS | U2 损坏文件返回空列表不崩溃 | 返回空列表
+PASS | U2 默认落盘位置是本地软件数据文档 export_presets.json | C:\Users\Administrator\AppData\Roaming\KeyMacro\export_presets.json
+PASS | R7 列表加载预设后按钮启用态 | 删除全部已启用
+PASS | V9 选中预设后「激活预设 / 删除预设」均启用 | 列表选中数=1
+PASS | V17 激活「其他」预设后不弹 InputBox、手填值完整恢复 | custom.export.json
+PASS | R7 激活预设恢复源目录/输出目录 | 目录已录入
+PASS | U1 CLI 参数构造（--ignore-unknown 透传 + -o 完整文件名） | --ignore-unknown -i D:\p\hero.spine -o D:\p\finish.export.json --last-export-settings
+PASS | D15 同目录多 .spine 只生成一个目标 | D:\p\finish.export.json | D:\q\finish.export.json
+PASS | V24 「其他」手填名作为生成文件名 | D:\p\mycfg.export.json
+说明：真实 Spine.com 4.3+ 生成配置文件、命名弹窗与删除确认的模态显示、重启后预设恢复，需用户真机手工确认。

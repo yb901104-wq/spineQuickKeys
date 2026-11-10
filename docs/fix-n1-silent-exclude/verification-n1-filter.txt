@@ -1,0 +1,18 @@
+AUD-039 后缀静默排除修复断言：14 PASS / 0 FAIL / 0 SKIP
+INFO | 产品面板构造时从 path_history.json 读到的初始后缀 = "-n1"
+INFO | 样本 7 个文件，其中 2 个 *-n1.spine、1 个 *_bf.spine
+PASS | AUD-039 后缀 -n1 不再排除任何文件 | 可见 7 / 扫描 7
+PASS | AUD-039 G2-n1.spine 可见 | G2-n1.spine, G10-skin_merged-n1.spine, G2.spine, tx-xy.spine, G2_bf.spine, 201.png, hero.atlas
+PASS | AUD-039 G10-skin_merged-n1.spine 可见 | 跨目录同名规则同样不再误伤
+PASS | 后缀 _bf 同样不影响可见性（G2_bf.spine 仍在） | 可见 7
+PASS | 极端后缀 G2 也不排除 G2.spine | 可见 7
+PASS | 非法后缀（空）也不排除 | 可见 7
+PASS | 扩展名过滤回归：只剩 .spine | G2-n1.spine, G10-skin_merged-n1.spine, G2.spine, tx-xy.spine, G2_bf.spine
+PASS | 扩展名过滤下 2 个 -n1.spine 仍在 | 命中 2 个
+PASS | 关键词过滤回归：-n1 精确命中 2 个 | G2-n1.spine, G10-skin_merged-n1.spine
+PASS | 状态栏不再出现「疑似备份文件」 | 就绪 · 已扫描 7 个文件 · 勾选文件后点击「开始批量备份」，在原目录生成带后缀副本
+PASS | 产品代码已移除 IsLikelyBackup | 方法不存在
+PASS | 产品代码已移除 _excludedCount | 字段不存在
+PASS | 真实目录：可见数 == 扫描数（零静默排除） | 扫描 2835 / 可见 2835
+PASS | 真实目录：全部 -n1.spine 进入可见列表 | 共 29 个 -n1.spine，逐个核对通过
+说明：真实复制到磁盘与 INV-1~8 回归需用户真机手工确认。

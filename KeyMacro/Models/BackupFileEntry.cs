@@ -22,6 +22,17 @@ public sealed class BackupFileEntry
     /// <summary>数据层勾选态（UI 显示与数据解耦）。</summary>
     public bool Checked { get; set; }
 
+    // ── AUD-038 批量动画选择：纯内存展示元数据 ──
+    // 不写入 config.json / PathHistory，不参与复制与备份执行集合，不产生任何磁盘写入。
+    /// <summary>该文件自身拥有的动画名列表（本轮读取结果；读取失败为空列表）。</summary>
+    public List<string> AvailableAnimations { get; set; } = [];
+
+    /// <summary>本轮实际写入的动画 = 批量勾选集合 ∩ AvailableAnimations。</summary>
+    public List<string> SelectedAnimations { get; set; } = [];
+
+    /// <summary>本轮存在「勾选了但该文件没有」的动画；仅用于整行标红提醒，不是执行门槛。</summary>
+    public bool HasMissingAnimations { get; set; }
+
     public string SizeText => Size switch
     {
         < 1024 => $"{Size} B",

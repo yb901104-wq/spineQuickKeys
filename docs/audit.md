@@ -54,6 +54,9 @@
 | AUD-035 | 新旧按钮缩放入口同时存在并共享运行时状态，导致缩放范围和配置字段语义冲突 | 虚拟按键窗口布局 | 中 | 处理中 |
 | AUD-036 | 虚拟按键右键菜单背景与文字/选中状态对比不足，影响菜单可读性 | 虚拟按键窗口交互 | 中 | 处理中 |
 | AUD-037 | 批量复制内层双 Tab 合并为单页（选源结构统一 + 原地复制独立开关） | 批量复制 / 原地复制备份 | 中 | 已完成 |
+| AUD-038 | 批量复制并入 CLI 窗口子页 + 源文件批量动画选择（并集弹窗 / 交集写入 / 缺项标红） | 首页标签结构 / 批量复制源列表 / CLI 窗口 | 中 | 已完成 |
+| AUD-039 | 备份后缀 `-n1` 触发静默排除，真实源文件 `*-n1.spine` 在列表里检索不到 | 批量复制源文件列表 / 显示层过滤 | 高 | 已完成 |
+| AUD-040 | 导出页标签改名 + 导出预设（本地持久化） + 批量生成导出配置（4.3+） + export.json 状态列不同步 | CLI 批量导出页 / 本地软件数据 | 中 | 已完成 |
 
 ## 问题详情
 
@@ -334,6 +337,77 @@
   3. `dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true` 产出 18:59 单文件 exe（113,896,872 B，与旧版同字节数属 PE 对齐巧合）；18:55 按用户指定把版本号统一为 **V2.91** 后重新编译发布，UTF-16 校验新 exe 含 `V2.91` 且不含 `V3.0`；二进制检出本次新增符号 `StartBackupFromHostAsync` / `CheckedFilesSnapshot` / `BuildModeCard` / `ApplyMode` / `DetachSuffixConfig` / `UseExternalAction`，旧 V2.9 exe 全不含，两版二进制不相同。
   4. 改动前三个源文件备份至 `docs/batch-copy-merge/backup/`，旧 exe 备份至 `KeyMacro/bin/Release/publish-v2.9-pre-merge/`（不与交付物并列呈现）。
 - **未做且不得宣称通过**：两模式真实交互回归（勾选、执行到磁盘、冲突弹窗、INV-1~8 不覆盖、切换保留、运行中锁定、三套历史写回、关闭保护）需用户真机手工确认，用例见 `docs/verification/manual-verification-plan.md` 的 BCM 小节。
+
+### AUD-038 批量复制并入 CLI 窗口子页 + 源文件批量动画选择
+
+- 状态：**已完成**（2026-11-09 立项并施工完成；施工依据 `docs/batch-copy-cli-integration/施工文档.md`，渲染图已审查通过）。版本 **V2.92**（用户拍板），本次按用户要求不执行 git 提交。
+- 现状：外层主标签 4 个，「批量复制」与「CLI批量合并/导出」各占一个，入口分散；批量复制源文件列表 5 列只有文件属性，无法查看/批量选择 `.spine` 内的动画。
+- 本次目标：
+  1. 删除外层「批量复制」主标签；`BatchCliWindow` 内层 `DarkTabControl` 由 2 页变 3 页，顺序固定为 **批量复制 → 合并 → 批量导出**，`BatchCopyWindow` 整体原样嵌入（两层非顶层 Form 嵌套），内部左右分栏、A/B/C、模式卡、目标路径卡、底部按钮/进度/状态零改动。
+  2. `InplaceBackupPanel` C 区新增「选择动画」按钮 + 门槛备注 + 第 6 列「动画」；门槛 = 勾选快照（含被过滤隐藏项）全部为 `.spine`，否则弹窗列出违规文件且不打开动画窗。
+  3. 动画弹窗 = 所有勾选 `.spine` 动画的**并集**（同名合并去重）；确认后逐文件写入 `S ∩ A(f)`，缺失部分不写、整行标红**仅提醒**；未参与行显示 `—`。
+  4. 动画为**纯内存展示元数据**，不参与复制/备份执行集合、不写回源文件、不持久化；`BatchCopyService` / `InplaceBackupService` / `SpineCliService` / 合并页动画选择 / 配置文件结构零改动。
+- 建议处理（分步，S1–S9 详见施工文档）：立项与基线备份 → `MainForm` 入口重组 → `BatchCliWindow` 子页嵌入与 `Close()+Dispose()` 清理 → `BackupFileEntry` 加 3 个内存字段 → `InplaceBackupPanel` 加列/工具条 → 门槛/并集弹窗/交集写入/标红 → 编译核对范围 → 实机验证与截图 → 版本号/文档/审计/发布。
+- 决策默认（用户未逐项拍板，按文档推荐执行）：D0=A 全量勾选快照、D1=A 标签文字不改、D3=A 双进度区各管各的、D4=A 复用 `SpineCliService.GetProjectInfo`、D5=A 动画列在「所在目录」前、D6=A C 区独立工具条、D7=A 原备注文案、D8=A 忽略大小写按首次出现、D9=A 整行深红、D10=A 未参与行显示 `—`、D11=A 不新增跨页互斥、D13=A 纯展示。
+- 验证方式：`dotnet build KeyMacro` 0 警告 0 错误；`git diff --name-only -- KeyMacro/` 仅 4 个 `.cs`；按施工文档 §7 V1–V29 逐项核对，重点是 G2 门槛、并集同名合并、交集写入、标红仅提醒、两层嵌入模态弹窗、退出后路径历史写回。
+- 备注：改动前 4 个源文件备份在 `docs/batch-copy-cli-integration/backup/*.before`。
+- 验证结果：
+  1. `dotnet build KeyMacro` 与 `dotnet build RuntimeWindowCapture` 均 **0 警告 0 错误**；`git diff --name-only -- KeyMacro/` 恰好 4 个 `.cs`（`MainForm.cs` / `BatchCliWindow.cs` / `InplaceBackupPanel.cs` / `BackupFileEntry.cs`），V29 通过。
+  2. **动画语义断言 10/10 PASS**（`docs/batch-copy-cli-integration/verification-logic.txt`，由 `RuntimeWindowCapture verify-animation-logic` 反射调用产品代码纯逻辑方法）：并集同名合并且保留首次拼写、`S ∩ A(f)` 交集写入并保留 `A(f)` 原始大小写、缺项标红、不标红用例、二次确认全量覆盖无残留、零匹配「（无匹配动画）」、未参与行「—」、G2 扩展名口径（`.SPINE` 通过 / `.spine.json`·`.png`·`.atlas`·无扩展名拦截）。
+  3. **实机截图 5 张**（`docs/batch-copy-cli-integration/runtime-*.png`，由项目自带 `RuntimeWindowCapture` 生成）：`runtime-1` 真实两层非顶层 Form 嵌套（`MainForm → BatchCliWindow → BatchCopyWindow`）完整显示，外层 3 主标签、内层 3 子标签「批量复制 / 合并 / 批量导出」顺序正确；6 列表头、动画列、整行标红（含勾选列）、动画工具条与备注、右列目标卡、底部按钮/进度/状态栏齐全无裁切。`runtime-2/3` 合并页与批量导出页原控件零改动。`runtime-4` 顶层 CLI 窗口下的批量复制页。`runtime-5` G2 门槛报错弹窗实机弹出，正确列出 `hero.atlas` / `hero.png` 两个违规文件且未打开动画窗，弹窗未被主窗口遮挡（同时验证两层嵌套下的模态 owner 正确）。
+  4. 退出链：`MainForm.ExitApp → CloseEmbeddedPage(_cliPage) → Close() → BatchCliWindow.OnFormClosed/Dispose → CloseCopyPage() → BatchCopyWindow.Close() + Dispose()`，截图工具走完整退出链无异常，路径历史写回链被触发（V26 链路验证通过，落盘内容需真机确认）。
+- **未做且不得宣称通过**（与 AUD-037 同口径）：真实 Spine.com 读取 `.spine` 动画列表、动画弹窗的实机模态显示、两模式真实复制到磁盘、INV-1~8 不覆盖、三套历史落盘内容、跨页任务并发，均需用户真机手工确认，用例见 `docs/verification/manual-verification-plan.md` 的 BCC 小节。
+- 实施差异（已在 `docs/batch-copy-cli-integration/施工文档.md` 施工记录逐条说明）：D2 顶栏按 A 原样保留（动画读取依赖它）；列宽按实机可用宽度收窄以避免横向滚动；弹窗用系统原生 `MessageBox`（浅色，与项目其它报错一致），渲染图中的深色弹窗为示意稿；G3 的 Spine.com 路径从 `ConfigService.LoadCliSpinePath()` 读取，等价于宿主顶栏每次变更后的落盘值，因此无需改动 `BatchCopyWindow.cs`（R2 字节不变）。
+
+### AUD-039 备份后缀触发静默排除，导致 `*-n1.spine` 检索不到
+
+- 状态：**已完成**（2026-11-09 用户报告并经对话确认；用户拍板「彻底取消静默排除」+ 版本 **V2.93**）。
+- 症状：在批量复制页选择文件夹后，同一目录下 `G2.spine`、`tx-xy.spine` 正常显示，唯独 `G2-n1.spine` 找不到；`D:\动画工程\monster-spine-h细线` 下每个子文件夹都恰好漏掉一个 `*-n1.spine`（实测共 29 个 / 全目录 115 个 `.spine`）。
+- 根因（显示层，非扫描层）：`InplaceBackupService.ScanAsync` 用 `EnumerateFiles(dir, "*")` 无文件名过滤，文件均已扫入；但 `InplaceBackupPanel.RebuildVisible()` 先执行 `_scanned.Where(e => !IsLikelyBackup(e, suffix))`，`IsLikelyBackup` 判定 `stem.EndsWith(suffix)`。`LoadInitialSuffix()` 取 `%APPDATA%\KeyMacro\path_history.json` 的 `BackupSuffixHistory[0]`，用户该文件当前为 `-n1`，于是 `G2-n1` 命中并被静默剔除。状态栏仅有一句不显眼的「已排除 N 个疑似备份文件」。
+- 加剧因素：默认「目标路径模式」下备份后缀输入框被置灰，用户看不到当前后缀；工具条上的「后缀」下拉实为扩展名筛选，与备份后缀无关。且目标路径模式根本不生成带后缀副本，却被一并套用防套娃规则。
+- 排除误判：已验证 `G2-n1.spine` 文件属性为 `Archive`（非隐藏 / 非系统 / 非重解析点），排除文件损坏、权限与符号链接可能。
+- 本次目标（用户选择「彻底取消静默排除」）：
+  1. 删除 `IsLikelyBackup` 与 `_excludedCount`，`RebuildVisible()` 让全部扫描结果进入可见列表，是否勾选由用户决定；
+  2. 状态栏不再显示「已排除 N 个疑似备份文件」；后缀变化不再触发列表重算，仅刷新占用预检；
+  3. 防重复覆盖继续由 INV-4「目标已存在自动跳过」承担，不动 `InplaceBackupService` / `BatchCopyService` / 配置结构 / UI 布局 / INV-1~8。
+- 行为变化（需用户知悉）：原地复制模式下勾选 `G2-n1.spine` 且后缀仍为 `-n1` 时，会生成 `G2-n1-n1.spine`（不覆盖已有文件）；这是取消静默排除后的预期结果。
+- 验证方式：`dotnet build KeyMacro` 0 警告 0 错误；行为断言覆盖「后缀 -n1 下 `G2-n1.spine` 可见」「换后缀结果不变」「扩展名 / 关键词过滤回归」；用真实目录走产品 `RebuildVisible` 出实机截图。
+- 备注：改动前源文件备份于 `docs/fix-n1-silent-exclude/backup/InplaceBackupPanel.cs.before`。
+- 验证结果：
+  1. `dotnet build KeyMacro` 与 `dotnet build RuntimeWindowCapture` 均 **0 警告 0 错误**。按 `diff -u` 对照改前备份，本轮产品代码只改 `InplaceBackupPanel.cs` 5 处（删 `_excludedCount` 字段 / 删 `ClearList` 赋值 / 删 `IsLikelyBackup` / `RebuildVisible` 改为全量 / 删状态栏提示，外加 `_txtSuffix.TextChanged` 改走 `DebounceStatusHint`）；`MainForm.cs` 只改标题版本号 V2.92 → V2.93。`InplaceBackupService` / `BatchCopyService` / `BackupFileEntry` / 配置结构 / UI 布局 / INV-1~8 全部零改动。
+  2. **AUD-039 断言 14 PASS / 0 FAIL / 0 SKIP**（`docs/fix-n1-silent-exclude/verification-n1-filter.txt`，由 `RuntimeWindowCapture verify-n1-filter` 反射调用产品代码 `RebuildVisible`）：后缀 `-n1` / `_bf` / `G2` / 空值下可见数恒等于扫描数；`G2-n1.spine` 与 `G10-skin_merged-n1.spine` 均可见；扩展名过滤（只剩 5 个 `.spine` 且含 2 个 `-n1`）与关键词过滤（`-n1` 命中 2 个）回归通过；状态栏不再出现「疑似备份文件」；产品代码已无 `IsLikelyBackup` 方法与 `_excludedCount` 字段。产品面板构造时实测读到的初始后缀就是 `-n1`，与用户 `path_history.json` 一致。
+  3. **真实工程目录只读复核**：`D:\动画工程\monster-spine-h细线` 扫描 2835 个文件，可见 2835 个（零静默排除），其中 29 个 `*-n1.spine` 逐个核对全部在可见列表中。
+  4. **实机截图** `docs/fix-n1-silent-exclude/runtime-n1-fixed.png`：用 `D:\动画工程\monster-spine-h细线\G2` 真实目录走产品 `ScanAsync → RebuildVisible → RefreshGrid` 全链路、后缀保持现场值 `-n1`、扩展名筛选 `.spine`，列表中 `G2-n1.spine`（第一行）/ `G2.spine` / `tx-xy.spine` 三个文件全部显示；6 列表头、动画列、选择动画工具条、右列目标卡、底部主按钮与状态栏齐全无裁切；状态栏为「就绪 · 已扫描 98 个文件 · 勾选文件后配置目标路径并点击『开始复制』」，不再出现「已排除 N 个疑似备份文件」。
+  5. 发布 exe 与版本串校验见 V2.93 版本历史条目。
+- **未做且不得宣称通过**：两模式真实复制到磁盘、INV-1~8 不覆盖全量回归、退出后三套历史落盘内容，需用户真机手工确认，用例见 `docs/verification/manual-verification-plan.md` 的 N1 小节。
+- git：按 AGENTS.md:261 询问后用户拍板「暂不提交」，工作区保留 AUD-038（V2.92）+ AUD-039（V2.93）两批未提交改动。
+- **行为变化（需用户知悉）**：原地复制模式下勾选 `G2-n1.spine` 且后缀仍为 `-n1` 时会生成 `G2-n1-n1.spine`（INV-4 保证不覆盖已有文件）；这是取消静默排除后的预期结果，如不希望出现可把备份后缀改为 `-n2` 等不与实际文件名冲突的值。
+
+### AUD-040 导出页改名 / 导出预设 / 批量生成导出配置 / 状态列修复
+
+- 状态：**已完成**（2026-11-09 用户审查施工文档与渲染图后下达开工令，并补充两条决策；版本 **V2.94**（用户拍板），按用户要求不执行 git 提交）。
+- 施工依据：`docs/export-preset/施工文档.md`（待审查稿）+ `preview.html` / 5 张渲染图。
+- 现状：`MainForm.cs:198` 主标签「CLI批量合并/导出」、`BatchCliWindow.cs:324` 子标签「合并」；批量导出页 `exportPanel` 为 2 列，仅「导出 / 单纹理图」，无预设、无批量生成配置。
+- **状态 bug 根因（用户报「export.json 状态永远不正确，必须切配置名才刷新」）**：`BuildExportTab()` 中 `:1229` 先 `_rbFinish.Checked = true`，`:1230` 才订阅 `CheckedChanged` → 初始选中不触发事件 → 字段 `_exportConfigName` 停留在初值 `"export.json"`（`:58`），而 UI 显示 `finish.export.json`；`RefreshExportStatus()` / `AddExportEntry()` 都读这个错字段，扫描后也没有重算。
+- 本次目标：
+  1. R1/R2 改名：主标签 →「批量复制/合成/导出」、子标签「合并」→「批量合并」、`BatchCliWindow` 顶层窗口标题同步改名；索引与懒加载零改动。
+  2. R3–R7 导出预设：底部追加「保存为导出预设」、右侧新增第 3 列预设列表（三列）+ 行 4 的「激活预设 / 删除预设 / 删除全部预设」；命名用 `InputDialog`；双击与按钮走同一激活方法，恢复源目录 / 全部文件路径 / 输出目录 / 导出配置名与单选项（含「其他」手填值）。
+  3. **用户补充决策 ①**：「批量生成导出配置」按钮后面必须加备注「（必须 4.3 及以上版本才能使用）」。据此 **D0 定为 A（真·CLI 透传 `--last-export-settings`），取消 B 模板兜底 / C 自动回退**；生成失败不静默降级，汇总里明确提示版本要求。
+  4. **用户补充决策 ②**：导出预设必须**保存在本地软件数据文档内** → 独立文件 `%APPDATA%\KeyMacro\export_presets.json`，每次变更**立即落盘**（D6=A 确认），重启后仍在；不塞进现有 `config.json` / `path_history.json`，不写项目/工程目录。
+  5. R8/R9 批量生成：按当前配置名（含「其他」手填值），用 CLI 在列表每个文件所在目录生成同名配置；按目录去重、已存在跳过、失败继续、进度与取消复用现有骨架、结束联动刷新状态列。
+  6. R10 状态根治：单一真值源 `CurrentExportConfigName` + 修正初始化顺序 + 扫描/切换/激活/生成完成后联动刷新。
+- 决策默认（用户未逐项回答 D1–D19，按施工文档推荐执行）：D1=A（配置内容来自项目内最近一次导出设置）、D2=A（窗口标题同步改名）、D3=B（同名拒绝）、D4=A（保存并恢复配置名/单选项）、D5=A（记录创建时间）、D7=A（不校验目录）、D8=A（默认名 `预设 N`）、D9=B（保留 ButtonWidth 旧 case）、D10=B（三列列表）、D11=A（320px 一行三按钮）、D12=A（缺失文件跳过并提示）、D13=A（激活不重扫磁盘）、D14=A（删除二次确认）、D15=A（每目录只生成一次）、D16=A（只禁生成/导出/打包）、D17=A（取消不回滚）、D18=A（已存在跳过）、D19=A（radio 文本不改）。
+- 验证方式：`dotnet build KeyMacro` 0 警告 0 错误；`git diff --name-only -- KeyMacro/` 核对范围；`RuntimeWindowCapture verify-export-preset` 行为断言；实机截图覆盖改名标签 / 预设列 / 4.3 备注 / 激活结果 / 状态修复；按施工文档 §7 V1–V30 核对。
+- 备注：改动前 4 个源文件备份于 `docs/export-preset/backup/*.before`。
+- 验证结果：
+  1. `dotnet build KeyMacro` 与 `dotnet build RuntimeWindowCapture` 均 **0 警告 0 错误**。按备份逐文件对照，本轮产品代码只改 4 个 `.cs`（`MainForm.cs` 标签文字 + 版本号、`BatchCliWindow.cs` 导出页、`ConfigService.cs` 新增 4 个静态方法、`SpineCliService.cs` 新增 2 个方法），新增 1 个 `Models/ExportPreset.cs`；`InplaceBackupPanel.cs` / `BackupFileEntry.cs` 在 `git diff` 中出现是 AUD-038/039 两批**未提交**改动，本轮字节零改动。配置结构、合并页、批量复制页、顶栏、进度区公共行为、INV-1~8 全部零改动（V30 通过）。
+  2. **AUD-040 断言 33 PASS / 0 FAIL**（`docs/export-preset/verification-export-preset.txt`，`RuntimeWindowCapture verify-export-preset`）：涵盖 V1/V2 三处改名与外层仍 3 主标签、V21 初始真值源 `finish.export.json`（旧代码为 `export.json`）、V21 产品代码已无 `_exportConfigName` 字段、V23 切 demotion / 切回 finish 立即变化、V24「其他」手填值、V22 临时目录真实文件下「无配置 ❌ → 点刷新 ✅ → 删除后 ❌」、U1 备注文字与 `UiTheme.Orange`、R3/R6/R8 五个新按钮、R4 预设列表三列、V9 空列表禁用与选中后启用、U2 JSON 往返（中文名 / 路径 / 其他手填名 / 单选项 / 创建时间）、U2 损坏文件返回空列表、U2 默认落盘路径 `C:\Users\Administrator\AppData\Roaming\KeyMacro\export_presets.json`、R7 激活「其他」预设不弹 InputBox 且恢复目录、U1 CLI 参数构造、D15 同目录去重、V24 手填名作为生成文件名。
+  3. **前两轮回归**：AUD-038 动画语义 10/10 PASS、AUD-039 后缀过滤 14/14 PASS（`docs/export-preset/verification-*-regression.txt`）。
+  4. **实机截图 6 张**（`docs/export-preset/runtime-*.png`，真实 WinForms 而非 HTML）：`runtime-1-export-presets.png` 两层嵌套 + 改名标签 + 3 预设 + 5 个新按钮 + 橙色 4.3 备注；`runtime-2-activated.png` 激活后源目录 / 输出目录 / 3 行 ✅ / 已激活提示；`runtime-3-cli-export-top.png` 顶层 CLI 窗口导出页；`runtime-4-merge-regression.png` 合并页；`runtime-5-copy-regression.png` 批量复制页 6 列与动画列；`runtime-6-n1-regression.png` `-n1.spine` 仍可见。均无裁切、无重叠、无横向滚动条。
+  5. **U1 只读复核**：Spine 官方命令行界面文档确认 `--last-export-settings` 与 `--ignore-unknown`，`-o` 可为完整文件路径；本机 `D:\Program Files\Spine\Spine.com` 为 Launcher 4.1.10，`--help` / `--advanced` 均未列该参数，与用户「必须 4.3 及以上版本才能使用」一致。
+  6. 发布 exe 与版本串校验见 V2.94 版本历史条目。
+- **未做且不得宣称通过**（与 AUD-038/039 同口径）：本机启动器 4.1.10 无法验证真实 CLI 生成配置文件，**需用户在 Spine 4.3 及以上环境真机确认**；命名弹窗 / 删除二次确认的模态显示、重启程序后预设从 `export_presets.json` 恢复、预设含已不存在文件时的跳过提示、批量生成的取消与失败汇总、两模式真实复制到磁盘、INV-1~8 全量回归，均需用户真机手工确认，用例见 `docs/verification/manual-verification-plan.md` 的 EP 小节。
+- git：按 AGENTS.md:261 询问后用户拍板「暂不提交」，工作区保留 AUD-038（V2.92）+ AUD-039（V2.93）+ AUD-040（V2.94）三批未提交改动。
 
 ## 后续维护规则
 

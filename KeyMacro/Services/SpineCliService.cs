@@ -118,6 +118,18 @@ public class SpineCliService
         return RunAsync(["-i", project, "-o", outputDir, "-p", packName], ct);
     }
 
+    /// <summary>
+    /// AUD-040：构造「根据项目内最近一次导出设置生成配置 JSON」的 CLI 参数。
+    /// --last-export-settings 是 Spine 4.3+ 参数，旧启动器会拦截未知参数，
+    /// 因此需加官方 Advanced 参数 --ignore-unknown 透传给编辑器。
+    /// -o 传完整文件路径，使产物名等于用户选中的导出配置名。
+    /// </summary>
+    public static IReadOnlyList<string> BuildLastExportSettingsArgs(string project, string outputPath)
+        => ["--ignore-unknown", "-i", project, "-o", outputPath, "--last-export-settings"];
+
+    public Task<CliResult> WriteLastExportSettings(string project, string outputPath, CancellationToken ct = default)
+        => RunAsync(BuildLastExportSettingsArgs(project, outputPath), ct);
+
     public Task<CliResult> ImportMerge(string source, string target, CancellationToken ct = default)
     {
         return RunAsync(["-i", source, "-o", target, "-r"], ct);
