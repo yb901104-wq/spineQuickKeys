@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>导出动画预览 · 第 4 个主分页 · 渲染图（待评审 / 未施工 · v3 皮肤/动画小列表）</title>
+<style>
+:root{
+  --app:#2B2B2B; --workspace:#3A3A3C; --panel:#454547; --panel-alt:#505052;
+  --input:#262628; --well:#1E1E20; --list:#202023; --list-alt:#303034;
+  --border:#5E5E60; --border-strong:#727274;
+  --text:#F2F4F7; --muted:#C7CDD4; --dim:#8A8A8D;
+  --blue:#2388C9; --cyan:#39C5D8; --orange:#F08A3C; --red:#D95C5C; --green:#6BBF59;
+  --yellow:#FFFAE6; --purple:#8B6BD9; --doc:#171719;
+  --canvas:#121214;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--doc)}
+body{font-family:"Microsoft YaHei UI","Microsoft YaHei","Segoe UI",sans-serif;color:var(--text);
+  font-size:11.5px;-webkit-font-smoothing:antialiased;min-width:1480px;padding:0 0 40px}
+.mono{font-family:Consolas,"Courier New",monospace}
+
+/* ---------- 页面级说明（不属于窗口） ---------- */
+.doc-hd{margin:0 auto;width:1440px;padding:18px 4px 10px;display:flex;align-items:flex-end;gap:14px}
+.doc-hd h1{font-size:17px;font-weight:700;letter-spacing:.3px}
+.doc-hd .sub{font-size:11.5px;color:var(--muted);padding-bottom:2px}
+.badge{display:inline-block;font-size:10px;font-weight:700;padding:3px 9px;border-radius:10px;
+  background:var(--orange);color:#2A1608;letter-spacing:.5px}
+.badge.ghost{background:transparent;border:1px solid var(--orange);color:var(--orange)}
+
+/* ---------- 状态切换器 ---------- */
+.switcher{position:fixed;top:10px;right:20px;z-index:95;display:flex;align-items:center;gap:4px;
+  background:#1B1B1D;border:1px solid #55555A;border-radius:16px;padding:4px 6px 4px 12px;
+  font-size:11px;color:var(--muted);box-shadow:0 4px 16px rgba(0,0,0,.75)}
+.switcher>span{margin-right:5px;letter-spacing:.3px;color:var(--dim)}
+.switcher button{height:23px;padding:0 10px;border-radius:11px;border:1px solid transparent;
+  background:#333336;color:var(--muted);font-size:10.5px;cursor:pointer;font-family:inherit;white-space:nowrap}
+.switcher button:hover{background:#444448}
+.switcher button.active{background:#1C4E68;border-color:var(--cyan);color:#fff;font-weight:700}
+.switcher .sep{width:1px;height:16px;background:#4A4A4E;margin:0 3px}
+.switcher button.mark{background:#4A3A22;border-color:#7A5A2E;color:#F5C98A}
+.switcher button.mark.active{background:#8A5A18;border-color:var(--orange);color:#fff}
+
+/* ---------- 窗口 ---------- */
+.window{width:1440px;height:900px;margin:0 auto;background:var(--app);display:flex;flex-direction:column;
+  border:1px solid #0C0C0E;position:relative;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.6)}
+.titlebar{height:32px;flex:0 0 32px;background:#202023;border-bottom:1px solid #141416;
+  display:flex;align-items:center;justify-content:space-between;padding-left:10px}
+.tb-left{display:flex;align-items:center;gap:8px;font-size:11.5px;color:#E6E6E6}
+.appicon{width:16px;height:16px;border-radius:3px;background:linear-gradient(160deg,#2E86C9,#1B5E8E);
+  display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;border:1px solid #4AA3DE}
+.tb-right{display:flex;height:100%}
+.tb-btn{width:44px;height:100%;display:flex;align-items:center;justify-content:center;color:#B8B8B8;font-size:12px}
+.tb-btn:last-child{background:#5A2020;color:#fff}
+.maintabs{height:44px;flex:0 0 44px;display:flex;align-items:flex-end;gap:6px;padding:0 16px 6px;background:var(--app)}
+.mtab{height:34px;padding:0 15px;border-radius:7px;display:flex;align-items:center;gap:7px;white-space:nowrap;
+  font-size:11.5px;border:1px solid var(--border);background:#333335;color:var(--muted)}
+.mtab.active{background:var(--panel-alt);border-color:var(--blue);color:#fff;font-weight:700;position:relative}
+.mtab.active::before{content:"";position:absolute;left:10px;right:10px;top:3px;height:3px;background:var(--cyan);border-radius:2px}
+.hostpage{flex:1;min-height:0;display:flex;flex-direction:column;background:var(--app)}
+
+/* v2 主分页方案：无 cli-top（Spine.com 路径栏） */
+.spacer{flex:1}
+.btn{height:26px;min-width:60px;padding:0 12px;border:1px solid var(--blue);border-radius:3px;
+  background:var(--blue);color:#fff;font-size:11px;display:inline-flex;align-items:center;justify-content:center;
+  white-space:nowrap;font-family:inherit;cursor:default}
+.btn.gray{background:#4A4A4D;border-color:#69696C;color:#E3E3E5}
+.btn.ghost{background:transparent;border-color:#6C6C70;color:var(--muted)}
+.btn.disabled{background:#3A3A3D;border-color:#555558;color:#8A8A8D}
+.btn.cyan{background:var(--cyan);border-color:#2A9BAA;color:#072A31;font-weight:700}
+.btn.purple{background:var(--purple);border-color:#9B7BE6}
+
+/* v2 主分页方案：无内层 subtabs；NEW 徽章直接挂在第 4 个主标签上 */
+.tag{font-size:9px;color:#0E2A30;background:var(--orange);border-radius:3px;padding:1px 5px;font-weight:700;white-space:nowrap}
+.tag.new{background:var(--cyan)}
+.tag.ghost{background:transparent;border:1px solid var(--orange);color:var(--orange)}
+
+.content{flex:1;min-height:0;padding:9px 12px;background:var(--app)}
+/* v2 主分页方案：无共享 cli-bottom；扫描/加载进度改由本页左列状态条承载 */
+.scanbar{height:27px;flex:0 0 27px;display:flex;align-items:center;gap:8px;padding:0 9px;
+  border-top:1px solid var(--border);background:#303033;color:var(--muted);font-size:10.3px}
+.scanbar .bar{width:86px;height:5px;background:#1C1C1F;border:1px solid #555559;border-radius:3px;position:relative;overflow:hidden}
+.scanbar .bar i{position:absolute;left:0;top:0;bottom:0;width:100%;background:linear-gradient(90deg,#2388C9,#39C5D8)}
+.scanbar .btn{height:19px;min-width:0;padding:0 7px;font-size:9.6px}
+
+/* ---------- v3：皮肤 / 动画两个小列表（左列，文件列表下方） ---------- */
+.metarow{flex:0 0 176px;display:flex;gap:8px;padding:0 9px 8px;min-height:0}
+.metacard{flex:1;min-width:0;background:var(--list);border:1px solid #4C4C50;
+  display:flex;flex-direction:column;min-height:0;position:relative}
+.meta-mask{display:none;position:absolute;left:1px;right:1px;top:25px;bottom:1px;z-index:3;
+  align-items:center;justify-content:center;background:rgba(20,20,22,.84);
+  color:#8A8A8D;font-size:10.8px;letter-spacing:.5px}
+.metarow.disabled .meta-mask{display:flex}
+.metacard-hd{height:24px;flex:0 0 24px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 8px;background:#343437;border-bottom:1px solid #565659;font-size:10.5px;font-weight:600;color:#E9EDF0}
+.metacard-hd .cnt{font-weight:400;color:var(--dim);font-size:10px}
+.metalist{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden}
+.metalist::-webkit-scrollbar{width:5px}
+.metalist::-webkit-scrollbar-thumb{background:#55555A;border-radius:3px}
+.metalist::-webkit-scrollbar-track{background:#1A1A1D}
+.mi{height:24px;display:flex;align-items:center;gap:6px;padding:0 8px;font-size:10.8px;color:#DCE1E5;
+  border-bottom:1px solid #2A2A2E;cursor:default}
+.mi:hover{background:#333338}
+.mi.on{background:#1F4657;color:#EAF7FA;box-shadow:inset 3px 0 0 var(--cyan);font-weight:600}
+.mi .dot{width:5px;height:5px;border-radius:50%;background:#55555A;flex:0 0 5px}
+.mi.on .dot{background:var(--cyan);box-shadow:0 0 5px var(--cyan)}
+.mi .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.metarow.disabled{opacity:.42;filter:grayscale(.6);pointer-events:none}
+.metalist .placeholder{height:22px;display:flex;align-items:center;padding:0 8px;font-size:10.5px;color:#77777B}
+
+/* ---------- 新页整体 ---------- */
+.page{height:100%;display:flex;gap:10px;min-height:0}
+.card{background:var(--panel);border:1px solid var(--border-strong);display:flex;flex-direction:column;min-height:0}
+.card-hd{height:30px;flex:0 0 30px;background:#3C3C3F;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;padding:0 10px;font-weight:700;font-size:11.5px}
+.card-hd .hint{font-weight:400;font-size:10.5px;color:var(--muted)}
+
+/* 左列 */
+.left{width:430px;flex:0 0 430px}
+.toolrow{display:flex;align-items:center;gap:6px;padding:8px 9px;flex:0 0 auto;flex-wrap:wrap}
+.toolrow .btn{height:27px;min-width:0;padding:0 10px;font-size:10.8px}
+.optrow{display:flex;align-items:center;gap:9px;padding:0 9px 7px;flex:0 0 auto;font-size:11px;color:var(--muted)}
+.chk{width:13px;height:13px;border:1px solid #8C8C90;border-radius:2px;background:var(--input);
+  display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:#0B2A18;font-weight:900;flex:0 0 13px}
+.chk.on{background:var(--green);border-color:var(--green)}
+.chk.on::after{content:"✓"}
+.line{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.sel{height:24px;min-width:76px;background:var(--input);border:1px solid var(--border);border-radius:3px;
+  display:inline-flex;align-items:center;justify-content:space-between;padding:0 7px;color:var(--text);font-size:10.8px;gap:8px}
+.sel .arw{color:var(--dim);font-size:9px}
+.field{height:25px;background:var(--input);border:1px solid var(--border);border-radius:3px;
+  display:flex;align-items:center;padding:0 8px;color:var(--text);font-size:11px;flex:1;min-width:0}
+.field .ph{color:#77777B}
+
+/* 文件列表 */
+.filelist{flex:1;min-height:0;margin:0 9px;background:var(--list);border:1px solid #4C4C50;
+  display:flex;flex-direction:column;overflow:hidden}
+.fl-head{height:27px;flex:0 0 27px;display:flex;background:#343437;border-bottom:1px solid #565659;
+  color:#E9EDF0;font-size:10.5px;font-weight:600}
+.fl-head>div{display:flex;align-items:center;padding:0 7px;border-right:1px solid #48484C;white-space:nowrap}
+.fl-row{height:27px;flex:0 0 27px;display:flex;border-bottom:1px solid #303034;color:#DCE1E5;font-size:10.8px;cursor:default}
+.fl-row>div{display:flex;align-items:center;padding:0 7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  border-right:1px solid #2A2A2E}
+.fl-row:hover{background:#333338}
+.fl-row.sel-row{background:#1F4657;box-shadow:inset 3px 0 0 var(--cyan)}
+.fl-row.sel-row>div{color:#EAF7FA}
+.fl-row .c1{width:132px;flex:0 0 132px;font-weight:600}
+.fl-row .c2{width:52px;flex:0 0 52px;color:var(--muted)}
+.fl-row .c3{width:62px;flex:0 0 62px;color:var(--muted)}
+.fl-row .c4{width:86px;flex:0 0 86px;color:var(--muted);font-size:10.2px}
+.fl-row .c5{width:82px;flex:0 0 82px;border-right:none;font-size:10.2px;font-weight:600}
+.fl-head .c1{width:132px;flex:0 0 132px}.fl-head .c2{width:52px;flex:0 0 52px}
+.fl-head .c3{width:62px;flex:0 0 62px}.fl-head .c4{width:86px;flex:0 0 86px}
+.fl-head .c5{width:82px;flex:0 0 82px;border-right:none}
+.st-ok{color:#8CE08C}.st-warn{color:#FFB066}.st-err{color:#FF9A9A}
+.fl-row.warn{background:#3A3023}.fl-row.warn:hover{background:#453924}
+.fl-row.err{background:#3A2628}.fl-row.err:hover{background:#452C2E}
+.fl-row.err .c1,.fl-row.warn .c1{color:#E8D9C8}
+.fl-foot{height:26px;flex:0 0 26px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 9px;color:var(--muted);font-size:10.5px;border-top:1px solid #4C4C50}
+.empty-list{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;
+  color:#7E7E82;font-size:11.5px}
+.empty-list .big{font-size:30px;opacity:.35}
+.left-foot{padding:8px 9px;flex:0 0 auto;border-top:1px solid var(--border);display:flex;gap:7px;align-items:center}
+.left-foot .btn{height:28px;font-size:10.5px;flex:1}
+
+/* 右列 */
+.right{flex:1;min-width:0}
+.infobar{height:34px;flex:0 0 34px;background:#333336;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;padding:0 10px;font-size:11px}
+.infobar .fname{font-weight:700;color:#EAF7FA;font-size:11.5px}
+.pill{font-size:10px;border:1px solid #5C5C60;border-radius:9px;padding:2px 8px;color:var(--muted);background:#2A2A2D}
+.pill.ok{color:#9BE89B;border-color:#3F6B3F;background:#253525}
+.pill.warn{color:#FFC08A;border-color:#7A5A32;background:#3A2E20}
+.pill.err{color:#FFA5A5;border-color:#7A3A3A;background:#3A2424}
+.infobar .spacer{flex:1}
+.infobar .btn{height:23px;font-size:10.5px;min-width:0;padding:0 9px}
+
+/* 画布 */
+.stage{flex:1;min-height:0;position:relative;background:
+  repeating-conic-gradient(#1A1A1D 0% 25%, #141416 0% 50%) 50% / 22px 22px;
+  border-bottom:1px solid var(--border);overflow:hidden;display:flex;align-items:center;justify-content:center}
+.stage::after{content:"";position:absolute;inset:0;pointer-events:none;
+  box-shadow:inset 0 0 70px rgba(0,0,0,.65)}
+.skeleton{width:330px;height:360px;position:relative;z-index:2;filter:drop-shadow(0 6px 16px rgba(0,0,0,.7));
+  animation:bob 3.2s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0) rotate(-.6deg)}50%{transform:translateY(-6px) rotate(.6deg)}}
+.stage-corner{position:absolute;top:10px;left:12px;z-index:3;font-size:10px;color:#6E6E73;letter-spacing:.4px}
+.stage-corner.tr{left:auto;right:12px}
+.stage-hint{position:absolute;bottom:9px;left:12px;z-index:3;font-size:10px;color:#6E6E73}
+
+/* 控制条 */
+.ctrl{flex:0 0 auto;background:#343437;border-top:1px solid var(--border)}
+.ctrl-row{height:42px;display:flex;align-items:center;gap:9px;padding:0 10px;border-bottom:1px solid #454549}
+.ctrl-row:last-child{border-bottom:none;height:44px}
+.ctrl-row .cap{font-size:10.5px;color:var(--muted);white-space:nowrap}
+.sel.wide{min-width:118px}
+.toggle{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:12px;
+  border:1px solid #5C5C60;background:#28282B;color:var(--muted);font-size:10.5px;white-space:nowrap}
+.toggle .led{width:9px;height:9px;border-radius:50%;background:#66666A}
+.toggle.on{background:#1C4E52;border-color:var(--cyan);color:#CFF6FA}
+.toggle.on .led{background:var(--cyan);box-shadow:0 0 7px var(--cyan)}
+.playbtn{width:32px;height:32px;flex:0 0 32px;border-radius:50%;border:1px solid var(--cyan);
+  background:#1C4E52;color:#D9FAFF;font-size:13px;display:flex;align-items:center;justify-content:center}
+.timeline{flex:1;min-width:0;height:6px;background:#1C1C1F;border:1px solid #555559;border-radius:4px;position:relative}
+.timeline .fill{position:absolute;left:0;top:0;bottom:0;width:36%;background:linear-gradient(90deg,#2388C9,#39C5D8);border-radius:3px}
+.timeline .knob{position:absolute;left:36%;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;
+  background:#E9FBFF;border:2px solid var(--cyan);box-shadow:0 0 6px rgba(57,197,216,.7)}
+.timecode{font-size:10.5px;color:var(--muted);white-space:nowrap;min-width:112px;text-align:right}
+.ctrl.disabled{opacity:.42;filter:grayscale(.6)}
+
+/* 状态覆盖层 */
+.overlay{position:absolute;inset:0;z-index:6;display:none;align-items:center;justify-content:center;
+  background:rgba(14,14,16,.86);backdrop-filter:blur(2px)}
+.overlay .box{max-width:420px;border:1px solid var(--border-strong);background:#242427;border-radius:6px;
+  padding:18px 20px;box-shadow:0 12px 40px rgba(0,0,0,.7)}
+.overlay h3{font-size:13px;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.overlay p{font-size:11.5px;line-height:1.75;color:var(--muted)}
+.overlay .fileline{margin-top:9px;padding:7px 9px;background:#1A1A1D;border:1px solid #454549;border-radius:3px;
+  font-size:10.8px;color:#E4C08E;line-height:1.7}
+.overlay .box.warn{border-color:#8A6534}.overlay .box.warn h3{color:var(--orange)}
+.overlay .box.err{border-color:#8A4242}.overlay .box.err h3{color:#FF9A9A}
+.overlay .box.info h3{color:var(--cyan)}
+.fakeblocks{display:flex;gap:12px;align-items:flex-end;justify-content:center;margin-bottom:14px}
+.fakeblocks i{display:block;background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.35);border-radius:2px}
+.spinner{width:26px;height:26px;border:3px solid #3D3D42;border-top-color:var(--cyan);border-radius:50%;
+  animation:spin .9s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+body[data-state="noatlas"] .overlay.noatlas,
+body[data-state="loading"] .overlay.loading,
+body[data-state="version"] .overlay.version,
+body[data-state="empty"] .overlay.empty{display:flex}
+body[data-state="loading"] .skeleton,
+body[data-state="version"] .skeleton,
+body[data-state="empty"] .skeleton{display:none}
+body[data-state="noatlas"] .skeleton{opacity:.13;filter:grayscale(1)}
+body[data-state="version"] .ctrl,body[data-state="empty"] .ctrl{opacity:.42;filter:grayscale(.6)}
+body[data-state="loading"] .ctrl{opacity:.5;filter:grayscale(.5)}
+body[data-state="empty"] .real-rows{display:none}
+body[data-state="empty"] .infobar .pill{display:none}
+body:not([data-state="empty"]) .empty-list{display:none}
+body[data-state="loading"] .infobar .st-normal{display:none}
+body[data-state="version"] .infobar .st-normal{display:none}
+
+/* 标注 */
+.mark{position:absolute;z-index:20;width:19px;height:19px;border-radius:50%;background:var(--orange);
+  color:#241200;font-size:10.5px;font-weight:800;display:none;align-items:center;justify-content:center;
+  border:2px solid #FFD9A8;box-shadow:0 2px 8px rgba(0,0,0,.7);cursor:help}
+body.marks .mark{display:flex}
+.m1{top:44px;left:566px}.m2{top:130px;left:30px}.m3{top:232px;left:300px}
+.m4{top:290px;left:392px}.m5{top:652px;left:250px}.m6{top:862px;left:900px}
+.m7{top:860px;left:60px}.m8{top:340px;left:300px}
+
+/* 图例 */
+.legend{width:1440px;margin:14px auto 0;display:grid;grid-template-columns:repeat(2,1fr);gap:8px 24px;
+  background:#202023;border:1px solid #3A3A3E;border-radius:5px;padding:14px 18px}
+.legend h4{grid-column:1/-1;font-size:12px;color:var(--cyan);margin-bottom:2px}
+.legend div{font-size:11px;color:var(--muted);line-height:1.6}
+.legend b{color:var(--orange);display:inline-block;width:20px}
+.legend .note{grid-column:1/-1;border-top:1px solid #3A3A3E;padding-top:9px;margin-top:4px;color:#8E8E92;font-size:10.5px}
+</style>
+</head>
+<body data-state="normal">
+
+<div class="switcher">
+  <span>状态</span>
+  <button class="active" data-s="normal">正常预览</button>
+  <button data-s="noatlas">缺 atlas</button>
+  <button data-s="loading">加载中</button>
+  <button data-s="version">版本不匹配</button>
+  <button data-s="empty">空列表</button>
+  <span class="sep"></span>
+  <button class="mark" id="markBtn">标注 OFF</button>
+</div>
+
+<div class="doc-hd">
+  <h1>导出动画预览 · 第 4 个主分页</h1>
+  <span class="badge">待评审 / 未施工</span>
+  <span class="badge ghost">V2.94 基线</span>
+  <span class="badge ghost">v3 主分页 + 小列表</span>
+  <span class="sub">Spine Web Player + WebView2 ｜ 独立主分页</span>
+</div>
+
+<div class="window">
+
+  <div class="titlebar">
+    <div class="tb-left"><div class="appicon">K</div><span>Spine助手 · V2.94</span></div>
+    <div class="tb-right"><div class="tb-btn">─</div><div class="tb-btn">□</div><div class="tb-btn">✕</div></div>
+  </div>
+
+  <div class="maintabs">
+    <div class="mtab">快捷键</div>
+    <div class="mtab">批量重命名/spine解包整理</div>
+    <div class="mtab">批量复制/合成/导出</div>
+    <div class="mtab active">导出动画预览 <span class="tag new">NEW</span></div>
+  </div>
+
+  <div class="hostpage">
+    <div class="content">
+      <div class="page">
+
+        <!-- ============ 左列：选源 + 文件列表 ============ -->
+        <div class="card left">
+          <div class="card-hd"><span>导出文件</span><span class="hint">只列出可预览的主文件（.skel / .json）</span></div>
+
+          <div class="toolrow">
+            <button class="btn">选择文件</button>
+            <button class="btn gray">选择文件夹</button>
+            <button class="btn gray">刷新</button>
+            <button class="btn ghost">清空</button>
+          </div>
+
+          <div class="optrow">
+            <span class="line"><i class="chk on"></i>包含子文件夹</span>
+            <span class="line" style="margin-left:auto">播放资源
+              <span class="sel">自动 (4.2)<span class="arw">▾</span></span>
+            </span>
+          </div>
+          <div class="optrow" style="padding-bottom:8px">
+            <span class="line" style="flex:1"><span class="field"><span class="ph">🔍 文件名包含…（仅过滤显示）</span></span></span>
+          </div>
+
+          <div class="filelist">
+            <div class="fl-head">
+              <div class="c1">主文件</div><div class="c2">格式</div><div class="c3">Spine</div>
+              <div class="c4">配套</div><div class="c5">状态</div>
+            </div>
+            <div class="real-rows">
+              <div class="fl-row sel-row"><div class="c1">hero.json</div><div class="c2">JSON</div><div class="c3">4.2.43</div><div class="c4">atlas 1·png 2</div><div class="c5 st-ok">✅ 就绪</div></div>
+              <div class="fl-row"><div class="c1">hero-pma.skel</div><div class="c2">二进制</div><div class="c3">4.2.43</div><div class="c4">atlas 1·png 1</div><div class="c5 st-ok">✅ 就绪</div></div>
+              <div class="fl-row"><div class="c1">raptor.json</div><div class="c2">JSON</div><div class="c3">4.2.43</div><div class="c4">atlas 1·png 2</div><div class="c5 st-ok">✅ 就绪</div></div>
+              <div class="fl-row warn"><div class="c1">spineboy-pro.json</div><div class="c2">JSON</div><div class="c3">4.2.43</div><div class="c4">—</div><div class="c5 st-warn">⚠ 缺 atlas</div></div>
+              <div class="fl-row"><div class="c1">G2-n1.skel</div><div class="c2">二进制</div><div class="c3">4.2.43</div><div class="c4">atlas 1·png 1</div><div class="c5 st-ok">✅ 就绪</div></div>
+              <div class="fl-row err"><div class="c1">alien-pro.json</div><div class="c2">JSON</div><div class="c3">4.3.12</div><div class="c4">atlas 1·png 1</div><div class="c5 st-err">❌ 版本</div></div>
+              <div class="fl-row warn"><div class="c1">dragon.json</div><div class="c2">JSON</div><div class="c3">4.2.43</div><div class="c4">缺 1 张页图</div><div class="c5 st-warn">⚠ 缺页图</div></div>
+              <div class="fl-row"><div class="c1">coin.json</div><div class="c2">JSON</div><div class="c3">4.2.43</div><div class="c4">atlas 1·png 1</div><div class="c5 st-ok">✅ 就绪</div></div>
+              <div class="fl-row"><div class="c1">mix-and-match.json</div><div class="c2">JSON</div><div class="c3">4.2.43</div><div class="c4">atlas 1·png 3</div><div class="c5 st-ok">✅ 就绪</div></div>
+              <div class="fl-row"><div class="c1">tank-pro.skel</div><div class="c2">二进制</div><div class="c3">4.2.43</div><div class="c4">atlas 1·png 2</div><div class="c5 st-ok">✅ 就绪</div></div>
+            </div>
+            <div class="empty-list"><div class="big">▤</div><div>尚未选择任何导出文件</div>
+              <div style="font-size:10.5px;color:#6A6A6E">点击「选择文件」或「选择文件夹」开始</div></div>
+          </div>
+
+          <div class="fl-foot"><span id="footCount">共 <b style="color:var(--text)">11</b> 项 · 就绪 7 · 异常 4</span><span id="footHint">点击行即无缝切换</span></div>
+
+          <!-- v3：皮肤 / 动画两个并排小列表，占文件列表下方一小块 -->
+          <div class="metarow" id="metarow">
+            <div class="metacard">
+              <div class="metacard-hd"><span>皮肤</span><span class="cnt">7 项</span></div>
+              <div class="metalist" data-group="skin">
+                <div class="mi on" title="default"><i class="dot"></i><span class="nm">default</span></div>
+                <div class="mi" title="skin-blue"><i class="dot"></i><span class="nm">skin-blue</span></div>
+                <div class="mi" title="skin-red"><i class="dot"></i><span class="nm">skin-red</span></div>
+                <div class="mi" title="goblin"><i class="dot"></i><span class="nm">goblin</span></div>
+                <div class="mi" title="xmas"><i class="dot"></i><span class="nm">xmas</span></div>
+                <div class="mi" title="armor-set"><i class="dot"></i><span class="nm">armor-set</span></div>
+                <div class="mi" title="full-metal-suit"><i class="dot"></i><span class="nm">full-metal-suit</span></div>
+              </div>
+              <div class="meta-mask">未加载</div>
+            </div>
+            <div class="metacard">
+              <div class="metacard-hd"><span>动画</span><span class="cnt">10 项</span></div>
+              <div class="metalist" data-group="anim">
+                <div class="mi on" title="walk"><i class="dot"></i><span class="nm">walk</span></div>
+                <div class="mi" title="run"><i class="dot"></i><span class="nm">run</span></div>
+                <div class="mi" title="jump"><i class="dot"></i><span class="nm">jump</span></div>
+                <div class="mi" title="idle"><i class="dot"></i><span class="nm">idle</span></div>
+                <div class="mi" title="attack"><i class="dot"></i><span class="nm">attack</span></div>
+                <div class="mi" title="attack-2"><i class="dot"></i><span class="nm">attack-2</span></div>
+                <div class="mi" title="death"><i class="dot"></i><span class="nm">death</span></div>
+                <div class="mi" title="hit"><i class="dot"></i><span class="nm">hit</span></div>
+                <div class="mi" title="walk-to-run"><i class="dot"></i><span class="nm">walk-to-run</span></div>
+                <div class="mi" title="super-long-animation-name"><i class="dot"></i><span class="nm">super-long-animation-name</span></div>
+              </div>
+              <div class="meta-mask">未加载</div>
+            </div>
+          </div>
+
+          <div class="scanbar"><span id="scanText">就绪 · 上次扫描 12 个文件</span><span class="bar"><i></i></span><span class="spacer"></span><button class="btn ghost">取消</button></div>
+          <div class="left-foot">
+            <button class="btn purple">用官方 Skeleton Viewer 打开</button>
+            <button class="btn gray" style="flex:0 0 76px">打开目录</button>
+          </div>
+        </div>
+
+        <!-- ============ 右列：预览 + 控制条 ============ -->
+        <div class="card right">
+          <div class="card-hd"><span>动画预览</span><span class="hint">WebGL · WebView2 承载 · 复用实例，切换不白屏</span></div>
+
+          <div class="infobar">
+            <span class="fname">hero.json</span>
+            <span class="pill" id="verPill">Spine 4.2.43</span>
+            <span class="pill" id="assetPill">atlas 1 · png 2</span>
+            <span class="pill ok st-normal">✅ 就绪</span>
+            <span class="pill warn" style="display:none">⚠ 缺 atlas</span>
+            <span class="pill err" style="display:none">❌ 版本不支持</span>
+            <span class="spacer"></span>
+            <button class="btn gray">适应窗口</button>
+            <button class="btn gray">1:1</button>
+            <button class="btn gray">全屏</button>
+          </div>
+
+          <div class="stage" id="stage">
+            <div class="stage-corner">棋盘格 = 透明背景</div>
+            <div class="stage-corner tr">WebGL</div>
+
+            <!-- 简化骨架示意（非真实渲染，仅表达预览区视觉） -->
+            <svg class="skeleton" viewBox="0 0 330 360" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="body" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#3FA9D8"/><stop offset="1" stop-color="#1E6E9E"/>
+                </linearGradient>
+                <linearGradient id="limb" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#E9A44C"/><stop offset="1" stop-color="#B96A24"/>
+                </linearGradient>
+                <linearGradient id="blade" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0" stop-color="#E8F6FA"/><stop offset="1" stop-color="#8FB9C8"/>
+                </linearGradient>
+              </defs>
+              <!-- 骨骼调试线 -->
+              <g stroke="#39C5D8" stroke-width="1" opacity=".45" fill="none">
+                <path d="M165 92 L165 210 M165 130 L112 168 M165 130 L218 168 M165 210 L132 286 M165 210 L200 286"/>
+              </g>
+              <!-- 腿 -->
+              <path d="M148 200 L138 282 L152 288 L170 214 Z" fill="url(#limb)" stroke="#7A4418" stroke-width="2"/>
+              <path d="M172 202 L192 280 L206 276 L192 198 Z" fill="url(#limb)" stroke="#7A4418" stroke-width="2"/>
+              <path d="M126 282 L156 280 L158 296 L120 296 Z" fill="#3B4A54" stroke="#22323B" stroke-width="2"/>
+              <path d="M188 276 L214 274 L220 292 L190 294 Z" fill="#3B4A54" stroke="#22323B" stroke-width="2"/>
+              <!-- 躯干 -->
+              <path d="M138 118 Q165 108 192 118 L200 196 Q165 210 130 196 Z" fill="url(#body)" stroke="#155A82" stroke-width="2.5"/>
+              <path d="M145 138 Q165 132 185 138 L188 168 Q165 176 142 168 Z" fill="#2C7FAE" opacity=".85"/>
+              <path d="M165 140 L165 188" stroke="#9EDCF2" stroke-width="2" opacity=".7"/>
+              <!-- 手臂 -->
+              <path d="M136 126 L104 166 L114 176 L146 142 Z" fill="url(#limb)" stroke="#7A4418" stroke-width="2"/>
+              <path d="M194 126 L226 158 L218 170 L186 142 Z" fill="url(#limb)" stroke="#7A4418" stroke-width="2"/>
+              <circle cx="108" cy="172" r="10" fill="#E7B36B" stroke="#7A4418" stroke-width="2"/>
+              <circle cx="224" cy="164" r="10" fill="#E7B36B" stroke="#7A4418" stroke-width="2"/>
+              <!-- 剑 -->
+              <g transform="rotate(18 226 164)">
+                <path d="M224 158 L232 156 L272 60 L262 56 L224 150 Z" fill="url(#blade)" stroke="#6E8E9A" stroke-width="1.5"/>
+                <path d="M218 156 L238 152 L240 164 L220 168 Z" fill="#C58A3A" stroke="#7A5518" stroke-width="2"/>
+                <path d="M226 166 L232 164 L238 186 L232 188 Z" fill="#5A4326"/>
+              </g>
+              <!-- 头 -->
+              <path d="M140 62 Q165 48 190 62 L192 100 Q165 118 138 100 Z" fill="#E9C79A" stroke="#8B6238" stroke-width="2.5"/>
+              <path d="M136 66 Q165 44 194 66 L192 78 Q165 62 138 78 Z" fill="#3C6E92" stroke="#244A66" stroke-width="2"/>
+              <rect x="146" y="82" width="38" height="12" rx="5" fill="#202C33" stroke="#4A7488" stroke-width="1.5"/>
+              <rect x="150" y="85" width="12" height="6" rx="3" fill="#39C5D8" opacity=".9"/>
+              <rect x="168" y="85" width="12" height="6" rx="3" fill="#39C5D8" opacity=".9"/>
+              <!-- 骨骼关节点 -->
+              <g fill="#39C5D8" stroke="#0E3C46" stroke-width="1.5">
+                <circle cx="165" cy="112" r="4"/><circle cx="165" cy="160" r="4"/>
+                <circle cx="138" cy="126" r="3.5"/><circle cx="194" cy="126" r="3.5"/>
+                <circle cx="108" cy="172" r="3.5"/><circle cx="224" cy="164" r="3.5"/>
+                <circle cx="150" cy="202" r="4"/><circle cx="182" cy="202" r="4"/>
+                <circle cx="140" cy="284" r="3.5"/><circle cx="200" cy="280" r="3.5"/>
+              </g>
+            </svg>
+
+            <!-- 缺 atlas -->
+            <div class="overlay noatlas">
+              <div class="box warn">
+                <h3>⚠ 未找到 texture atlas</h3>
+                <p>已加载主文件，但同目录下没有匹配的 <span class="mono">.atlas</span>。官方 Skeleton Viewer 在此情况下会用<b>半透明白色方块</b>替代显示；Web Player 无法渲染。</p>
+                <div class="fileline">查找过：<br>spineboy-pro.atlas<br>spineboy-pro-pma.atlas<br>spineboy-pro.atlas.txt</div>
+                <p style="margin-top:9px">可继续浏览其它条目，或补齐导出文件后点击「刷新」。</p>
+              </div>
+            </div>
+
+            <!-- 加载中 -->
+            <div class="overlay loading">
+              <div class="box info" style="text-align:center;min-width:280px">
+                <div class="spinner"></div>
+                <h3 style="justify-content:center">正在加载 hero.json…</h3>
+                <p>解析 skeleton → 载入 atlas → 载入 2 张页图</p>
+              </div>
+            </div>
+
+            <!-- 版本不匹配 -->
+            <div class="overlay version">
+              <div class="box err">
+                <h3>❌ 未找到匹配的播放资源版本</h3>
+                <p>该导出文件来自 <b>Spine 4.3.12</b>，但当前未配置 <span class="mono">4.3</span> 版本的 <span class="mono">spine-player.js / .css</span>。Spine 官方要求 runtime 版本必须与导出时的编辑器版本一致。</p>
+                <div class="fileline">请在「设置 → 播放资源目录」放置 4.3 版本资源，或在左列「播放资源」下拉中手动指定版本线。</div>
+              </div>
+            </div>
+
+            <!-- 空列表 -->
+            <div class="overlay empty">
+              <div class="box info" style="text-align:center;min-width:300px">
+                <h3 style="justify-content:center">▤ 还没有可预览的导出文件</h3>
+                <p>选择 .skel / .json 文件，或选择文件夹后自动检索。<br>勾选「包含子文件夹」可递归扫描下级目录。</p>
+              </div>
+            </div>
+
+            <div class="stage-hint">左键拖动平移 · 滚轮缩放 · 右键菜单</div>
+          </div>
+
+          <!-- 控制条（v3：皮肤/动画已移至左列小列表，此处只留播放与渲染开关） -->
+          <div class="ctrl" id="ctrl">
+            <div class="ctrl-row">
+              <span class="toggle on" id="pmaToggle"><i class="led"></i>PMA 预乘</span>
+              <span class="cap">速度</span><span class="sel">1.0x<span class="arw">▾</span></span>
+              <span class="cap">Mix</span><span class="sel">0.25s<span class="arw">▾</span></span>
+              <span class="line" style="font-size:10.5px;color:var(--muted)"><i class="chk on"></i>循环</span>
+              <button class="btn gray" style="height:26px">Debug</button>
+              <span class="cap" style="margin-left:auto">当前：<b id="curMeta" style="color:#EAF7FA;font-weight:600">default / walk</b></span>
+            </div>
+            <div class="ctrl-row">
+              <div class="playbtn" id="playBtn">❚❚</div>
+              <div class="timeline"><div class="fill"></div><div class="knob"></div></div>
+              <span class="timecode mono">00:00.43 / 00:01.20</span>
+              <button class="btn gray" style="height:26px">⏮ 归零</button>
+              <button class="btn gray" style="height:26px">Setup Pose</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 标注 -->
+  <div class="mark m1" title="① 独立挂在 MainForm 第 4 个主分页（index 3），BatchCliWindow 零改动">1</div>
+  <div class="mark m2" title="② 选择文件（多选）/ 选择文件夹 / 包含子文件夹开关">2</div>
+  <div class="mark m3" title="③ 只把 .skel / .json 主文件进列表，atlas / png / export.json 不进">3</div>
+  <div class="mark m4" title="④ 点击行 → 自动找齐主文件 + atlas + 全部页图 → 无缝切换">4</div>
+  <div class="mark m5" title="⑤ 皮肤 / 动画改为左列两个并排小列表，点选即切换；PMA / 速度 / Mix 留在右列控制条">5</div>
+  <div class="mark m6" title="⑥ 播放暂停 / 拖动进度条 seek / 速度 / 归零 / Setup Pose">6</div>
+  <div class="mark m7" title="⑦ 一键交给官方 Skeleton Viewer (libgdx) 交叉验证">7</div>
+  <div class="mark m8" title="⑧ 状态列：就绪 / 缺 atlas / 缺页图 / 版本不支持">8</div>
+</div>
+
+<div class="legend">
+  <h4>设计要点（点击右上角「标注」可在图上定位）</h4>
+  <div><b>①</b> v2 主分页方案：新建 <span class="mono">ExportPreviewWindow</span>，由 <span class="mono">MainForm._mainTabs</span> 追加第 4 主分页承载；前 3 主分页索引、<span class="mono">BatchCliWindow</span> 的 3 个子页与 <span class="mono">EnsureCopyPage()</span> 语义零改动</div>
+  <div><b>②</b> 文件多选 + 文件夹多选；「包含子文件夹」控制 <span class="mono">AllDirectories / TopDirectoryOnly</span></div>
+  <div><b>③</b> 主文件需结构探测（排除 export.json / 注解 json 等非 skeleton 的 .json）</div>
+  <div><b>④</b> 点击列表 → 配对 atlas → 解析页图名 → 校验齐全 → 复用 WebView2 换数据，不白屏</div>
+  <div><b>⑤</b> 皮肤 / 动画为左列两个小列表（点选即切换、当前项高亮）；PMA / 速度 / Mix 留在右列控制条；三项均由桥接消息驱动，不修改任何源文件</div>
+  <div><b>⑥</b> 播放暂停 + 进度条 seek + 时间码；运行时状态由 JS <span class="mono">tick</span> 节流回传</div>
+  <div><b>⑦</b> 官方 Skeleton Viewer (Java/libgdx) 作为参考运行时的权威对照，外部进程拉起</div>
+  <div><b>⑧</b> 状态列一眼分辨可预览 / 缺 atlas / 缺页图 / 版本不支持</div>
+  <div class="note">※ v2 变更：移除 <span class="mono">cli-top</span>（Spine.com 路径栏）、内层 <span class="mono">subtabs</span>、共享 <span class="mono">cli-bottom</span>，主标签 3→4；扫描/加载进度改由左列自带状态条承载，省下约 130px 全部给预览画布。主分页切走时 <span class="mono">VisibleChanged</span> 暂停 player、切回恢复；可从批量导出页「验证导出结果」直接跳转并灌入输出目录（D8）。<br>※ v3 变更：皮肤 / 动画由右列两个下拉改为左列两个并排小列表（占文件列表下方 176px，文件列表仍有约 396px），控制条瘦身为 PMA / 速度 / Mix / 循环 + 当前项摘要；<span class="mono">metadata</span> 回填与 <span class="mono">setSkin / setAnimation</span> 消息格式不变，桥接协议零改动。四种非正常状态下小列表统一置灰。<br>※ 画布中的角色为示意图，非真实 Spine 渲染结果；真实效果以阶段 0 技术验证后的实机截图为准。本渲染图为设计稿，不代表已实现。</div>
+</div>
+
+<script>
+var curSkin = 'default', curAnim = 'walk';
+var btns = document.querySelectorAll('.switcher button[data-s]');
+function setState(s) {
+  for (var j = 0; j < btns.length; j++) {
+    btns[j].className = (btns[j].getAttribute('data-s') === s) ? 'active' : '';
+  }
+  document.body.setAttribute('data-state', s);
+  var warnPill = document.querySelector('.infobar .pill.warn');
+  var errPill = document.querySelector('.infobar .pill.err');
+  var okPill = document.querySelector('.infobar .st-normal');
+  warnPill.style.display = (s === 'noatlas') ? '' : 'none';
+  errPill.style.display = (s === 'version') ? '' : 'none';
+  okPill.style.display = (s === 'normal') ? '' : 'none';
+  var fname = document.querySelector('.infobar .fname');
+  fname.textContent = (s === 'noatlas') ? 'spineboy-pro.json'
+                    : (s === 'version') ? 'alien-pro.json'
+                    : (s === 'empty') ? '—' : 'hero.json';
+  document.getElementById('assetPill').textContent =
+      (s === 'noatlas') ? '未找到 atlas'
+    : (s === 'version') ? 'atlas 1 · png 1'
+    : (s === 'empty') ? '—' : 'atlas 1 · png 2';
+  document.getElementById('verPill').textContent =
+      (s === 'version') ? 'Spine 4.3.12'
+    : (s === 'empty') ? '—' : 'Spine 4.2.43';
+  var footCount = document.getElementById('footCount');
+  var footHint = document.getElementById('footHint');
+  var scanText = document.getElementById('scanText');
+  if (s === 'empty') {
+    footCount.innerHTML = '共 <b style="color:var(--text)">0</b> 项 · 尚未选择文件';
+    footHint.textContent = '选择文件后开始';
+    scanText.textContent = '尚未扫描';
+  } else {
+    footCount.innerHTML = '共 <b style="color:var(--text)">11</b> 项 · 就绪 7 · 异常 4';
+    footHint.textContent = '点击行即无缝切换';
+    scanText.textContent = (s === 'loading') ? '正在加载 hero.json…' : '就绪 · 上次扫描 12 个文件';
+  }
+  var metaDisabled = (s !== 'normal');
+  document.getElementById('metarow').classList.toggle('disabled', metaDisabled);
+  var cnts = document.querySelectorAll('.metacard-hd .cnt');
+  cnts[0].textContent = metaDisabled ? '—' : '7 项';
+  cnts[1].textContent = metaDisabled ? '—' : '10 项';
+  document.getElementById('curMeta').textContent = metaDisabled ? '—' : (curSkin + ' / ' + curAnim);
+}
+for (var i = 0; i < btns.length; i++) {
+  btns[i].addEventListener('click', function () { setState(this.getAttribute('data-s')); });
+}
+var hashState = location.hash.replace('#', '');
+if (hashState) setState(hashState);
+window.addEventListener('hashchange', function () { setState(location.hash.replace('#', '')); });
+document.getElementById('markBtn').addEventListener('click', function () {
+  document.body.classList.toggle('marks');
+  var on = document.body.classList.contains('marks');
+  this.textContent = on ? '标注 ON' : '标注 OFF';
+  this.className = on ? 'mark active' : 'mark';
+});
+document.getElementById('playBtn').addEventListener('click', function () {
+  this.textContent = this.textContent === '❚❚' ? '▶' : '❚❚';
+});
+document.getElementById('pmaToggle').addEventListener('click', function () {
+  this.classList.toggle('on');
+});
+// v3：皮肤 / 动画小列表点选即切换当前项高亮，并同步右列「当前：…」摘要
+var metaLists = document.querySelectorAll('.metalist');
+for (var m = 0; m < metaLists.length; m++) {
+  (function (list, isSkin) {
+    list.addEventListener('click', function (e) {
+      var item = e.target.closest ? e.target.closest('.mi') : null;
+      if (!item || !list.contains(item)) return;
+      var items = list.querySelectorAll('.mi');
+      for (var k = 0; k < items.length; k++) items[k].className = 'mi';
+      item.className = 'mi on';
+      if (isSkin) curSkin = item.getAttribute('title'); else curAnim = item.getAttribute('title');
+      document.getElementById('curMeta').textContent = curSkin + ' / ' + curAnim;
+    });
+  })(metaLists[m], m === 0);
+}
+</script>
+</body>
+</html>

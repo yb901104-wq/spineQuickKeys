@@ -1,0 +1,281 @@
+# Spine助手 - 快捷键宏工具
+
+## 概述
+快捷键宏工具，面向 Spine 动画师。可自定义按键序列、绑定触发快捷键（键盘/虚拟按键）、后台播放。附带 Spine 热键文件编辑器，可直接修改 Spine 的 hotkey TXT 文件。
+
+## 技术栈
+- .NET 9.0 + WinForms
+- Win32 API (RegisterHotKey, SendKeys)
+- JSON 配置存储
+
+## 项目结构
+```
+KeyMacro/
+├── Program.cs               # 入口
+├── gen_skin_images.csx      # 皮肤 PNG 状态帧生成脚本
+├── assets/
+│   └── spine-player/        # 导出动画预览 host.html / bridge.js / LICENSE + runtime\4.1~4.3 内置官方 spine-player.js/.css（V3.1 起零配置）
+├── icons/                   # 应用图标资源
+│   └── app.ico
+├── skins/                   # 皮肤 PNG 资源目录
+├── Models/
+│   ├── DataBundle.cs        # 统一导入导出数据模型
+│   ├── MacroSequence.cs     # 数据模型 (序列 + 步骤)
+│   ├── PathHistory.cs       # 批量复制前缀/后缀历史记录
+│   ├── SpineCliEntry.cs     # CLI 任务数据模型（含 CliResult）
+│   ├── ExportPreviewEntry.cs # 导出预览文件组模型（配套组 / 五态 / 版本 / 皮肤动画名）
+│   └── VirtualButton.cs     # 虚拟按键数据模型（含 IsSpacer）
+├── Services/
+│   ├── ConfigService.cs     # JSON 配置读写 (%APPDATA%\KeyMacro\config.json)
+│   ├── DataBundleService.cs # 统一导入导出服务
+│   ├── HotkeyService.cs     # Win32 全局热键注册/监听
+│   ├── IconService.cs       # 应用图标加载（嵌入→磁盘→代码三级回退）
+│   ├── MacroPlayer.cs       # SendKeys 按键序列播放引擎
+│   ├── OperationLogger.cs   # 文件日志系统 (%APPDATA%\KeyMacro\logs\)
+│   ├── BatchCopyService.cs  # 批量复制执行引擎（冲突检测/进度/日志）
+│   ├── SpineCliService.cs   # Spine.com CLI 进程调用封装
+│   ├── SpineHotkeyService.cs # Spine TXT 文件解析/保存 + 按键名格式转换 + 中文注解
+│   ├── ExportPreviewScanner.cs  # 导出预览只读扫描（结构探测 / atlas 配对 / 页图校验 / 版本提取）
+│   ├── ExportPreviewSettings.cs # 导出预览独立设置 (%APPDATA%\KeyMacro\export_preview_settings.json)
+│   ├── SpinePlayerHost.cs   # WebView2 生命周期 + 同源资源路由 + C#↔JS 桥接
+│   ├── VirtualButtonManager.cs # 虚拟按键列表管理（排序/间隔）
+│   ├── VirtualKeyBindingManager.cs # 虚拟按键 ↔ 序列绑定
+│   ├── VirtualLayoutSerializer.cs # 虚拟按键窗口布局持久化
+│   ├── VirtualLoopExecutor.cs # 循环按钮执行器
+│   ├── ForegroundProcessWatcher.cs # 前台窗口事件监听
+│   └── VkSkinLoader.cs        # 皮肤资源加载器（嵌入资源 + 磁盘双源）
+└── Forms/
+    ├── MainForm.cs          # 主窗口 + 系统托盘（导入导出，4 个主分页）
+    ├── SequenceEditor.cs    # 序列编辑器 + 热键录制对话框
+    ├── SpineHotkeyEditor.cs # Spine 热键 TXT 文件编辑窗口（支持数据构造）
+    ├── BatchCopyWindow.cs   # 文件批量复制主窗口
+    ├── BatchCliWindow.cs    # 批量复制/合成/导出窗口（3 子页；导出页含「验证导出结果」跳转）
+    ├── ExportPreviewWindow.cs # 第 4 主分页「导出动画预览」（独立非顶层 Form + WebView2）
+    ├── ConflictDialog.cs    # 复制冲突弹窗（覆盖/跳过/打开文件夹）
+    ├── InputDialog.cs       # 通用输入对话框
+    ├── SourceFilePicker.cs  # 源文件缩略图浏览+勾选弹窗
+    ├── SubfolderSelectDialog.cs # 子文件夹勾选导入对话框
+    ├── VirtualKeyWindow.cs  # 虚拟按键浮动窗口
+    ├── VkWindowManager.cs   # 多虚拟按键窗口管理器
+    └── VirtualButtonWidget.cs # 虚拟按钮自绘控件
+```
+
+## 关键约定
+- **序列（MacroSequence）**：由触发快捷键 + 多个步骤组成，`LoopCount`（1=单次 >1=循环N次 0=无限）
+- **步骤（MacroStep）**：类型（单键/组合键/文本）+ 按键值 + 延迟(ms)
+- **序列编辑器**：步骤列表每行末尾有"复制"按钮，可快速复制步骤行
+- **_suppressEvents**：SequenceEditor 使用此标志防止 DataGridView 事件递归
+- **config.json**：存储在 `%APPDATA%\KeyMacro\`，由 ConfigService 管理
+- **Spine TXT 注解文件**：`{文件名}.txt.annotations.json`，存储中文备注，不污染源 TXT
+- **Spine 按键格式**：TXT 文件使用 Spine 命名（如 `PERIOD`、`COMMA`），录制时自动转换 WinForms → Spine 格式
+- **IconService**：所有窗口图标统一加载，优先级 嵌入资源 → 磁盘文件 → 代码生成回退（蓝底 K 字）
+
+## 构建与运行
+```bash
+dotnet run --project KeyMacro
+dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishDir="bin/Release/publish"
+# 若 exe 被占用: taskkill /f /im KeyMacro.exe 后再 publish
+```
+
+## 右键菜单体系
+- **按钮右键菜单**（`OnWidgetContextMenu`）：修改按钮名称 / 按钮循环延迟（仅循环按钮）/ 增加间隔 / 强制停止 / 删除当前按钮
+- **空白区域右键菜单**（`BuildBlankMenu`）：增加按钮 / 删除所有按钮 / 置顶/取消置顶 / 目标进程自动显示/隐藏 / 屏幕边缘吸附 / 边缘自动隐藏 / 透明度 / 按钮位置锁定/解锁 / 捕获/清除目标窗口 / 布局设置（含按钮比例、内边距、按钮间距、网格模式、窗口尺寸锁定）/ 窗口锁定/解锁 / 关闭窗口
+- 按钮循环延迟支持自定义数值（通过 InputBox）
+- **间隔**（Spacer）：通过"增加间隔"在按钮之间插入固定宽度空白分隔条，不可交互，随缩放等比变化
+
+## 架构要点
+- `HotkeyService` 通过重写 `WndProc` 接收 `WM_HOTKEY` 消息
+- `MacroPlayer.Play()` 是 async Task，包含 500ms 初始延迟（给用户松手时间），循环由 `LoopCount` 控制
+- `MacroPlayer.PlayToWindow()` 是 async Task，使用 PostMessage 直接向目标窗口发键盘消息，无初始延迟
+- 主窗口关闭时隐藏到系统托盘，不退出进程
+- 播放期间 `MacroPlayer.IsPlaying` 为 true 以阻止嵌套触发
+- `SpineHotkeyService.ToSpineFormat()` 将 WinForms 按键名转回 Spine 格式，避免写回 TXT 后 Spine 无法识别
+- `BatchCliWindow` 使用 `SpineCliService` 封装 CLI 调用，TabControl 分"合并"（`-r` 集中管理 / 实验功能 `--merge`）和"批量导出"两页
+- 批量导出 Tab 支持切换 export.json 配置方案（finish/demotion/自定义），通过 `_exportConfigName` 字段控制检测文件名
+
+## 循环机制
+- `MacroSequence` 无单独的 `Loop` 开关字段，由 `LoopCount` 单一控制：1=执行一次，>1=循环N次，0=无限循环
+- 循环播放中的按钮再次点击可停止（调用 `MacroPlayer.Stop()`）
+- 主窗口列显示"循环(次)"，MainForm 不再有"循环执行"复选框
+
+## 虚拟按键目标窗口机制
+- **目标窗口捕获**：VK 窗口右键菜单"捕获目标窗口"→ 隐藏窗口 → 3 秒倒计时 → 捕获前台窗口进程名 + 窗口标题 → 持久化到布局文件
+- **方案 A（PlayToWindow）**：通过 PostMessage 直接向目标窗口注入 WM_KEYDOWN/WM_KEYUP/WM_CHAR 消息，不切换焦点
+- **方案 B（自动激活）**：播放前 SetForegroundWindow 激活目标窗口，再用 SendKeys 发送
+- 两方案共存自动降级：优先方案 A，若检测无效则自动切换到方案 B
+
+## 主窗口序列列表
+- 工具栏按钮：添加 / 编辑 / 删除 / 测试 / **复制序列** / 暂停全部 / Spine热键编辑 / 释放 / 删除全部 / VK 开/关/管理 / 批量重命名 / **批量复制** / 导入/导出
+- "触发快捷键"列：绑定键盘热键时显示快捷键，绑定虚拟按键时显示"虚拟按键(按钮名)"
+- 列宽使用 Fill 模式等比分配（`AutoSizeMode = Fill` + `FillWeight`），随窗口缩放自动调整
+
+## VkPickMode 绑定流程
+- SequenceEditor 有三颗按钮管理触发快捷键：**键盘录入**（打开键盘录制窗口）、**虚拟按键**（进入 VkPickMode）、**清除**（清空热键）
+- VkPickMode 带有黄色状态栏提示，支持 Esc 取消和"取消拾取"按钮
+- 点击任意虚拟按钮 → 自动拾取复合键 `"窗口名/按钮名"`（_txtVkBind）和触发快捷键（_txtHotkey，如有）
+- `MainForm.SyncVkButtonBindings` 通过复合键 `"窗口名/按钮名"` 匹配，再回退到纯按钮名匹配；自动同步 `BindActionId`
+- `MainForm.RequestOpenVirtualKeys()` 可供 SequenceEditor 在 VK 窗口未打开时自动创建
+
+## 虚拟按键窗口
+- 默认无额外自绘工具栏；窗口可保持原生标题栏或锁定后隐藏标题栏
+- 标题栏文字：`[目标] 虚拟按键 (N)`，显示目标名和按钮数量；窗口实例查找必须使用稳定的 `WindowData.Name`，不能解析标题栏
+- 左键只负责播放按钮；中键拖动整个窗口，锁定/无标题栏状态下仍有效；右键打开菜单
+- 按钮排序通过右键菜单执行上移/下移/移到最前/移到最后，不再使用左键拖动排序
+- 可按目标进程前台状态自动显示/隐藏；目标项目标题变化不要求重新捕获
+- 支持屏幕 `WorkingArea` 边缘吸附；边缘自动隐藏为可选功能且默认关闭，隐藏时保留露出区域
+- **布局模式**：支持自适应网格、单行、单列、固定列数（2/3/4 列）和固定行数（2/3/4 行）；旧 `VerticalMode` 自动迁移为单列/单行。
+- **窗口缩放**：右下角左键拖动改变窗口外框尺寸，窗口尺寸与按钮比例独立保存；最小尺寸为 160×100，缩放期间暂停自动隐藏和目标联动行为。
+- **按钮比例**：布局设置中支持 40%-200% 连续调整；内边距支持 2-64，按钮间距支持 0-32。
+- **窗口尺寸锁定**：锁定后禁用右下角缩放手柄；与无标题栏的窗口锁定分离。
+- **缩放统一规则**：运行时只使用“布局设置 → 按钮比例”；旧 `ScaleFactor` 仅用于读取旧配置时迁移，不再提供独立旧版缩放菜单。
+
+## 虚拟按键布局算法
+- 基于基础常量计算，不依赖控件运行时属性：
+```
+BASE_BTN_H = 48   BASE_GAP = 4   BASE_MARGIN = 10   BASE_SPACER_W = 20
+BaseBtnWidth: SmallIcon=48  LargeIcon=96  LoopIcon=110
+
+横排:
+  窗口宽 = margin + sum(各按钮实际宽) + (N-1)×gap + margin + 边框补偿
+  窗口高 = 标题栏(28) + margin + btnH + margin + 边框补偿
+竖排:
+  窗口宽 = margin + max(各按钮实际宽) + margin + 边框补偿
+  窗口高 = 标题栏(28) + margin + sum(各按钮高) + (N-1)×gap + margin + 边框补偿
+```
+- 按钮间距 `gap`、边距 `margin`、间隔宽度随 ScaleFactor 等比缩放
+- Panel.Padding 和 widget.Margin 同步更新，保证视觉一致性
+
+## VkWindowManager 多窗口管理
+- 主界面三按钮：「开启虚拟按键」（显示所有 enabled 窗口）「关闭虚拟按键」（隐藏所有窗口）「管理虚拟按键」（打开管理器）
+- VkWindowManager 以 DataGridView 列出所有窗口：名称、目标进程、按钮数、允许显示(checkbox)、显示/隐藏、删除
+- 每个窗口独立运行：独立按钮列表、目标进程、缩放/方向/皮肤、位置尺寸
+- VK 窗口自身右键菜单含「删除当前窗口」彻底删除，「关闭窗口」仅隐藏
+- 布局文件 `virtual_layout.json` 使用多窗口格式 `{"Windows": [...]}`，旧单窗口格式自动迁移
+
+## 虚拟按键右键菜单
+- 按钮右键菜单顶部显示 `[ 按钮名 ]` 作为标题（禁用，仅展示），下方依次为修改名称/循环延迟（仅循环按钮）/按钮间距/强制停止/删除
+- 空白区域右键菜单顶部为增加按钮选项，下方为窗口控制（置顶/目标进程自动显示/隐藏/屏幕边缘吸附/边缘自动隐藏/透明度/锁定/目标窗口/竖向模式/缩放/窗口锁定/关闭）
+
+## 日志系统
+- `OperationLogger` 是静态类，日志路径 `%APPDATA%\KeyMacro\logs\yyyy-MM-dd.log`
+- 自动清理 7 天前的日志，单文件超 5MB 自动轮转
+- 关键操作（播放序列、热键触发、配置读写、VkPickMode）均记录日志
+
+## 皮肤资源系统
+- `VkSkinLoader` 加载皮肤资源，支持**嵌入式资源**（发布后的 exe）和**磁盘**（开发时 `dotnet run`）双源
+- 有图（PNG）→ 绘制图片；无图 → 回退 GDI+ 硬编码绘制
+- 按钮图片按样式命名：`btn_{style}_{state}.png`（style=small/large/loop, state=normal/pressed/active），无样式名时回退通用 `btn_{state}.png`
+- 窗口背景 `window_bg.png` 使用 9-slice 缩放（边距 10px）
+- 资源放在 `KeyMacro/skins/<名称>/` 目录，通过 `virtual_layout.json` 的 `SkinPath` 字段指定
+- `skin.json` 可配置颜色字段（可选），缺失时使用硬编码默认值
+- `ConfigService`/`VirtualLayoutSerializer`/`SpineHotkeyService` 均采用双路径策略：先加载项目目录（CWD），再 APPDATA，最后回退嵌入式默认值
+
+## DPI 缩放
+- `HighDpiMode.PerMonitorV2` 已在 `Program.cs` 中设置
+- **VirtualKeyWindow**：`GetEffectiveScale()` = `_buttonScale * (DeviceDpi / 96f)` 合并系统 DPI 和按钮比例；旧 `_scaleFactor` 不参与运行时计算
+- **VirtualButtonWidget**：`ScaleFactor` 接收 VKWindow 传入的有效缩放值，`Scaled(val)` 自动用于尺寸；字号改用按钮高度的比例（`Height * 0.17`），自动适配 DPI
+- **MainForm**：DataGridView 列宽在 `RefreshGrid()` 中乘以 `DeviceDpi / 96f`
+- **SequenceEditor**：`OnLoad` 中对 `_topPanel` 行高/列宽应用 DPI 系数
+- 所有窗口覆盖 `OnDpiChanged` 以支持跨显示器 DPI 切换
+
+## 批量复制（V2.7 新增）
+- 主窗口工具栏"批量复制"按钮 → 打开 `BatchCopyWindow`
+- **源文件选择**：点击"选择文件" → 弹出 `SourceFilePicker` 弹窗（目录浏览 + 缩略图预览 + 勾选）→ 确认后路径列表展示
+- **源列表操作**：已选文件实时列表，支持选择文件去重追加、移除选中项、清空列表
+- **目标路径三段式**：前缀（`D:/exp/`）+ 中间列表（逐行读取）+ 后缀（`images`）→ 拼接生成完整路径
+- **智能导入**：前缀选择目录时检测子文件夹 → 提示 → 子文件夹勾选导入对话框（全选/全不选）→ 自动填入中间文本框
+- **中间列表**：多行 TextBox，用户可自由增删改每行内容，支持 `/` 多层级
+- **实时预览**：任何段变化后 300ms 防抖更新预览列表
+- **冲突处理**：每目标目录独立 `ConflictDialog` → 列出同名文件 → 覆盖/跳过/打开文件夹（`Path.GetFullPath` 标准化路径）
+- **历史记录**：前缀/后缀使用 ComboBox，输入自动记忆，关闭窗口自动保存，支持一键清理历史
+- **复制引擎**：`BatchCopyService` 异步执行，自动创建目录，进度状态栏，取消支持，OperationLogger 日志
+- **V2.91 合并（AUD-037）**：内层双 Tab 移除，改为单页左右分栏。左列统一用「原地复制备份」的多文件夹只读扫描 + 后缀/关键词过滤 + 五列勾选 Grid；右列 = 独立「原地复制」模式卡（含备份后缀 + 生成示例）与竖向目标路径卡（前缀 / 中间 / **路径后缀** / 预览目标）。勾选后目标路径整卡置灰，主按钮文案（开始复制 ↔ 开始批量备份）与执行引擎随模式切换；两个 Service **不合并**。`SourceFilePicker` 本窗口不再调用，上方 BC-001~004 的单文件源列表行为已由勾选列表取代；执行集合统一为「点按钮瞬间的勾选快照」。设计 / 预览 / 实机截图见 `docs/batch-copy-merge/`，用例见 `docs/verification/manual-verification-plan.md` 的 BCM 小节。
+
+## 批量复制并入 CLI 窗口 · 批量动画选择（V2.92 / AUD-038）
+- 外层主标签由 4 → 3（删「批量复制」），`BatchCliWindow` 内层子标签由 2 → 3，顺序固定 **批量复制 → 合并 → 批量导出**，默认选中「批量复制」。`BatchCopyWindow` 整体原样嵌入，形成两层非顶层 Form 嵌套；子窗体在宿主 `UiTheme.Apply` 之后创建，退出用 `Close()+Dispose()` 保证三套路径历史写回。`BatchCopyWindow` 自身布局与两个 Service、Spine CLI 服务、合并页动画选择、配置结构全部零改动。
+- 源列表 5 列 → 6 列，新增「动画」列（完整路径 tooltip 由 `Cells[4]` 改为 `Cells[5]`）；C 区新增「选择动画」按钮 + 门槛备注 + 本轮统计。
+- **门槛**：勾选快照（含被过滤隐藏项）必须全是 `.spine`，否则弹窗列出违规文件且不打开动画窗；Spine.com 路径复用顶栏保存到配置中的值。
+- **弹窗**：所有勾选 `.spine` 动画的**并集**，同名忽略大小写合并、保留首次拼写；**确认**：逐文件写入 `S ∩ A(f)`，每个文件永远只写自身已有的动画；缺项整行标红**只是提醒**，不拦截、不改执行集合。
+- 动画为 `BackupFileEntry` 上的 3 个纯内存展示字段，不持久化、不写回源文件、不参与复制/备份；读取按 `FullPath + LastWriteTimeUtc` 缓存。
+- 设计 / 渲染图 / 施工记录 / 实机截图 / 断言报告：`docs/batch-copy-cli-integration/`；用例见 `docs/verification/manual-verification-plan.md` 的 BCC 小节。
+
+## 统一导入导出
+- 主工具栏"导入"/"导出"按钮，使用 `.kmp` 格式（JSON）
+- 导出包含：Spine 热键编辑（如有打开）、序列设置、VK 布局、VK 设置
+- 导入时分 4 部分逐项确认（Spine 热键/序列/VK 布局/VK 设置）
+- [DataBundle.cs](KeyMacro/Models/DataBundle.cs) 定义数据模型
+- [DataBundleService.cs](KeyMacro/Services/DataBundleService.cs) 负责序列化/反序列化
+
+## 透明与渲染
+- 不再使用 `TransparencyKey = #FF00FF` 方案（避免粉色边缘残留）
+- 按钮 Widget 使用 `g.Clear(Color.Transparent)` + PNG 原生 Alpha
+- 窗口背景 9-slice 直接绘制到 panel
+- 皮肤背景图时使用 `skin.json` 中 `window_bg` 颜色作为 Panel 底色
+
+## 问题台账与验证机制（必遵）
+
+### 代码问题台账
+- 正式代码审核与待修问题统一记录在 [docs/audit.md](docs/audit.md)。
+- 修复任何代码问题前，必须先在 `docs/audit.md` 中找到或新增对应 `AUD-XXX` 条目。
+- 开始修改前，将对应条目的 `处理状态` 改为 `处理中`，并补充本次修复目标。
+- 修复完成并验证后，将状态改为 `已完成`，并补充验证结果。
+- 新发现的问题不得直接开修；先追加到 `docs/audit.md` 或先记录到临时发现文件并等待确认，再进入修复。
+- `docs/audit.md` 中标记为 `设计保留` 或 `暂不处理` 的问题，除非用户重新确认，否则不得擅自修改。
+
+### 功能验证机制
+- 项目功能验证方案统一维护在 [docs/verification/manual-verification-plan.md](docs/verification/manual-verification-plan.md)。
+- 验证覆盖每个界面、模块和可操作功能，包括填写、复制、录入、删除、上下移、导入导出、右键菜单、取消、冲突处理等基础操作。
+- 验证过程中的截图证据统一存放在 `docs/verification/screenshots/`，截图文件名使用 `CASE-ID_step_result.png` 格式。
+- 验证发现的疑似问题先记录到 [docs/verification/findings.tmp.md](docs/verification/findings.tmp.md)，不得直接写入正式 audit。
+- 临时发现需要先通过对话确认，确认后再追加到 `docs/audit.md` 并分配新的 `AUD-XXX` 序号。
+- 手工测试素材统一放在 `manual_test_assets/`，按 [manual_test_assets/README.md](manual_test_assets/README.md) 的目录约定存放。
+
+## 版本管理与发布流程（必遵）
+
+1. 修改完成后确认本次更新级别：问题修复 / 小功能更新 / 大版本更新 
+2. 修改后在 [MainForm.cs](KeyMacro/Forms/MainForm.cs#L31) 标题中迭代版本号：
+   - 问题修复 → +0.01（如 1.2 → 1.21）并且抹去更更低位的数字
+   - 小功能更新 → +0.1（如 1.2 → 1.3）并且抹去更更低位的数字
+   - 大版本更新 → +1（如 1.2 → 2.0）并且抹去更更低位的数字
+3. 总结并修改 CLAUDE.md   
+4. 总结修改内容，询问是否提交 git（以当前版本号作为提交名称，并写明修改摘要）
+5. 修改完成后导出一个单独的.exe应用供测试，如遇应用已开启导致无法修改就强行终止应用再尝试导出
+
+## 版本历史
+> **决策演进注**：V3.0 条目中的「BYO / 应用不打包 runtime / 运行前须指定播放资源目录」结论已于 **V3.1（AUD-042）** 修正为内置零配置。V3.0 原文保留作为决策历史，不再作为现行约束。
+- **V3.2** (2026-11-11): AUD-043，用户真机反馈 6 项交互与布局问题（小功能 +0.1，V3.1 → V3.2）。**方案先行**：先出 `docs/v3.2-preview-interaction/方案文档.md`（用户选「先出方案文档再定」），并确认第 ① 项用**两个独立复选框**，2026-11-11 下达「开始施工」后才动代码。① **PMA 双复选框**：技术事实——Spine Texture Packer 的 Bleed（溢出）是导出期透明边缘扩边、结果已烘入 PNG，运行时与「都不选」等价，只有 Premultiply alpha 影响混合模式；故 UI 改为 `预乘(PMA)` / `溢出(Bleed)` 两个独立复选框（与导出面板同构、允许 4 态），新增 `ExportPreviewSettingsData.Bleed`（旧文件缺省 false）与 `PlayerLoadOptions.Bleed` 只读透传，切 Bleed 不重建 player；ToolTip 明示渲染等价，不得宣称三种渲染效果。② **控制条裁切根因**：`UiTheme.cs:108` 给嵌入预览页设 `MinimumSize=1040×680`，`MainForm` 最小 `1100×650`，TabPage 可视高约 600 < 680，`Dock=Fill` 无法压到 MinimumSize 以下，底部 84px 控制条被裁；`EmbedPage` 增加 `clearMinimumSize` 参数仅 index 3 使用，`_btnReset`/`_btnSetup` 文案缩为 `归零`/`Setup` 且 `AutoSize=false`，`row1` 去掉速度/Mix 文字标签（改 ToolTip）、当前摘要移到顶部信息条。③ **滚轮缩放/拖拽/复位**：更正评审前的误判——三个内置 runtime 中 `new CameraController` 均为 **0 次**，官方 Web Player 根本没有相机交互（`interactive` 只管控制骨骼拖拽）；且 `drawFrame()` 每帧按 `currentViewport` 重算 `camera.zoom/position`，直接改 camera 会被覆盖。改在 `bridge.js` 维护 `view={zoom,panX,panY}` + `baseViewport`，包装 `player.drawFrame` 在绘制前幂等 `applyView()` 写回 `currentViewport`，canvas 挂 `wheel`（鼠标锚点缩放、限 0.1~10）与 `pointerdown/move/up`（拖拽平移），新增 `resetView` 消息与画布右上角浮动「⟲ 复位视图」按钮。④ **切动画缩放统一**：`SpinePlayer.setAnimation()` 首行 `animation = this.setViewport(animation)`，`setViewport` 每次重新赋值 `currentViewport` 按新动画包围盒重算并启动 `previousViewport` 过渡；`installView()` 在 `success`（官方后续分支调 setViewport 之前）包装 `setViewport`，首次与 NaN viewport 放行（**保留 AUD-042 的 4.1 空白画布修复能力**）、之后只 `return animation` 并清 `previousViewport`。⑤ **四档背景**：`bridge.js` 原硬编码 `1E1E20`；改 `setBackground` 消息直接 `player.bg/bgFullscreen.setFromString(hex)` + 同步 `config`，不重建 player、不中断播放；浮动「◐ 深灰/纯黑/中灰/纯白」循环按钮，`BackgroundIndex` 持久化，`loadGroup` 带上当前 hex。⑥ **虚拟按键窗口贴合**：`VirtualKeyWindow.cs:626/:882` 的硬下限 160/100 与按钮内容无关、`:867` AutoGrid 列数又依赖 ClientSize 宽高比；新增 `ResolveColumns()` / `ComputeContentSize()` 按行数×按钮高 + gap + padding + ExtraGap + 非客户区动态算下限，拖拽期间沿用 MouseDown 列数防抖动，右键新增「贴合内容」，保留 120×60 绝对下限。改动 6 个文件（`MainForm.cs` / `ExportPreviewWindow.cs` / `ExportPreviewSettings.cs` / `SpinePlayerHost.cs` / `bridge.js` / `VirtualKeyWindow.cs`），三套内置官方 runtime、`host.html`、LICENSE、`KeyMacro.csproj`、扫描器零改动。**验证**：`dotnet build -c Release -r win-x64` **0 警告 0 错误**；V3.2 harness `verification/v32-harness-log.txt` **57 PASS / 0 FAIL**，覆盖 4.1.24 / 4.2.36 / 4.3.06 三条版本线的**用户真实工程**（补齐 V3.1 未验证的 4.3）、切动画前后 `currentViewport` 与 `camera.zoom` 数值完全一致、wheel→zoom 1.433 且 viewport 120.8→84.3、拖拽 pan 非零、`resetView` 归零回基准、四档背景 `player.bg` 与 config 同步且第 5 次循环回起始档、Bleed 不重建且 reload 后透传、最小窗口下 `嵌入页 Height == TabPage.ClientSize.Height`（根因级断言）、`ComputeContentSize` 三种列数尺寸单调；9 张实机截图经**人工视觉复核**（缩放放大、纯白背景、4.1/4.3 角色、最小窗口控制条完整）；harness 源码归档 `v32-HarnessProgram.cs.txt`，用户 `%APPDATA%` 设置文件运行前备份、结束恢复并清除 harness 新增的两个字段。**发布**：`bin/Release/publish-v3.2/KeyMacro.exe`（111.6 MB / 116977528 B），静态核验 14 项全 OK（10 项嵌入资源 + `__eapViewState` / `setBackground` / `resetView` / `ComputeContentSize`），未覆盖用户正在运行的旧 exe。**施工期范围外发现（未修，待用户决定）**：本机若干 4.2 导出的 `.json` 其 `skeleton.spine` 为 `"4.1-from-4.2.36"` 这类非标准版本串，现有 `ExportPreviewScanner` 会判「❌数据无效」，未按 6 项范围擅自扩大修改；已改用版本串标准的 4.2.36 二进制 `.skel` 完成跨版本验证。**未验证且不得宣称通过**：非标准版本串兼容、4.3 工程 `drawOrder.attachment` 统计口径为 0 但视觉正常的原因、虚拟按键窗口有真实按钮时拖拽贴合的手感、未装 SDK 机器冷启动、多 atlas / 页图子路径 / 超大 PNG、长时间挂机切换、WebView2 Runtime 缺失提示、官方 Skeleton Viewer JAR 外部交叉验证。
+- **V3.1** (2026-11-10): AUD-042，修正用户真机反馈的两处硬伤（按版本规则小功能 +0.1，V3.0 → V3.1）。① **用户反馈原文**：「需要的runtime还需要手动指定？」「我们二进制在导出的时候为了方便添加进unity，会在导出的文件后面额外添加后缀，例如*.skel.bytes，*.atlas.txt……不可能因为这个项目而额外导出一份不能直接用于unity的文件」。V3.0 的 D2=BYO 与「只认原生后缀」两条结论均被推翻。② **合规复核（根因）**：重读 `Spine Runtimes License Agreement`（2025-04-05）原文——"provided that each user of the Products must obtain their own Spine Editor license and redistribution of the Products in any form must include this license and copyright notice"，许可明确允许把 Runtimes 集成进 Products 并再分发，条件是每位使用者持证 + 分发附带许可与版权声明；V3.0「不打包」属**过度保守的误读**，并非许可要求。③ **改为内置零配置**：从 npm `@esotericsoftware/spine-player` 取 4.1.55 / 4.2.120 / 4.3.13 三套官方 `spine-player.js` + `.css`（563466 / 608081 / 691764 bytes），连同 `LICENSE-Spine-Runtimes.txt` 以显式 `LogicalName` 嵌入 `KeyMacro.csproj`（避免多版本同名文件与带点目录名的资源名歧义）；按导出文件 `major.minor` 自动选内置 runtime（默认 4.2），`PlayerResourceRoot` 降级为「高级设置」里的**可选覆盖**（特殊版本线 / 自定义构建）；UI 文案「播放资源设置」→「高级设置」，新增「查看 runtime 许可」。④ **Unity 复合后缀**：`ExportPreviewScanner` 重写分类表——主文件 `.skel.bytes` / `.json.bytes` / `.json.txt` / `.skel` / `.json`，atlas `.atlas.txt` / `.atlas`，页图 `.png` / `.png.bytes` / `.png.txt`；`ExportPreviewEntry` 增加 `LogicalStem` / `IsBinarySkeleton` / `SkeletonUrlName` / `AtlasUrlName` / `PageImageMap`，交给 Web Player 的 URL 统一规范化为 `skeleton.skel` / `skeleton.json` / `atlas.atlas`（官方 `loadSkeleton()` 按 `endsWith(".json")` 判格式，磁盘真实名不能带 `.bytes` / `.txt` 进 URL），真实路径经 `_fileMap` 映射；文件选择过滤器同步补齐。全程只读，**不要求用户额外导出一份不能直接用于 Unity 的文件**。⑤ **4.1 配置字段差异**：4.1 `validateConfig` 只认 `jsonUrl` / `binaryUrl` / `atlasUrl`，4.2 兼容新旧两套，4.3 主认 `skeleton` / `atlas`；`bridge.js` 同时下发全部字段，按 URL 结尾给 `jsonUrl` 或 `binaryUrl`，修复 `A URL must be specified for the skeleton JSON or binary file.`。⑥ **4.1 真实工程空白画布根因**：用户 `G2.skel.bytes`（4.1.24）列表显示「✅就绪」但画面空白；`ExecuteScriptAsync` 诊断发现 `default` 皮肤几乎无附件（2 entries），附件在具名皮肤 `1` / `2`（各 18 entries），4.1 runtime 在空 `default` 上算 viewport 得 `x=100000000` / NaN，camera 亦 NaN。修复三处：`success` 中自动选「附件最多的皮肤」、首帧检测非有限 viewport 后 `setViewport(e0.animation)` 重算、`ExportPreviewWindow.LoadEntryAsync` 切文件时清空 `_lstSkins` / `_lstAnims` 选中项（否则把上一个文件的 `default` 传下去，令自动选皮肤分支被跳过）。⑦ **诊断接口**：`bridge.js` 有意保留只读 `window.__eapPlayer` / `window.__eapCfg`，供 harness 与后续真机排查跨版本渲染问题，不提供远程入口、不写回源文件；临时素材 `.workbuddy/tmp/` 三个目录已清理。**验证**：`dotnet build -c Release -r win-x64` **0 警告 0 错误**；Unity 后缀 harness `verification/unity-suffix-harness-log.txt` **PASS**（4 个主文件全部「✅就绪」，静态检查覆盖 `.skel.bytes` / `.json.txt` / `.skel` / 真实 `G2.skel.bytes`）；真实 4.1 工程内部诊断 `curSkin:"1"` / `attachments=7` / viewport 与 camera 全为有限值 / `glLost:false`；7 张实机截图 `verification/unity-*.png`，其中 `unity-5/6/7-real-41-*.png` 经**人工视觉复核**确认画布出现可见角色，且皮肤 `1`→`2` 切换后外观由黄点外壳变为红色尖刺；源码归档 `unity-HarnessProgram.cs.txt`。**发布**：`bin/Release/publish-v3.1/KeyMacro.exe`（111.5 MB，在全部修复之后重新发布），静态核验 10 项全部 OK（`host.html` / `bridge.js` / `LICENSE` / 4.1–4.3 三套 runtime js / `spine-player.css` / `WebView2Loader.dll` / Core.dll / WinForms.dll）；未覆盖用户正在运行的旧 `bin/Release/publish/KeyMacro.exe`。**未验证且不得宣称通过**：未装 SDK 机器冷启动、4.3 导出文件、多 atlas / 页图子路径 / 中文路径 / 超大 PNG、长时间挂机切换、WebView2 Runtime 缺失提示、官方 Skeleton Viewer JAR 外部交叉验证。
+- **V3.0** (2026-11-10): AUD-041，新增第 4 个独立主分页「导出动画预览」（按版本规则小功能 +0.1 后抹低位，V2.94 → V3.0）。① 事实澄清：官方 Skeleton Viewer 是 `spine-libgdx` 的 Java 桌面 JAR，不能内嵌 WinForms，原生 UI 也无 skin 切换 / 播放 / 时间线；改用同族 **Spine Web Player（spine-ts）+ WebView2** 作渲染内核，官方 JAR 保留为「交叉验证」外部按钮。② 挂载 `MainForm._mainTabs` index 3 的独立非顶层 Form `ExportPreviewWindow`，懒加载 + `DisposeEmbeddedPages()` 清理链 + `UiWindowProfile.ExportPreview`；前 3 主分页 / `BatchCliWindow` 3 子页 / INV-1~8 / `config.json` / `path_history.json` 零改动；批量导出页新增「验证导出结果」跳转并自动灌入输出目录（D8）。③ 合规与多版本：按 Spine Runtimes License **不打包** `spine-player.js/.css`，由用户在「播放资源设置」指定本地 BYO 目录，按 skeleton 的 `major.minor` 自动匹配 `<root>\4.2\` 子目录并回退 `<root>\`。④ 资源路由由设计稿 S1 虚拟域名映射修正为 **S3 同源 `WebResourceRequested`**（`https://spinepreview.local/`：`/host.html` `/bridge.js` 走嵌入资源、`/player/*` 走 BYO、`/files/*` 走当前文件组绝对路径字典），零复制零写盘，WebView2 userDataFolder 按进程隔离到 `%TEMP%`。⑤ 只读扫描 `ExportPreviewScanner`：JSON/`.skel` 主文件结构探测、`"spine"` 版本提取、atlas 基名与 `-pma` 变体配对、页图存在性校验、五态（就绪 / 缺 atlas / 缺页图 / 版本不支持 / 数据无效）；支持多选文件、多选文件夹、包含子文件夹、过滤框。⑥ 左列皮肤 / 动画**两个并排小列表**（`metadata` 回填、点选 `setSkin` / `setAnimation`），右列自绘控制条 PMA / 播放暂停 / TrackBar seek / 速度 / Mix / 循环 / Setup Pose / Debug / 时间码 / 当前摘要；独立设置 `%APPDATA%\KeyMacro\export_preview_settings.json`。⑦ 施工期根因修复：官方示例 `spineboy-pro.json` 配 `spineboy.atlas` 的基名后缀配对；WebView2 必须保持 `Visible=true`（`loadSkeleton()` 由 rAF 驱动，遮挡 / 失焦会挂起）+ `startBootstrapPump()` 定时 `drawFrame(false)` 兜底；`/files/` URL 不能带 `?v=`（官方按 `endsWith(".json")` 判格式，否则 `boneData cannot be null`）；默认动画改选 `idle` / 首个 `duration>0`；`duration<=0` 显示「静态动画 / —」并禁用进度条；循环时间码用 `trackTime % duration` 取模；`KeyMacro.csproj` 增加 `DropWebView2WpfAssembly` Target 移除 NuGet 无条件引入的 WPF 程序集以消除 `MSB3277`。**验证**：阶段 0 Go/No-Go **GO**（真实渲染官方 4.2 素材、50 次重建 2079ms 且 canvas 恒 1 无 WebGL 丢失、暂停 seek 精确、切走/切回、二进制 `.skel`）；`dotnet build` **0 警告 0 错误**；真实 `MainForm` 端到端 harness **PASS**（`harness-log.txt` 归档最终一次完整运行：4 主标签 / 2 组官方素材 / `.json`→`.skel` 无缝切换；施工期连续 4 次回归均通过，前 3 次为控制台输出未单独落盘）；3 张实机截图 `docs/export-animation-preview/verification/runtime-*.png`；单文件 exe 发布到 `bin/Release/publish-v3/KeyMacro.exe`（未覆盖用户正在运行的旧版），静态核验含 WebView2 三程序集与 `host.html` / `bridge.js`。**未验证且不得宣称通过**：用户真实工程导出文件（4.1 / 4.3 版本线、多 atlas、页图子路径、中文路径、超大 PNG）、多皮肤视觉效果、长时间挂机切换、未装 SDK 机器单文件 exe 冷启动；BYO 测试资源已清理，运行前需用户自行指定本地 `spine-player.js/.css` 目录。
+- **V2.94** (2026-11-09): AUD-040，批量导出页三项改造 + 一处状态 bug 根治。① 外层主标签「CLI批量合并/导出」→「批量复制/合成/导出」（顶层 `BatchCliWindow` 标题同步），内层子标签「合并」→「批量合并」；索引与两层嵌套零改动。② 导出页右侧新增第 3 列「导出预设」：底部「保存为导出预设」（深色 `InputDialog` 命名、同名拒绝）、三列列表、双击或「激活预设」完整录入源目录 / 全部文件路径 / 输出目录 / 导出配置名（含「其他」手填值），另有「删除预设」「删除全部预设」二次确认；预设**持久化到本地软件数据文档** `%APPDATA%\KeyMacro\export_presets.json`，每次变更立即落盘、重启恢复，独立新文件不改 `config.json` / `path_history.json`。③ 刷新状态右侧新增「批量生成导出配置」+ 备注「（必须 4.3 及以上版本才能使用）」：走真·CLI `Spine.com --ignore-unknown -i <file.spine> -o <目录>\<配置名> --last-export-settings`，按目录去重、已存在跳过、失败继续、**不写模板不静默降级**、进度与取消复用现有骨架。④ 根治「export.json 状态永远不正确，必须切配置名才刷新」：根因是 `_rbFinish.Checked = true` 写在 `CheckedChanged` 订阅之前，初始选中不触发事件，字段 `_exportConfigName` 一直停在 `"export.json"` 而 UI 是 `finish.export.json`；现改为单一真值源 `CurrentExportConfigName`（由 radio 实时计算）+「其他」手填值独立字段 + 修正初始化顺序，并在扫描 / 切换 / 激活预设 / 批量生成后联动刷新。改动 4 个 `.cs` + 新增 `Models/ExportPreset.cs`；AUD-038 动画 / AUD-039 过滤 / INV-1~8 零改动。编译 0 警告 0 错误、AUD-040 断言 33/33 PASS、AUD-038 10/10 与 AUD-039 14/14 回归通过、6 张实机截图。**未验证**：本机为 Spine Launcher 4.1.10，真实 CLI 生成配置文件需用户在 4.3+ 环境真机确认；命名弹窗、删除确认、重启后预设恢复、两模式磁盘回归待手工确认。
+- **V2.93** (2026-11-09): 修复 AUD-039，批量复制源文件列表取消「按备份后缀静默排除疑似备份文件」。旧规则 `stem.EndsWith(suffix)` 在后缀历史首项为 `-n1` 时，把真实源文件 `*-n1.spine` 全部从列表剔除（29 个文件、每个文件夹恰好漏 1 个），默认目标路径模式也被误伤。现删除 `IsLikelyBackup` / `_excludedCount` 与状态栏提示，扫描结果一律可见、由用户自行勾选，防覆盖仍由 INV-4 承担；仅改 `InplaceBackupPanel.cs` + 版本号。编译 0 警告 0 错误、断言 14/14 PASS（含真实目录 2835 文件 / 29 个 `-n1.spine` 逐项核对）、实机截图已出。行为变化：原地模式下勾选 `G2-n1.spine` 且后缀为 `-n1` 会生成 `G2-n1-n1.spine`（不覆盖）；两模式真实磁盘回归待真机确认。
+- **V2.92** (2026-11-09): AUD-038，批量复制并入 CLI 窗口成为第 1 个子页（外层 4→3、内层 2→3，两层非顶层 Form 嵌套）；源列表新增「选择动画」与第 6 列「动画」，实现全 `.spine` 门槛、并集弹窗、逐文件交集写入、缺项标红仅提醒。动画为纯内存展示元数据，复制/备份语义与 INV-1~8 零改动。编译 0 警告 0 错误、语义断言 10/10 PASS、5 张实机截图、单文件 exe 已发布；真实 Spine.com 读取与两模式磁盘回归待真机确认（BCC 用例）。
+- **V2.91** (2026-11-09): AUD-037 小修订，批量复制内层双 Tab 合并为单页左右分栏：选源结构统一为多文件夹只读扫描 + 五列勾选列表，新增独立「原地复制」勾选项（目标路径整卡置灰）、底部通栏主按钮按模式分派 `BatchCopyService` / `InplaceBackupService`，保持 INV-1~8 与三套历史分离；版本号由 V2.9 递增至 V2.91（用户指定）。编译 0 警告 0 错误、单文件 exe 已重新发布。
+- **V2.89** (2026-10-23): 修复 AUD-034，虚拟按键窗口支持右下角自由缩放、自适应网格/多行布局、按钮连续比例、统一内边距和间距配置；窗口尺寸与按钮比例独立保存，并兼容旧布局字段。
+- **V2.88** (2026-10-23): 修复 AUD-033，统一使用原生窗口可见状态判断，修复虚拟按键窗口显示/隐藏状态不同步导致窗口消失、管理器按钮无效和自动联动不显示。
+- **V2.87** (2026-10-23): 修复 AUD-032，目标进程联动改为不激活窗口的 Win32 显示/隐藏路径，避免前台振荡、窗口闪烁和误触发键盘输入。
+- **V2.86** (2026-10-23): 修复 AUD-029~031，虚拟按键窗口改为左键播放、中键移动、右键排序菜单；增加按目标进程前台状态自动显示/隐藏、屏幕边缘吸附和可选边缘自动隐藏；窗口实例查找改用 WindowData.Name。
+- **V2.85** (2026-10-22): 修复 AUD-028，Spine 注解保存统一输出结构化 JSON 数组并兼容旧字典格式；清空快捷键时跳过空键 TXT 行，同时保留中文注解；导入功能说明同步适配新格式。
+- **V2.78** (2026-06-02): 修复代码审核台账 AUD-001~AUD-024（单实例唤醒、AppData 配置/布局优先、目标进程绑定、Win 组合键、强制停止释放、VK 循环菜单暂停、Spine 热键原文导入导出、VK 增量导入、CLI 异步取消、批量复制冲突处理等）
+- **V2.77** (2026-05-22): Spine 4.3 CLI 实验合并功能（--merge/-a）、批量导出配置选择、进度条、文件选择过滤修复、排除筛选
+- **V2.76** (2026-05-21): 修复批量CLI弹窗选择文件路径异常，探索JSON合并骨架方案并总结文档
+- **V2.75** (2026-05-21): 新增CLI批量合并/导出工具（SubfolderSelectDialog 重构、批量CLI窗口、SpineCliService）
+- **V2.7** (2026-05-21): 新增批量复制功能，重构中间列表/源文件选择/历史记录
+- **V2.6** (2026-05-20): 导入导出精细化管理（全部窗口导出、按 key 对位导入、逐项确认、重名检测）
+- **V2.5** (2026-05-20): 合并批量重命名/spine解包整理工具，移除测试按钮，工具栏重新排序
+- **V2.18** (2026-05-20): 修复目标窗口标题精确匹配失败后无 fallback 的问题
+- **V2.17** (2026-05-20): 修复 `SendCombo` 组合键播放时字母大写导致多按 Shift 的问题
+- **V2.16**: dedup load, skip empty keys on save, EndEdit on save
+# Git 提交规则（强制）
+
+当你需要为我自动提交代码时，必须严格遵守以下流程，**绝不省略**：
+
+1. 执行 `git status` 以展示当前工作区状态。
+2. 使用 `git add -A` 暂存 **所有** 更改（包括新增、修改、删除）。
+3. 再次运行 `git status` 确认暂存区无误。
+4. 执行 `git commit -m "提交信息"`。
+
+## 禁止的行为
+- 禁止使用 `git commit -a` 或 `git commit -am "..."` —— 它们不会包括未跟踪的新文件。
+- 禁止只 `git add` 个别文件，除非我明确要求"只提交某个文件"。
+- 禁止在子目录执行 `git add .` 导致其他目录的更改被遗漏。
+- 提交前若存在合并冲突或钩子检查失败，必须报告我，不得强制跳过（如 `--no-verify`）。

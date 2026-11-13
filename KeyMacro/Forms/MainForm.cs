@@ -25,9 +25,10 @@ public partial class MainForm : Form
 
     // ── 首页标签页容器（只承载入口，子窗体内部零改动）──
     private DarkTabControl _mainTabs = null!;
-    private TabPage _tabShortcut = null!, _tabRename = null!, _tabCli = null!;
+    private TabPage _tabShortcut = null!, _tabRename = null!, _tabCli = null!, _tabPreview = null!;
     private ReNameTool.Form1? _renamePage;
     private BatchCliWindow? _cliPage;
+    private ExportPreviewWindow? _previewPage;
 
     private readonly VirtualLayoutSerializer _vkSerializer = new();
     private List<VirtualKeyWindow> _vkWindows = [];
@@ -37,7 +38,7 @@ public partial class MainForm : Form
 
     public MainForm()
     {
-        Text = "spine宏助手（TANRY） V2.94";
+        Text = "spine宏助手（TANRY） V3.3";
         Icon = IconService.AppIcon;
         ClientSize = new Size(1440, 900);
         MinimumSize = new Size(1100, 650);
@@ -196,7 +197,8 @@ public partial class MainForm : Form
         _tabShortcut = new TabPage("快捷键");
         _tabRename = new TabPage("批量重命名/spine解包整理");
         _tabCli = new TabPage("批量复制/合成/导出");
-        _mainTabs.TabPages.AddRange([_tabShortcut, _tabRename, _tabCli]);
+        _tabPreview = new TabPage("导出动画预览");
+        _mainTabs.TabPages.AddRange([_tabShortcut, _tabRename, _tabCli, _tabPreview]);
         _mainTabs.SelectedIndexChanged += MainTabs_SelectedIndexChanged;
         _tabShortcut.Controls.Add(rootLayout);
 
@@ -1109,7 +1111,7 @@ public partial class MainForm : Form
 
     // ── 首页标签页承载：只搬迁入口，三个子窗体内部布局与逻辑零改动 ──
 
-    private static void EmbedPage(TabPage page, Form form)
+    private static void EmbedPage(TabPage page, Form form, bool clearMinimumSize = false)
     {
         form.ShowInTaskbar = false;
         form.TopLevel = false;
@@ -1117,6 +1119,11 @@ public partial class MainForm : Form
         form.WindowState = FormWindowState.Normal;
         form.Dock = DockStyle.Fill;
         page.Controls.Add(form);
+        // AUD-043 ②：非顶层嵌入窗体的尺寸应完全由 TabPage 决定。若保留
+        // UiTheme.Apply 设置的 MinimumSize（预览页为 1040x680），当主窗口缩到
+        // 最小 1100x650 时 TabPage 可视高约 600，窗体会被撑到 680，底部控制条
+        // 被裁切。仅预览页清除，另外两个嵌入页沿用原有尺寸约束。
+        if (clearMinimumSize) form.MinimumSize = Size.Empty;
         form.Visible = true;
     }
 
@@ -1132,11 +1139,32 @@ public partial class MainForm : Form
             _cliPage = new BatchCliWindow();
             EmbedPage(_tabCli, _cliPage);
         }
+        else if (index == 3 && _previewPage == null)
+        {
+            _previewPage = new ExportPreviewWindow();
+            EmbedPage(_tabPreview, _previewPage, clearMinimumSize: true);
+        }
     }
 
     private void MainTabs_SelectedIndexChanged(object? sender, EventArgs e)
     {
-        EnsureEmbeddedPage(_mainTabs.SelectedIndex);
+        var index = _mainTabs.SelectedIndex;
+        EnsureEmbeddedPage(index);
+        // 主分页切走时暂停 WebGL，切回后从原帧恢复
+        _previewPage?.SetActive(index == 3);
+    }
+
+    /// <summary>
+    /// D8：从「批量导出」页的「验证导出结果」按钮跳转，自动灌入输出目录并扫描。
+    /// 内部先切页触发懒加载，再调用窗口方法，不依赖事件时序。
+    /// </summary>
+    public void NavigateToPreview(string? directory = null)
+    {
+        _mainTabs.SelectedIndex = 3;
+        EnsureEmbeddedPage(3);
+        _previewPage?.SetActive(true);
+        if (!string.IsNullOrWhiteSpace(directory))
+            _previewPage?.LoadDirectory(directory);
     }
 
     private void DisposeEmbeddedPages()
@@ -1145,6 +1173,8 @@ public partial class MainForm : Form
         _renamePage = null;
         CloseEmbeddedPage(_cliPage);
         _cliPage = null;
+        CloseEmbeddedPage(_previewPage);
+        _previewPage = null;
     }
 
     private static void CloseEmbeddedPage(Form? page)

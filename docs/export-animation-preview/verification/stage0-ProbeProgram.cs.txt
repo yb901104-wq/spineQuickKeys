@@ -1,0 +1,305 @@
+using System.Diagnostics;
+using System.Text.Json;
+using Microsoft.Web.WebView2.Core;
+using Microsoft.Web.WebView2.WinForms;
+
+namespace SpinePreviewProbe;
+
+internal static class Program
+{
+    [STAThread]
+    private static void Main()
+    {
+        Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
+        Application.EnableVisualStyles();
+        Application.Run(new ProbeForm());
+    }
+}
+
+internal sealed class ProbeForm : Form
+{
+    private const string Res = @"D:\AI_cc\spineQuickKeys\.workbuddy\tmp\spine-player-probe";
+    private const string Www = @"C:\Users\Administrator\AppData\Local\Temp\SpinePreviewProbe\www";
+    private const string LogPath = Res + @"\probe-log.txt";
+    private const string Origin = "https://spinepreview.local/";
+
+    private readonly WebView2 _wv = new() { Dock = DockStyle.Fill };
+    private readonly List<JsonElement> _msgs = [];
+    private readonly object _gate = new();
+    private CoreWebView2 _core = null!;
+    private int _resourceCount;
+    private int _resource404;
+
+    public ProbeForm()
+    {
+        Text = "SpinePreviewProbe";
+        ClientSize = new Size(900, 620);
+        Controls.Add(_wv);
+        try { File.WriteAllText(LogPath, ""); } catch { }
+        Shown += async (_, _) => await RunAsync();
+    }
+
+    private static void Log(string line)
+    {
+        Console.WriteLine(line);
+        try { File.AppendAllText(LogPath, DateTime.Now.ToString("HH:mm:ss.fff") + "  " + line + Environment.NewLine); }
+        catch { }
+    }
+
+    private void Send(object payload) => _core.PostWebMessageAsJson(JsonSerializer.Serialize(payload));
+
+    private void OnMessage(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
+    {
+        try
+        {
+            var el = JsonDocument.Parse(e.WebMessageAsJson).RootElement.Clone();
+            var type = el.GetProperty("type").GetString();
+            lock (_gate)
+            {
+                if (type == "tick")
+                {
+                    var idx = _msgs.FindLastIndex(x => x.GetProperty("type").GetString() == "tick");
+                    if (idx >= 0) _msgs.RemoveAt(idx);
+                }
+                _msgs.Add(el);
+                if (_msgs.Count > 200) _msgs.RemoveRange(0, _msgs.Count - 200);
+            }
+        }
+        catch (Exception ex) { Log("ERR OnMessage: " + ex.Message); }
+    }
+
+    private void OnResource(object? sender, CoreWebView2WebResourceRequestedEventArgs e)
+    {
+        var deferral = e.GetDeferral();
+        string path;
+        try { path = new Uri(e.Request.Uri).AbsolutePath.TrimStart('/'); }
+        catch { path = ""; }
+        var file = Resolve(path, out var mime);
+        Interlocked.Increment(ref _resourceCount);
+
+        _ = Task.Run(() =>
+        {
+            byte[] bytes;
+            try { bytes = file != null && File.Exists(file) ? File.ReadAllBytes(file) : []; }
+            catch { bytes = []; }
+            var status = bytes.Length > 0 ? 200 : 404;
+            if (status == 404) Interlocked.Increment(ref _resource404);
+            try
+            {
+                _wv.BeginInvoke(new Action(() =>
+                {
+                    try
+                    {
+                        e.Response = _core.Environment.CreateWebResourceResponse(
+                            new MemoryStream(bytes), status, status == 200 ? "OK" : "Not Found",
+                            "Content-Type: " + mime + "\r\n" +
+                            "Access-Control-Allow-Origin: *\r\n" +
+                            "Cache-Control: no-store\r\n");
+                    }
+                    catch (Exception ex) { Log("ERR response " + path + ": " + ex.Message); }
+                    finally { deferral.Complete(); }
+                }));
+            }
+            catch { deferral.Complete(); }
+        });
+    }
+
+    private static string? Resolve(string path, out string mime)
+    {
+        mime = "application/octet-stream";
+        string? file = null;
+        if (path == "host.html") { mime = "text/html; charset=utf-8"; file = Path.Combine(Www, "host.html"); }
+        else if (path == "bridge.js") { mime = "application/javascript; charset=utf-8"; file = Path.Combine(Www, "bridge.js"); }
+        else if (path.StartsWith("player/", StringComparison.Ordinal)) file = Path.Combine(Res, path[7..]);
+        else if (path.StartsWith("files/", StringComparison.Ordinal)) file = Path.Combine(Res, path[6..]);
+
+        if (file == null) return null;
+        var ext = Path.GetExtension(file).ToLowerInvariant();
+        mime = ext switch
+        {
+            ".html" => "text/html; charset=utf-8",
+            ".js" => "application/javascript; charset=utf-8",
+            ".css" => "text/css; charset=utf-8",
+            ".json" => "application/json; charset=utf-8",
+            ".atlas" => "text/plain; charset=utf-8",
+            ".png" => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".webp" => "image/webp",
+            ".skel" => "application/octet-stream",
+            _ => "application/octet-stream"
+        };
+        return file;
+    }
+
+    private async Task<JsonElement> WaitFor(string type, int timeoutMs = 15000)
+    {
+        var sw = Stopwatch.StartNew();
+        while (sw.ElapsedMilliseconds < timeoutMs)
+        {
+            lock (_gate)
+            {
+                var i = _msgs.FindIndex(x => x.GetProperty("type").GetString() == type);
+                if (i >= 0) { var el = _msgs[i]; _msgs.RemoveAt(i); return el; }
+            }
+            await Task.Delay(20);
+        }
+        throw new TimeoutException("WaitFor " + type);
+    }
+
+    private async Task<JsonElement> LoadGroupAsync(string skeleton, string atlas, bool pma, string anim)
+    {
+        lock (_gate) _msgs.RemoveAll(x =>
+        {
+            var t = x.GetProperty("type").GetString();
+            return t == "ready" || t == "error";
+        });
+        Send(new
+        {
+            type = "loadGroup",
+            group = new
+            {
+                skeleton = Origin + "files/" + skeleton,
+                atlas = Origin + "files/" + atlas,
+                premultipliedAlpha = pma,
+                animation = anim,
+                skin = "default"
+            },
+            mix = 0.25,
+            speed = 1.0,
+            autoPlay = true
+        });
+        var sw = Stopwatch.StartNew();
+        while (sw.ElapsedMilliseconds < 25000)
+        {
+            lock (_gate)
+            {
+                var i = _msgs.FindIndex(x =>
+                {
+                    var t = x.GetProperty("type").GetString();
+                    return t == "ready" || t == "error";
+                });
+                if (i >= 0)
+                {
+                    var el = _msgs[i]; _msgs.RemoveAt(i);
+                    if (el.GetProperty("type").GetString() == "error")
+                        throw new Exception("JS load error: " + el.GetProperty("reason").GetString());
+                    return el;
+                }
+            }
+            await Task.Delay(20);
+        }
+        throw new TimeoutException("loadGroup " + skeleton);
+    }
+
+    private async Task RunAsync()
+    {
+        try
+        {
+            Log("=== STAGE-0 PROBE START ===");
+            var env = await CoreWebView2Environment.CreateAsync(
+                null, Path.Combine(Path.GetTempPath(), "SpinePreviewProbeUDF"));
+            await _wv.EnsureCoreWebView2Async(env);
+            _core = _wv.CoreWebView2;
+            Log("PASS WebView2 init; browser=" + _core.Environment.BrowserVersionString);
+
+            _core.AddWebResourceRequestedFilter(Origin + "*",
+                CoreWebView2WebResourceContext.All,
+                CoreWebView2WebResourceRequestSourceKinds.All);
+            _core.WebResourceRequested += OnResource;
+            _core.WebMessageReceived += OnMessage;
+
+            var nav = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _core.NavigationCompleted += (_, e) => nav.TrySetResult(e.IsSuccess);
+            _core.Navigate(Origin + "host.html");
+            var navDone = await Task.WhenAny(nav.Task, Task.Delay(20000));
+            if (navDone != nav.Task || !nav.Task.Result) throw new Exception("navigation failed");
+            Log("PASS Navigate(host.html) via same-origin WebResourceRequested");
+
+            var br = await WaitFor("bridgeReady", 10000);
+            if (!br.GetProperty("spinePlayerLoaded").GetBoolean()) throw new Exception("spine-player.js not loaded");
+            Log("PASS bridgeReady, spine-player.js loaded; PHYS=" + br.GetProperty("phys"));
+
+            // ---- P0-1 / P0-3 : real render of official 4.2 export ----
+            var r0 = await LoadGroupAsync("spineboy-pro.json", "spineboy.atlas", false, "walk");
+            int skinCount = r0.GetProperty("skins").GetArrayLength();
+            int animCount = r0.GetProperty("animations").GetArrayLength();
+            double duration = r0.GetProperty("duration").GetDouble();
+            Log($"PASS render: skins={skinCount} animations={animCount} duration={duration:F3}s " +
+                $"canvas={r0.GetProperty("canvasCount")} webglLost={r0.GetProperty("webglLost")}");
+            if (animCount == 0 || duration <= 0) throw new Exception("metadata empty");
+
+            var anims = r0.GetProperty("animations").EnumerateArray().Select(x => x.GetString()!).ToList();
+            var animA = anims[0];
+            var animB = anims.Count > 1 ? anims[1] : anims[0];
+
+            // ---- P0-1 : control API probe ----
+            Send(new { type = "setAnimation", name = animB, loop = true });
+            var tc = await WaitFor("trackChanged");
+            Log("PASS setAnimation -> " + tc.GetProperty("animation") + " dur=" + tc.GetProperty("duration"));
+
+            Send(new { type = "setSkin", name = "default" }); await WaitFor("ack");
+            Send(new { type = "setSpeed", value = 1.5 }); await WaitFor("ack");
+            Send(new { type = "pause" }); await WaitFor("ack");
+            Send(new { type = "seek", time = 0.4 }); await WaitFor("ack");
+            await Task.Delay(300);
+            Send(new { type = "probeState" });
+            var st0 = await WaitFor("state");
+            Log($"PASS pause+seek: trackTime={st0.GetProperty("trackTime"):F3} paused={st0.GetProperty("paused")} " +
+                $"canvas={st0.GetProperty("canvasCount")}");
+            Send(new { type = "play" }); await WaitFor("ack");
+            Log("PASS play/pause/setSkin/setSpeed/seek all callable");
+
+            // ---- P0-2 : 50 successive rebuilds, watch WebGL contexts ----
+            int ok = 0; int maxCanvas = 0; bool anyLost = false;
+            var sw50 = Stopwatch.StartNew();
+            for (int i = 0; i < 50; i++)
+            {
+                bool pma = (i % 2 == 1);
+                var atlas = pma ? "spineboy-pma.atlas" : "spineboy.atlas";
+                var r = await LoadGroupAsync("spineboy-pro.json", atlas, pma, (i % 2 == 0) ? animA : animB);
+                int c = r.GetProperty("canvasCount").GetInt32();
+                maxCanvas = Math.Max(maxCanvas, c);
+                var lost = r.GetProperty("webglLost");
+                if (lost.ValueKind == JsonValueKind.True) anyLost = true;
+                ok++;
+                if ((i + 1) % 10 == 0)
+                    Log($"  rebuild {i + 1}/50 ok; canvas={c} disposed={r.GetProperty("disposedCount")} lost={lost}");
+            }
+            sw50.Stop();
+            Log($"PASS P0-2: {ok}/50 rebuilds in {sw50.ElapsedMilliseconds}ms; maxCanvas={maxCanvas} anyContextLost={anyLost}");
+            if (ok != 50 || maxCanvas > 1 || anyLost) throw new Exception("WebGL leak suspected");
+
+            // ---- P1-7 : hide / restore WebView2 ----
+            _wv.Visible = false;
+            await Task.Delay(3000);
+            _wv.Visible = true;
+            await Task.Delay(1200);
+            Send(new { type = "probeState" });
+            var st1 = await WaitFor("state");
+            Log($"PASS P1-7 hide/restore: canvas={st1.GetProperty("canvasCount")} " +
+                $"lost={st1.GetProperty("webglLost")} trackTime={st1.GetProperty("trackTime")} " +
+                $"paused={st1.GetProperty("paused")}");
+
+            // ---- binary .skel probe ----
+            try
+            {
+                var rb = await LoadGroupAsync("spineboy-pro.skel", "spineboy.atlas", false, animA);
+                Log("PASS binary .skel render: animations=" + rb.GetProperty("animations").GetArrayLength());
+            }
+            catch (Exception ex) { Log("WARN binary .skel: " + ex.Message); }
+
+            Log($"resource requests={_resourceCount} 404={_resource404} (map file 404 is expected)");
+            Log("=== RESULT: GO ===");
+        }
+        catch (Exception ex)
+        {
+            Log("FAIL " + ex.GetType().Name + ": " + ex.Message);
+            Log("=== RESULT: NO-GO ===");
+        }
+        finally
+        {
+            await Task.Delay(300);
+            Application.Exit();
+        }
+    }
+}

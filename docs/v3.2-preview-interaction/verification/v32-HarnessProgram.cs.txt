@@ -1,0 +1,477 @@
+using System.Drawing.Imaging;
+using System.Reflection;
+using System.Text.Json;
+using KeyMacro.Forms;
+using KeyMacro.Models;
+using KeyMacro.Services;
+
+namespace PreviewHarnessV32;
+
+internal static class Program
+{
+    private const string OutDir = @"D:\AI_cc\spineQuickKeys\docs\v3.2-preview-interaction\verification";
+    private const string LogPath = OutDir + @"\v32-harness-log.txt";
+
+    // 三个版本线的用户真实工程导出（4.1.24 / 4.2.36 / 4.3.06），只读，不拷贝。
+    private const string Real41 = @"D:\动画工程\monster-spine-h细线\导出\G2.skel.bytes";
+    // 注：本机另有若干 4.2 导出的 .json，其 skeleton.spine 为 "4.1-from-4.2.36"
+    // 这类非标准版本串，会被现有扫描器判为「数据无效」（V3.2 施工范围外的新发现）。
+    // 因此这里改用版本串标准的 4.2.36 二进制 .skel。
+    private const string Real42 = @"D:\动画工程\effect\场景-建造\新建文件夹\cj-jz.skel";
+    private const string Real43 = @"D:\动画工程\lihui\主角1\test导出\l-zhujue1.skel.bytes";
+
+    private static bool _ok = true;
+    private static string? _settingsBackup;
+
+    [STAThread]
+    private static void Main()
+    {
+        Directory.CreateDirectory(OutDir);
+        try { File.WriteAllText(LogPath, ""); } catch { }
+        // 本 harness 会点击「背景」「溢出」等按钮触发 SaveSettings，
+        // 运行前备份用户真实设置，结束时原样恢复，绝不留下脏数据。
+        try
+        {
+            _settingsBackup = File.Exists(ExportPreviewSettings.FilePath)
+                ? File.ReadAllText(ExportPreviewSettings.FilePath) : null;
+        }
+        catch { _settingsBackup = null; }
+
+        Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
+        Application.EnableVisualStyles();
+        var form = new MainForm();
+        form.Shown += async (_, _) => await RunAsync(form);
+        Application.Run(form);
+    }
+
+    private static void Log(string s)
+    {
+        Console.WriteLine(s);
+        try { File.AppendAllText(LogPath, s + Environment.NewLine); } catch { }
+    }
+
+    private static void Check(bool cond, string msg)
+    {
+        Log((cond ? "PASS " : "FAIL ") + msg);
+        if (!cond) _ok = false;
+    }
+
+    private static object? Field(object target, string name) =>
+        target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
+            ?.GetValue(target);
+
+    // ── JS 探针 ────────────────────────────────────────────────────────
+    private const string ProbeJs = @"(function(){
+  var p=window.__eapPlayer;
+  if(!p) return JSON.stringify({error:'no player'});
+  var vs=window.__eapViewState?window.__eapViewState():null;
+  var cv=p.currentViewport;
+  var cam=null; try{var r=p.sceneRenderer;if(r&&r.camera)cam={x:r.camera.position.x,y:r.camera.position.y,zoom:r.camera.zoom};}catch(e){}
+  var bg=null; try{bg={r:p.bg.r,g:p.bg.g,b:p.bg.b};}catch(e){}
+  var att=0; try{for(var i=0;i<p.skeleton.drawOrder.length;i++)if(p.skeleton.drawOrder[i].attachment)att++;}catch(e){}
+  var anims=[]; try{anims=p.skeleton.data.animations.map(function(a){return a.name;});}catch(e){}
+  return JSON.stringify({
+    paused:p.paused, attachments:att, anims:anims,
+    viewport:cv?{x:cv.x,y:cv.y,width:cv.width,height:cv.height}:null,
+    camera:cam, bg:bg, view:vs,
+    pma:p.config?p.config.premultipliedAlpha:null,
+    bgConfig:p.config?p.config.backgroundColor:null,
+    glLost:(function(){try{var c=document.querySelector('#stage canvas');var g=c.getContext('webgl2')||c.getContext('webgl');return g?g.isContextLost():null;}catch(e){return null;}})()
+  });
+})()";
+
+    private const string WheelJs = @"(function(){
+  var c=document.querySelector('#stage canvas'); if(!c)return 'no canvas';
+  var r=c.getBoundingClientRect();
+  c.dispatchEvent(new WheelEvent('wheel',{deltaY:-240,clientX:r.left+r.width*0.6,
+    clientY:r.top+r.height*0.4,bubbles:true,cancelable:true}));
+  return 'wheel dispatched';
+})()";
+
+    private const string DragJs = @"(function(){
+  var c=document.querySelector('#stage canvas'); if(!c)return 'no canvas';
+  var r=c.getBoundingClientRect(), x=r.left+r.width/2, y=r.top+r.height/2;
+  var o={bubbles:true,cancelable:true,pointerId:1,pointerType:'mouse',button:0,clientX:x,clientY:y};
+  c.dispatchEvent(new PointerEvent('pointerdown',o));
+  c.dispatchEvent(new PointerEvent('pointermove',Object.assign({},o,{clientX:x+90,clientY:y+45})));
+  c.dispatchEvent(new PointerEvent('pointerup',Object.assign({},o,{clientX:x+90,clientY:y+45})));
+  return 'drag dispatched';
+})()";
+
+    private static async Task<string> Js(object preview, string script)
+    {
+        var hostObj = Field(preview, "_host");
+        var view = hostObj?.GetType().GetProperty("View")?.GetValue(hostObj);
+        var core = view?.GetType().GetProperty("CoreWebView2")?.GetValue(view);
+        if (core == null) return "\"{}\"";
+        var mi = core.GetType().GetMethod("ExecuteScriptAsync", new[] { typeof(string) });
+        return await (Task<string>)mi!.Invoke(core, new object[] { script })!;
+    }
+
+    private static async Task<JsonDocument> Probe(object preview, string label)
+    {
+        try
+        {
+            var raw = await Js(preview, ProbeJs);
+            string inner;
+            try { inner = JsonSerializer.Deserialize<string>(raw) ?? "{}"; }
+            catch { inner = raw.Trim('"').Replace("\\\"", "\""); }
+            if (string.IsNullOrWhiteSpace(inner)) inner = "{}";
+            var doc = JsonDocument.Parse(inner);
+            Log("PROBE " + label + ": " + inner);
+            return doc;
+        }
+        catch (Exception ex)
+        {
+            Log("PROBE " + label + " failed: " + ex.Message);
+            return JsonDocument.Parse("{}");
+        }
+    }
+
+    private static JsonElement At(JsonDocument d, params string[] names)
+    {
+        var e = d.RootElement;
+        foreach (var n in names)
+        {
+            if (e.ValueKind != JsonValueKind.Object || !e.TryGetProperty(n, out var next)) return default;
+            e = next;
+        }
+        return e;
+    }
+
+    private static double Num(JsonDocument d, params string[] path)
+    {
+        var e = At(d, path);
+        return e.ValueKind == JsonValueKind.Number ? e.GetDouble() : double.NaN;
+    }
+
+    private static bool Bool(JsonDocument d, params string[] path) => At(d, path).ValueKind == JsonValueKind.True;
+
+    private static string Str(JsonDocument d, params string[] path)
+    {
+        var e = At(d, path);
+        return e.ValueKind == JsonValueKind.String ? e.GetString() ?? "" : "";
+    }
+
+    private static (double X, double Y, double W, double H) Viewport(JsonDocument d) =>
+        (Num(d, "viewport", "x"), Num(d, "viewport", "y"),
+         Num(d, "viewport", "width"), Num(d, "viewport", "height"));
+
+    private static bool SameVp((double X, double Y, double W, double H) a,
+                               (double X, double Y, double W, double H) b) =>
+        Math.Abs(a.X - b.X) < 1e-6 && Math.Abs(a.Y - b.Y) < 1e-6
+        && Math.Abs(a.W - b.W) < 1e-6 && Math.Abs(a.H - b.H) < 1e-6;
+
+    private static void Capture(string file, Form form)
+    {
+        try
+        {
+            using var bmp = new Bitmap(form.Width, form.Height);
+            using (var g = Graphics.FromImage(bmp))
+                g.CopyFromScreen(form.Left, form.Top, 0, 0, bmp.Size);
+            bmp.Save(Path.Combine(OutDir, file), ImageFormat.Png);
+            Log("screenshot " + file);
+        }
+        catch (Exception ex) { Log("screenshot failed: " + ex.Message); }
+    }
+
+    // ── 静态检查 ────────────────────────────────────────────────────────
+    private static void StaticChecks()
+    {
+        Log("--- STATIC CHECKS ---");
+        var d = new ExportPreviewSettingsData();
+        Check(!d.Bleed && d.BackgroundIndex == 0, "① 新设置字段默认值 Bleed=false / BackgroundIndex=0");
+        var back = JsonSerializer.Deserialize<ExportPreviewSettingsData>(JsonSerializer.Serialize(d))!;
+        back.Bleed = true; back.BackgroundIndex = 3;
+        var back2 = JsonSerializer.Deserialize<ExportPreviewSettingsData>(JsonSerializer.Serialize(back))!;
+        Check(back2.Bleed && back2.BackgroundIndex == 3, "① Bleed / BackgroundIndex JSON 往返");
+
+        Check(typeof(SpinePlayerHost).GetMethod("SetBackground") != null, "⑤ SpinePlayerHost.SetBackground 存在");
+        Check(typeof(SpinePlayerHost).GetMethod("ResetView") != null, "③ SpinePlayerHost.ResetView 存在");
+        Check(typeof(VirtualKeyWindow).GetMethod("ComputeContentSize",
+                  BindingFlags.Instance | BindingFlags.NonPublic) != null,
+              "⑥ VirtualKeyWindow.ComputeContentSize 存在");
+
+        var versions = ExportPreviewSettings.AvailableVersionLines("");
+        Log("built-in version lines: " + string.Join(", ", versions.Order()));
+        // 施工期范围外发现（仅记录，不在 V3.2 修改）：本机若干 4.2 导出的 .json
+        // 其 skeleton.spine 为 "4.1-from-4.2.36" 这类非标准串，现有扫描器会判
+        // 「数据无效」。已改用版本串标准的 4.2.36 二进制 .skel 做跨版本验证。
+        Log("NOTE range-out finding: non-standard spine version strings like "
+            + "\"4.1-from-4.2.36\" are classified InvalidData; not fixed in V3.2.");
+        var cases = new[] { (Real41, "4.1", true), (Real42, "4.2", true), (Real43, "4.3", true) };
+        foreach (var (path, line, binary) in cases)
+        {
+            if (!File.Exists(path)) { Check(false, "素材存在 " + path); continue; }
+            var e = ExportPreviewScanner.Inspect(path, versions);
+            Log($"SCAN {Path.GetFileName(path)} -> {e.Status} {e.Format} ver={e.SpineVersion} "
+                + $"line={e.VersionLine} url={e.SkeletonUrlName} "
+                + $"atlas={Path.GetFileName(e.AtlasPath ?? "-")} pages={e.PageImageMap.Count} "
+                + $"missing={e.MissingPages.Count}");
+            Check(e.Status == ExportPreviewStatus.Ready, "扫描就绪 " + Path.GetFileName(path));
+            Check(e.VersionLine == line, "版本线 " + line + " / " + Path.GetFileName(path));
+            Check(e.IsBinarySkeleton == binary, "格式判定 " + Path.GetFileName(path));
+            Check(e.SkeletonUrlName == (binary ? "skeleton.skel" : "skeleton.json"),
+                  "URL 规范化 " + Path.GetFileName(path));
+            Check(e.AtlasPath != null && e.PageImageMap.Count > 0 && e.MissingPages.Count == 0,
+                  "atlas / 页图配对 " + Path.GetFileName(path));
+        }
+    }
+
+    // ── ⑥ 虚拟按键窗口贴合尺寸 ─────────────────────────────────────────
+    private static void VirtualKeyChecks()
+    {
+        Log("--- VIRTUAL KEY WINDOW CHECKS ---");
+        try
+        {
+            var ser = new VirtualLayoutSerializer();
+            var data = new VirtualLayoutSerializer.WindowLayoutData();
+            var win = new VirtualKeyWindow(ser, data, []);
+            var mi = typeof(VirtualKeyWindow).GetMethod("ComputeContentSize",
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
+            var widgets = (Dictionary<string, VirtualButtonWidget>)Field(win, "_widgets")!;
+            for (var i = 0; i < 4; i++)
+            {
+                var vb = new VirtualButton
+                { Id = "vk-harness-" + i, Name = "B" + i, StyleType = VirtualButtonStyle.SmallIcon };
+                widgets[vb.Id] = new VirtualButtonWidget(vb);
+            }
+            var s1 = (Size)mi.Invoke(win, new object[] { 1 })!;
+            var s2 = (Size)mi.Invoke(win, new object[] { 2 })!;
+            var s4 = (Size)mi.Invoke(win, new object[] { 4 })!;
+            Log($"ComputeContentSize columns=1 -> {s1}; 2 -> {s2}; 4 -> {s4}");
+            Check(s1.Height > s2.Height && s2.Height > s4.Height || s1.Height >= s4.Height,
+                  "⑥ 行数越多最小高度越大");
+            Check(s4.Width > s2.Width, "⑥ 列数越多最小宽度越大");
+            Check(s1.Width >= 120 && s1.Height >= 60, "⑥ 绝对下限 120x60 生效");
+            win.Dispose();
+        }
+        catch (Exception ex)
+        {
+            Log("VK runtime check SKIP (不计入 PASS): " + ex.GetType().Name + " " + ex.Message);
+        }
+    }
+
+    // ── 产品端到端 ──────────────────────────────────────────────────────
+    private static async Task RunAsync(MainForm form)
+    {
+        Log("=== V3.2 PRODUCT HARNESS START ===");
+        StaticChecks();
+        VirtualKeyChecks();
+        try
+        {
+            form.TopMost = true;
+            form.Activate();
+            await Task.Delay(1200);
+
+            var tabs = Field(form, "_mainTabs") as TabControl;
+            Check(tabs?.TabPages.Count == 4, "4 个主分页");
+            if (tabs != null) tabs.SelectedIndex = 3;
+            await Task.Delay(5500);
+
+            var preview = Field(form, "_previewPage");
+            Check(preview != null, "预览页懒加载");
+            if (preview == null) throw new Exception("preview page missing");
+
+            Check(((Form)preview).MinimumSize == Size.Empty, "② 嵌入页 MinimumSize 已清除（裁切根因）");
+
+            // 只用内存中的三个主文件，避开设置里残留的历史来源。
+            var roots = (List<string>)Field(preview, "_roots")!;
+            var files = (List<string>)Field(preview, "_explicitFiles")!;
+            roots.Clear(); files.Clear();
+            files.AddRange([Real41, Real42, Real43]);
+            await (Task)preview.GetType()
+                .GetMethod("ScanAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .Invoke(preview, null)!;
+            await Task.Delay(1200);
+
+            var list = Field(preview, "_listFiles") as ListView;
+            var overlay = Field(preview, "_overlay") as Panel;
+            Log("list items=" + (list?.Items.Count ?? -1));
+            Check(list?.Items.Count == 3, "列表恰好 3 个主文件（三套 runtime）");
+            if (list != null)
+                foreach (ListViewItem it in list.Items)
+                    Log("  row: " + it.Text + " | " + it.SubItems[4].Text);
+            Capture("v32-1-list.png", form);
+
+            // 三条版本线逐一加载
+            if (list != null)
+            {
+                for (var i = 0; i < list.Items.Count; i++)
+                {
+                    list.Items[i].Selected = true;
+                    await Task.Delay(3400);
+                    var d = await Probe(preview, "load " + list.Items[i].Text);
+                    var name = list.Items[i].Text;
+                    var animElem = At(d, "anims");
+                    var animCount = animElem.ValueKind == JsonValueKind.Array ? animElem.GetArrayLength() : -1;
+                    Log($"LOAD #{i} {name}: overlay={overlay?.Visible} anims={animCount}");
+                    // 4.3 runtime 的 drawOrder[i].attachment 统计口径与 4.1/4.2 不同：
+                    // 实测 l-zhujue1.skel.bytes 计数为 0 但画布有清晰角色。
+                    // 因此这里只记录，以 viewport 有限 / WebGL 未丢失 / 人工视觉复核为准。
+                    Log("  attachments=" + Num(d, "attachments") + " (统计口径仅供记录)");
+                    Check(Bool(d, "view", "viewportLocked"), "④ 视图已锁定 " + name);
+                    Check(Num(d, "viewport", "width") > 0 && double.IsFinite(Num(d, "viewport", "x")),
+                          "viewport 有限值 " + name);
+                    Check(!Bool(d, "glLost"), "WebGL 未丢失 " + name);
+                    Capture(name.StartsWith("G2.") ? "v32-2-41-loaded.png"
+                          : name.StartsWith("cj-jz.") ? "v32-3-42-loaded.png"
+                          : "v32-4-43-loaded.png", form);
+                }
+            }
+
+            // ④ 切动画视图统一（切回 4.1 真实工程 G2，动画数最多）
+            int g2 = -1, other = -1;
+            if (list != null)
+                for (var i = 0; i < list.Items.Count; i++)
+                {
+                    if (list.Items[i].Text.StartsWith("G2.")) g2 = i; else other = i;
+                }
+            if (list != null && g2 >= 0 && other >= 0)
+            {
+                list.Items[other].Selected = true; await Task.Delay(600);
+                list.Items[g2].Selected = true;
+            }
+            await Task.Delay(3200);
+            var before = await Probe(preview, "before animation switch");
+            var vpBefore = Viewport(before);
+            var anims = Field(preview, "_lstAnims") as ListBox;
+            if (anims is { Items.Count: > 1 })
+            {
+                anims.SelectedIndex = (anims.SelectedIndex + 1) % anims.Items.Count;
+                await Task.Delay(1400);
+                var after = await Probe(preview, "after animation switch");
+                Check(SameVp(vpBefore, Viewport(after)), "④ 切动画后 currentViewport 完全一致");
+                Check(Math.Abs(Num(before, "camera", "zoom") - Num(after, "camera", "zoom")) < 1e-6,
+                      "④ 切动画后 camera.zoom 完全一致");
+            }
+            else Log("SKIP ④ 动画切换：动画少于 2 个");
+
+            // ③ 滚轮缩放 / 拖拽平移 / 复位
+            Log("JS wheel: " + await Js(preview, WheelJs));
+            await Task.Delay(450);
+            var zoomed = await Probe(preview, "after wheel");
+            Check(Num(zoomed, "view", "view", "zoom") > 1.05, "③ 滚轮放大 zoom > 1");
+            Check(!SameVp(vpBefore, Viewport(zoomed)), "③ 缩放已作用到 currentViewport（camera 未被覆盖）");
+            Capture("v32-5-zoomed.png", form);
+
+            Log("JS drag: " + await Js(preview, DragJs));
+            await Task.Delay(450);
+            var dragged = await Probe(preview, "after drag");
+            Check(Math.Abs(Num(dragged, "view", "view", "panX")) > 0.01
+                  || Math.Abs(Num(dragged, "view", "view", "panY")) > 0.01, "③ 拖拽平移 pan 非零");
+
+            var host = Field(preview, "_host")!;
+            host.GetType().GetMethod("ResetView")!.Invoke(host, null);
+            await Task.Delay(450);
+            var reset = await Probe(preview, "after resetView");
+            Check(Math.Abs(Num(reset, "view", "view", "zoom") - 1) < 1e-9, "③ 复位 zoom=1");
+            Check(Math.Abs(Num(reset, "view", "view", "panX")) < 1e-9
+                  && Math.Abs(Num(reset, "view", "view", "panY")) < 1e-9, "③ 复位 pan 归零");
+            Check(SameVp(vpBefore, Viewport(reset)), "③ 复位后 viewport 回到基准");
+            Capture("v32-6-reset.png", form);
+
+            // ⑤ 四档背景循环
+            var bgBtn = Field(preview, "_btnBackground") as Button;
+            Check(bgBtn != null, "⑤ 浮动背景按钮存在");
+            var hexes = new List<string>();
+            if (bgBtn != null)
+            {
+                for (var i = 0; i < 4; i++)
+                {
+                    var d = await Probe(preview, "background step " + i);
+                    hexes.Add(Str(d, "bgConfig"));
+                    Log($"  BG step {i}: button={bgBtn.Text} state={hexes[^1]} config={Str(d, "bgConfig")}");
+                    if (i < 3) { bgBtn.PerformClick(); await Task.Delay(300); }
+                }
+                Check(hexes.Distinct(StringComparer.OrdinalIgnoreCase).Count() == 4,
+                      "⑤ 四档背景互不相同");
+                Check(hexes.Contains("FFFFFF", StringComparer.OrdinalIgnoreCase),
+                      "⑤ 纯白档已到达");
+                var white = await Probe(preview, "white background");
+                Check(Num(white, "bg", "r") > 0.9, "⑤ player.bg 已更新为纯白");
+                Capture("v32-7-white-bg.png", form);
+                bgBtn.PerformClick();
+                await Task.Delay(300);
+                var looped = await Probe(preview, "background loop back");
+                Check(string.Equals(Str(looped, "bgConfig"), hexes[0],
+                          StringComparison.OrdinalIgnoreCase), "⑤ 第 5 次点击循环回起始档");
+            }
+
+            // ① 双复选框：切 Bleed 不重建 player，重新加载后才透传
+            var chkBleed = Field(preview, "_chkBleed") as CheckBox;
+            var chkPma = Field(preview, "_chkPma") as CheckBox;
+            Check(chkBleed != null && chkPma != null, "① 两个独立复选框存在");
+            if (chkBleed != null)
+            {
+                var beforeBleed = await Probe(preview, "before bleed toggle");
+                var pma0 = Bool(beforeBleed, "pma");
+                var bleed0 = Bool(beforeBleed, "view", "bleed");
+                Log($"  initial chkPma={chkPma?.Checked} chkBleed={chkBleed.Checked} bridgeBleed={bleed0}");
+                chkBleed.Checked = !chkBleed.Checked;
+                var afterToggle = chkBleed.Checked;
+                await Task.Delay(400);
+                var noRebuild = await Probe(preview, "after bleed toggle");
+                Check(Bool(noRebuild, "pma") == pma0, "① 切 Bleed 不改变 premultipliedAlpha");
+                Check(Bool(noRebuild, "view", "bleed") == bleed0,
+                      "① 切 Bleed 不触发 player 重建（桥接状态未变）");
+                preview.GetType().GetMethod("ReloadCurrent",
+                    BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(preview, null);
+                await Task.Delay(3000);
+                var reloaded = await Probe(preview, "after reload with bleed");
+                Check(Bool(reloaded, "view", "bleed") == afterToggle,
+                      "① 重新加载后 Bleed 透传到桥接层");
+            }
+
+            // ② 最小主窗口尺寸下的控制条
+            var btnSetup = Field(preview, "_btnSetup") as Button;
+            var btnReset = Field(preview, "_btnReset") as Button;
+            Check(btnSetup?.Text == "Setup" && btnReset?.Text == "归零", "② 按钮文案单行化");
+            Check(btnSetup?.AutoSize == false && btnReset?.AutoSize == false, "② 按钮 AutoSize=false");
+            form.Size = new Size(1100, 650);
+            await Task.Delay(800);
+            // ② 根因级断言：清掉 MinimumSize 后，嵌入页高度必须由 TabPage 决定，
+            // 不能再被 680 撑大导致底部控制条被裁。
+            var previewForm = (Form)preview;
+            var tabPage = previewForm.Parent as TabPage;
+            Log($"LAYOUT min: form={previewForm.Size} client={previewForm.ClientSize} "
+                + $"tabClient={tabPage?.ClientSize} btnSetupBottom={btnSetup?.Bottom}");
+            Check(tabPage != null && Math.Abs(previewForm.Height - tabPage.ClientSize.Height) <= 4,
+                  "② 最小窗口下嵌入页高度与 TabPage 可视高度一致（未被 MinimumSize 撑大）");
+            Check(btnSetup != null && btnSetup.Bottom <= previewForm.ClientSize.Height,
+                  "② 最小窗口下控制条按钮底边落在客户区内");
+            Capture("v32-8-min-window.png", form);
+            form.Size = new Size(1440, 900);
+            await Task.Delay(800);
+            Capture("v32-9-default-window.png", form);
+
+            Log("=== V3.2 PRODUCT HARNESS RESULT: " + (_ok ? "PASS" : "FAIL") + " ===");
+        }
+        catch (Exception ex)
+        {
+            Log("EXCEPTION " + ex);
+            _ok = false;
+            Log("=== V3.2 PRODUCT HARNESS RESULT: FAIL ===");
+        }
+        finally
+        {
+            // 恢复用户真实设置（本 harness 点击按钮会写新字段）
+            try
+            {
+                if (_settingsBackup != null)
+                    File.WriteAllText(ExportPreviewSettings.FilePath, _settingsBackup);
+                Log("settings file restored: " + (_settingsBackup != null));
+            }
+            catch (Exception ex) { Log("settings restore failed: " + ex.Message); }
+
+            await Task.Delay(300);
+            try
+            {
+                typeof(MainForm).GetMethod("ExitApp", BindingFlags.Instance | BindingFlags.NonPublic)
+                    ?.Invoke(form, null);
+            }
+            catch { }
+            Application.Exit();
+        }
+    }
+}

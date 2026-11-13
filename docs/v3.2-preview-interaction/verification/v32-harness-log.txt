@@ -1,0 +1,112 @@
+=== V3.2 PRODUCT HARNESS START ===
+--- STATIC CHECKS ---
+PASS ① 新设置字段默认值 Bleed=false / BackgroundIndex=0
+PASS ① Bleed / BackgroundIndex JSON 往返
+PASS ⑤ SpinePlayerHost.SetBackground 存在
+PASS ③ SpinePlayerHost.ResetView 存在
+PASS ⑥ VirtualKeyWindow.ComputeContentSize 存在
+built-in version lines: 4.1, 4.2, 4.3
+NOTE range-out finding: non-standard spine version strings like "4.1-from-4.2.36" are classified InvalidData; not fixed in V3.2.
+SCAN G2.skel.bytes -> Ready 二进制 ver=4.1.24 line=4.1 url=skeleton.skel atlas=G2.atlas.txt pages=1 missing=0
+PASS 扫描就绪 G2.skel.bytes
+PASS 版本线 4.1 / G2.skel.bytes
+PASS 格式判定 G2.skel.bytes
+PASS URL 规范化 G2.skel.bytes
+PASS atlas / 页图配对 G2.skel.bytes
+SCAN cj-jz.skel -> Ready 二进制 ver=4.2.36 line=4.2 url=skeleton.skel atlas=cj-jz.atlas.txt pages=1 missing=0
+PASS 扫描就绪 cj-jz.skel
+PASS 版本线 4.2 / cj-jz.skel
+PASS 格式判定 cj-jz.skel
+PASS URL 规范化 cj-jz.skel
+PASS atlas / 页图配对 cj-jz.skel
+SCAN l-zhujue1.skel.bytes -> Ready 二进制 ver=4.3 line=4.3 url=skeleton.skel atlas=l-zhujue1.atlas.txt pages=1 missing=0
+PASS 扫描就绪 l-zhujue1.skel.bytes
+PASS 版本线 4.3 / l-zhujue1.skel.bytes
+PASS 格式判定 l-zhujue1.skel.bytes
+PASS URL 规范化 l-zhujue1.skel.bytes
+PASS atlas / 页图配对 l-zhujue1.skel.bytes
+--- VIRTUAL KEY WINDOW CHECKS ---
+ComputeContentSize columns=1 -> {Width=120, Height=263}; 2 -> {Width=136, Height=159}; 4 -> {Width=240, Height=107}
+PASS ⑥ 行数越多最小高度越大
+PASS ⑥ 列数越多最小宽度越大
+PASS ⑥ 绝对下限 120x60 生效
+PASS 4 个主分页
+PASS 预览页懒加载
+PASS ② 嵌入页 MinimumSize 已清除（裁切根因）
+list items=3
+PASS 列表恰好 3 个主文件（三套 runtime）
+  row: cj-jz.skel | ✅就绪
+  row: l-zhujue1.skel.bytes | ✅就绪
+  row: G2.skel.bytes | ✅就绪
+screenshot v32-1-list.png
+PROBE load cj-jz.skel: {"paused":false,"attachments":20,"anims":["2","3","animation","suoxiao","suoxiao2"],"viewport":{"x":-112.63550969773252,"y":-851.1874999999998,"width":513.3696840877051,"height":1180.8048706054685},"camera":{"x":144.04933234612005,"y":-260.7850646972655,"zoom":1.9845460010175942},"bg":{"r":0.11764705882352941,"g":0.11764705882352941,"b":0.12549019607843137},"view":{"view":{"zoom":1,"panX":0,"panY":0},"baseViewport":{"x":-112.63550969773252,"y":-851.1874999999998,"width":513.3696840877051,"height":1180.8048706054685},"viewportLocked":true,"background":"1E1E20","bleed":false},"pma":false,"bgConfig":"1E1E20","glLost":false}
+LOAD #0 cj-jz.skel: overlay=False anims=5
+  attachments=20 (统计口径仅供记录)
+PASS ④ 视图已锁定 cj-jz.skel
+PASS viewport 有限值 cj-jz.skel
+PASS WebGL 未丢失 cj-jz.skel
+screenshot v32-3-42-loaded.png
+PROBE load l-zhujue1.skel.bytes: {"paused":false,"attachments":0,"anims":["act1","act3","idle","level-up"],"viewport":{"x":-155.92283096388195,"y":11.139114476461145,"width":250.62768692406445,"height":545.8898197485767},"camera":{"x":-30.608987501849725,"y":284.0840243507495,"zoom":0.917461881930381},"bg":{"r":0.11764705882352941,"g":0.11764705882352941,"b":0.12549019607843137},"view":{"view":{"zoom":1,"panX":0,"panY":0},"baseViewport":{"x":-155.92283096388195,"y":11.139114476461145,"width":250.62768692406445,"height":545.8898197485767},"viewportLocked":true,"background":"1E1E20","bleed":false},"pma":false,"bgConfig":"1E1E20","glLost":false}
+LOAD #1 l-zhujue1.skel.bytes: overlay=False anims=4
+  attachments=0 (统计口径仅供记录)
+PASS ④ 视图已锁定 l-zhujue1.skel.bytes
+PASS viewport 有限值 l-zhujue1.skel.bytes
+PASS WebGL 未丢失 l-zhujue1.skel.bytes
+screenshot v32-4-43-loaded.png
+PROBE load G2.skel.bytes: {"paused":false,"attachments":7,"anims":["atkfx","die","idle","walk"],"viewport":{"x":-60.672273742680474,"y":-6.29713733320294,"width":120.82121873730799,"height":95.53994918301551},"camera":{"x":-0.2616643740264806,"y":41.47283725830482,"zoom":0.16057134316473196},"bg":{"r":0.11764705882352941,"g":0.11764705882352941,"b":0.12549019607843137},"view":{"view":{"zoom":1,"panX":0,"panY":0},"baseViewport":{"x":-60.672273742680474,"y":-6.2971373332029374,"width":120.82121873730799,"height":95.53994918301551},"viewportLocked":true,"background":"1E1E20","bleed":false},"pma":false,"bgConfig":"1E1E20","glLost":false}
+LOAD #2 G2.skel.bytes: overlay=False anims=4
+  attachments=7 (统计口径仅供记录)
+PASS ④ 视图已锁定 G2.skel.bytes
+PASS viewport 有限值 G2.skel.bytes
+PASS WebGL 未丢失 G2.skel.bytes
+screenshot v32-2-41-loaded.png
+PROBE before animation switch: {"paused":false,"attachments":7,"anims":["atkfx","die","idle","walk"],"viewport":{"x":-60.672273742680474,"y":-6.29713733320294,"width":120.82121873730799,"height":95.53994918301551},"camera":{"x":-0.2616643740264806,"y":41.47283725830482,"zoom":0.16057134316473196},"bg":{"r":0.11764705882352941,"g":0.11764705882352941,"b":0.12549019607843137},"view":{"view":{"zoom":1,"panX":0,"panY":0},"baseViewport":{"x":-60.672273742680474,"y":-6.2971373332029374,"width":120.82121873730799,"height":95.53994918301551},"viewportLocked":true,"background":"1E1E20","bleed":false},"pma":false,"bgConfig":"1E1E20","glLost":false}
+PROBE after animation switch: {"paused":false,"attachments":7,"anims":["atkfx","die","idle","walk"],"viewport":{"x":-60.672273742680474,"y":-6.29713733320294,"width":120.82121873730799,"height":95.53994918301551},"camera":{"x":-0.2616643740264806,"y":41.47283725830482,"zoom":0.16057134316473196},"bg":{"r":0.11764705882352941,"g":0.11764705882352941,"b":0.12549019607843137},"view":{"view":{"zoom":1,"panX":0,"panY":0},"baseViewport":{"x":-60.672273742680474,"y":-6.2971373332029374,"width":120.82121873730799,"height":95.53994918301551},"viewportLocked":true,"background":"1E1E20","bleed":false},"pma":false,"bgConfig":"1E1E20","glLost":false}
+PASS ④ 切动画后 currentViewport 完全一致
+PASS ④ 切动画后 camera.zoom 完全一致
+JS wheel: "wheel dispatched"
+PROBE after wheel: {"paused":false,"attachments":7,"anims":["atkfx","die","idle","walk"],"viewport":{"x":-38.06284643304222,"y":11.640062213110685,"width":84.29410400006947,"height":66.65596073901928},"camera":{"x":4.084205566992516,"y":44.96804258262033,"zoom":0.12011757783700615},"bg":{"r":0.11764705882352941,"g":0.11764705882352941,"b":0.12549019607843137},"view":{"view":{"zoom":1.4333294145603401,"panX":4.3458699410189965,"panY":3.49520532431551},"baseViewport":{"x":-60.672273742680474,"y":-6.2971373332029374,"width":120.82121873730799,"height":95.53994918301551},"viewportLocked":true,"background":"1E1E20","bleed":false},"pma":false,"bgConfig":"1E1E20","glLost":false}
+PASS ③ 滚轮放大 zoom > 1
+PASS ③ 缩放已作用到 currentViewport（camera 未被覆盖）
+screenshot v32-5-zoomed.png
+JS drag: "drag dispatched"
+PROBE after drag: {"paused":false,"attachments":7,"anims":["atkfx","die","idle","walk"],"viewport":{"x":-47.768350944777296,"y":16.681269327826428,"width":84.29410400006947,"height":66.65596073901928},"camera":{"x":-5.621298944742563,"y":50.009249697336074,"zoom":0.12011757783700615},"bg":{"r":0.11764705882352941,"g":0.11764705882352941,"b":0.12549019607843137},"view":{"view":{"zoom":1.4333294145603401,"panX":-5.35963457071608,"panY":8.536412439031253},"baseViewport":{"x":-60.672273742680474,"y":-6.2971373332029374,"width":120.82121873730799,"height":95.53994918301551},"viewportLocked":true,"background":"1E1E20","bleed":false},"pma":false,"bgConfig":"1E1E20","glLost":false}
+PASS ③ 拖拽平移 pan 非零
+PROBE after resetView: {"paused":false,"attachments":7,"anims":["atkfx","die","idle","walk"],"viewport":{"x":-60.672273742680474,"y":-6.29713733320294,"width":120.82121873730799,"height":95.53994918301551},"camera":{"x":-0.2616643740264806,"y":41.47283725830482,"zoom":0.16057134316473196},"bg":{"r":0.11764705882352941,"g":0.11764705882352941,"b":0.12549019607843137},"view":{"view":{"zoom":1,"panX":0,"panY":0},"baseViewport":{"x":-60.672273742680474,"y":-6.2971373332029374,"width":120.82121873730799,"height":95.53994918301551},"viewportLocked":true,"background":"1E1E20","bleed":false},"pma":false,"bgConfig":"1E1E20","glLost":false}
+PASS ③ 复位 zoom=1
+PASS ③ 复位 pan 归零
+PASS ③ 复位后 viewport 回到基准
+screenshot v32-6-reset.png
+PASS ⑤ 浮动背景按钮存在
+PROBE background step 0: {"paused":false,"attachments":7,"anims":["atkfx","die","idle","walk"],"viewport":{"x":-60.672273742680474,"y":-6.29713733320294,"width":120.82121873730799,"height":95.53994918301551},"camera":{"x":-0.2616643740264806,"y":41.47283725830482,"zoom":0.16057134316473196},"bg":{"r":0.11764705882352941,"g":0.11764705882352941,"b":0.12549019607843137},"view":{"view":{"zoom":1,"panX":0,"panY":0},"baseViewport":{"x":-60.672273742680474,"y":-6.2971373332029374,"width":120.82121873730799,"height":95.53994918301551},"viewportLocked":true,"background":"1E1E20","bleed":false},"pma":false,"bgConfig":"1E1E20","glLost":false}
+  BG step 0: button=◐ 深灰 state=1E1E20 config=1E1E20
+PROBE background step 1: {"paused":false,"attachments":7,"anims":["atkfx","die","idle","walk"],"viewport":{"x":-60.672273742680474,"y":-6.29713733320294,"width":120.82121873730799,"height":95.53994918301551},"camera":{"x":-0.2616643740264806,"y":41.47283725830482,"zoom":0.16057134316473196},"bg":{"r":0,"g":0,"b":0},"view":{"view":{"zoom":1,"panX":0,"panY":0},"baseViewport":{"x":-60.672273742680474,"y":-6.2971373332029374,"width":120.82121873730799,"height":95.53994918301551},"viewportLocked":true,"background":"000000","bleed":false},"pma":false,"bgConfig":"000000","glLost":false}
+  BG step 1: button=◐ 纯黑 state=000000 config=000000
+PROBE background step 2: {"paused":false,"attachments":7,"anims":["atkfx","die","idle","walk"],"viewport":{"x":-60.672273742680474,"y":-6.29713733320294,"width":120.82121873730799,"height":95.53994918301551},"camera":{"x":-0.2616643740264806,"y":41.47283725830482,"zoom":0.16057134316473196},"bg":{"r":0.5019607843137255,"g":0.5019607843137255,"b":0.5019607843137255},"view":{"view":{"zoom":1,"panX":0,"panY":0},"baseViewport":{"x":-60.672273742680474,"y":-6.2971373332029374,"width":120.82121873730799,"height":95.53994918301551},"viewportLocked":true,"background":"808080","bleed":false},"pma":false,"bgConfig":"808080","glLost":false}
+  BG step 2: button=◐ 中灰 state=808080 config=808080
+PROBE background step 3: {"paused":false,"attachments":7,"anims":["atkfx","die","idle","walk"],"viewport":{"x":-60.672273742680474,"y":-6.29713733320294,"width":120.82121873730799,"height":95.53994918301551},"camera":{"x":-0.2616643740264806,"y":41.47283725830482,"zoom":0.16057134316473196},"bg":{"r":1,"g":1,"b":1},"view":{"view":{"zoom":1,"panX":0,"panY":0},"baseViewport":{"x":-60.672273742680474,"y":-6.2971373332029374,"width":120.82121873730799,"height":95.53994918301551},"viewportLocked":true,"background":"FFFFFF","bleed":false},"pma":false,"bgConfig":"FFFFFF","glLost":false}
+  BG step 3: button=◐ 纯白 state=FFFFFF config=FFFFFF
+PASS ⑤ 四档背景互不相同
+PASS ⑤ 纯白档已到达
+PROBE white background: {"paused":false,"attachments":7,"anims":["atkfx","die","idle","walk"],"viewport":{"x":-60.672273742680474,"y":-6.29713733320294,"width":120.82121873730799,"height":95.53994918301551},"camera":{"x":-0.2616643740264806,"y":41.47283725830482,"zoom":0.16057134316473196},"bg":{"r":1,"g":1,"b":1},"view":{"view":{"zoom":1,"panX":0,"panY":0},"baseViewport":{"x":-60.672273742680474,"y":-6.2971373332029374,"width":120.82121873730799,"height":95.53994918301551},"viewportLocked":true,"background":"FFFFFF","bleed":false},"pma":false,"bgConfig":"FFFFFF","glLost":false}
+PASS ⑤ player.bg 已更新为纯白
+screenshot v32-7-white-bg.png
+PROBE background loop back: {"paused":false,"attachments":7,"anims":["atkfx","die","idle","walk"],"viewport":{"x":-60.672273742680474,"y":-6.29713733320294,"width":120.82121873730799,"height":95.53994918301551},"camera":{"x":-0.2616643740264806,"y":41.47283725830482,"zoom":0.16057134316473196},"bg":{"r":0.11764705882352941,"g":0.11764705882352941,"b":0.12549019607843137},"view":{"view":{"zoom":1,"panX":0,"panY":0},"baseViewport":{"x":-60.672273742680474,"y":-6.2971373332029374,"width":120.82121873730799,"height":95.53994918301551},"viewportLocked":true,"background":"1E1E20","bleed":false},"pma":false,"bgConfig":"1E1E20","glLost":false}
+PASS ⑤ 第 5 次点击循环回起始档
+PASS ① 两个独立复选框存在
+PROBE before bleed toggle: {"paused":false,"attachments":7,"anims":["atkfx","die","idle","walk"],"viewport":{"x":-60.672273742680474,"y":-6.29713733320294,"width":120.82121873730799,"height":95.53994918301551},"camera":{"x":-0.2616643740264806,"y":41.47283725830482,"zoom":0.16057134316473196},"bg":{"r":0.11764705882352941,"g":0.11764705882352941,"b":0.12549019607843137},"view":{"view":{"zoom":1,"panX":0,"panY":0},"baseViewport":{"x":-60.672273742680474,"y":-6.2971373332029374,"width":120.82121873730799,"height":95.53994918301551},"viewportLocked":true,"background":"1E1E20","bleed":false},"pma":false,"bgConfig":"1E1E20","glLost":false}
+  initial chkPma=False chkBleed=False bridgeBleed=False
+PROBE after bleed toggle: {"paused":false,"attachments":7,"anims":["atkfx","die","idle","walk"],"viewport":{"x":-60.672273742680474,"y":-6.29713733320294,"width":120.82121873730799,"height":95.53994918301551},"camera":{"x":-0.2616643740264806,"y":41.47283725830482,"zoom":0.16057134316473196},"bg":{"r":0.11764705882352941,"g":0.11764705882352941,"b":0.12549019607843137},"view":{"view":{"zoom":1,"panX":0,"panY":0},"baseViewport":{"x":-60.672273742680474,"y":-6.2971373332029374,"width":120.82121873730799,"height":95.53994918301551},"viewportLocked":true,"background":"1E1E20","bleed":false},"pma":false,"bgConfig":"1E1E20","glLost":false}
+PASS ① 切 Bleed 不改变 premultipliedAlpha
+PASS ① 切 Bleed 不触发 player 重建（桥接状态未变）
+PROBE after reload with bleed: {"paused":false,"attachments":7,"anims":["atkfx","die","idle","walk"],"viewport":{"x":-60.711403622343205,"y":-7.720727465917598,"width":123.03727263177817,"height":95.29274457378662},"camera":{"x":0.8072326935458847,"y":39.92564482097571,"zoom":0.16015587323325484},"bg":{"r":0.11764705882352941,"g":0.11764705882352941,"b":0.12549019607843137},"view":{"view":{"zoom":1,"panX":0,"panY":0},"baseViewport":{"x":-60.711403622343205,"y":-7.720727465917595,"width":123.03727263177817,"height":95.29274457378662},"viewportLocked":true,"background":"1E1E20","bleed":true},"pma":false,"bgConfig":"1E1E20","glLost":false}
+PASS ① 重新加载后 Bleed 透传到桥接层
+PASS ② 按钮文案单行化
+PASS ② 按钮 AutoSize=false
+LAYOUT min: form={Width=1076, Height=567} client={Width=1076, Height=567} tabClient={Width=1076, Height=567} btnSetupBottom=52
+PASS ② 最小窗口下嵌入页高度与 TabPage 可视高度一致（未被 MinimumSize 撑大）
+PASS ② 最小窗口下控制条按钮底边落在客户区内
+screenshot v32-8-min-window.png
+screenshot v32-9-default-window.png
+=== V3.2 PRODUCT HARNESS RESULT: PASS ===
+settings file restored: True

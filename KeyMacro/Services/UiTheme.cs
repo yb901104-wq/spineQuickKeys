@@ -20,7 +20,8 @@ public enum UiWindowProfile
     InputDialog,
     SubfolderSelect,
     FolderMultiSelect,
-    GenericDialog
+    GenericDialog,
+    ExportPreview
 }
 
 public static class UiTheme
@@ -104,6 +105,7 @@ public static class UiTheme
             UiWindowProfile.InputDialog => (new Size(520, 220), new Size(420, 180)),
             UiWindowProfile.SubfolderSelect => (new Size(820, 620), new Size(640, 460)),
             UiWindowProfile.FolderMultiSelect => (new Size(820, 620), new Size(640, 460)),
+            UiWindowProfile.ExportPreview => (new Size(1440, 900), new Size(1040, 680)),
             _ => (new Size(620, 430), new Size(420, 260))
         };
 

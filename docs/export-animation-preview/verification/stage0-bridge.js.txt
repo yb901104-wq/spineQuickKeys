@@ -1,0 +1,197 @@
+/* ------------------------------------------------------------------
+ * Spine Export Preview - JS bridge (host.html <-> WinForms)
+ * Stage-0 probe version; later promoted to KeyMacro/assets/spine-player/.
+ * All asset URLs are same-origin under https://spinepreview.local/ and are
+ * served by C# through CoreWebView2.WebResourceRequested. No file:// access.
+ * ------------------------------------------------------------------ */
+(function () {
+  "use strict";
+
+  var player = null;
+  var host = null;
+  var lastTick = 0;
+  var needPose = false;
+  var disposedCount = 0;
+  var PHYS = (window.spine && spine.Physics && spine.Physics.update) || 0;
+
+  function post(obj) {
+    try {
+      if (window.chrome && window.chrome.webview)
+        window.chrome.webview.postMessage(obj);
+    } catch (e) { /* host gone */ }
+  }
+
+  function currentEntry() {
+    try {
+      return player && player.animationState
+        ? player.animationState.getCurrent(0) : null;
+    } catch (e) { return null; }
+  }
+
+  function glInfo() {
+    var count = document.querySelectorAll("canvas").length;
+    var lost = null;
+    try {
+      var c = host && host.querySelector("canvas");
+      if (c) {
+        var gl = c.getContext("webgl2") || c.getContext("webgl");
+        lost = gl ? gl.isContextLost() : null;
+      }
+    } catch (e) { /* ignore */ }
+    return { canvasCount: count, webglLost: lost, disposedCount: disposedCount };
+  }
+
+  function emitMetadata() {
+    if (!player || !player.skeleton) return;
+    var data = player.skeleton.data;
+    var skins = (data.skins || []).map(function (s) { return s.name; });
+    var anims = (data.animations || []).map(function (a) { return a.name; });
+    var entry = currentEntry();
+    var info = glInfo();
+    post({
+      type: "ready",
+      skins: skins,
+      animations: anims,
+      duration: entry && entry.animation ? entry.animation.duration : 0,
+      skin: player.skeleton.skin ? player.skeleton.skin.name : "default",
+      animation: entry && entry.animation ? entry.animation.name : "",
+      canvasCount: info.canvasCount,
+      webglLost: info.webglLost,
+      disposedCount: info.disposedCount
+    });
+  }
+
+  function onFrame(p, delta) {
+    // drawFrame() keeps requesting frames even while paused, but skips
+    // animationState.apply(). Re-apply here so seek() is visible when paused.
+    if (p.paused && needPose) {
+      needPose = false;
+      try { p.animationState.apply(p.skeleton); } catch (e) { }
+      try { p.skeleton.updateWorldTransform(PHYS); } catch (e) { }
+    }
+    var now = performance.now();
+    if (now - lastTick < 100) return;
+    lastTick = now;
+    var entry = currentEntry();
+    if (!entry || !entry.animation) return;
+    post({
+      type: "tick",
+      trackTime: entry.trackTime,
+      duration: entry.animation.duration,
+      paused: !!p.paused
+    });
+  }
+
+  function loadGroup(m) {
+    try {
+      if (player) {
+        try { player.dispose(); } catch (e) { }
+        player = null;
+        disposedCount++;
+      }
+      var stage = document.getElementById("stage");
+      while (stage.firstChild) stage.removeChild(stage.firstChild);
+      host = document.createElement("div");
+      stage.appendChild(host);
+
+      var g = m.group || {};
+      var cfg = {
+        skeleton: g.skeleton,
+        atlasUrl: g.atlas,
+        showControls: false,
+        showLoading: false,
+        premultipliedAlpha: g.premultipliedAlpha !== false,
+        preserveDrawingBuffer: false,
+        backgroundColor: "1E1E20",
+        alpha: false,
+        interactive: false,
+        mipmaps: true,
+        defaultMix: m.mix === undefined ? 0.25 : m.mix,
+        scale: 1,
+        success: function (p) {
+          player = p;
+          // Official success() fires BEFORE the player installs track 0, so
+          // install it here to make duration/trackTime available immediately.
+          if (g.animation) {
+            try { p.setAnimation(g.animation, true); } catch (e) { }
+          }
+          if (m.speed !== undefined) p.speed = m.speed;
+          if (m.autoPlay !== false) p.play();
+          needPose = true;
+          emitMetadata();
+        },
+        error: function (p, msg) {
+          post({ type: "error", phase: "load", reason: String(msg) });
+        },
+        frame: onFrame
+      };
+      if (g.animation) cfg.animation = g.animation;
+      if (g.skin) cfg.skin = g.skin;
+      player = new spine.SpinePlayer(host, cfg);
+    } catch (e) {
+      post({ type: "error", phase: "construct", reason: String(e && e.message || e) });
+    }
+  }
+
+  function handle(m) {
+    try {
+      switch (m.type) {
+        case "loadGroup": loadGroup(m); return;
+        case "play": if (player) player.play(); break;
+        case "pause": if (player) player.pause(); break;
+        case "setSpeed": if (player) player.speed = m.value; break;
+        case "setSkin":
+          if (player && player.skeleton) {
+            player.skeleton.setSkinByName(m.name);
+            player.skeleton.setSlotsToSetupPose();
+            needPose = true;
+          }
+          break;
+        case "setAnimation":
+          if (player) {
+            var e = player.setAnimation(m.name, m.loop !== false);
+            needPose = true;
+            post({
+              type: "trackChanged",
+              animation: m.name,
+              duration: e && e.animation ? e.animation.duration : 0
+            });
+            return;
+          }
+          break;
+        case "seek":
+          var entry = currentEntry();
+          if (entry) { entry.trackTime = Math.max(0, m.time); needPose = true; }
+          break;
+        case "setupPose":
+          if (player && player.skeleton) { player.skeleton.setToSetupPose(); needPose = true; }
+          break;
+        case "dispose":
+          if (player) { try { player.dispose(); } catch (e) { } player = null; disposedCount++; }
+          break;
+        case "probeState": {
+          var entry2 = currentEntry();
+          var info = glInfo();
+          post({
+            type: "state",
+            canvasCount: info.canvasCount,
+            webglLost: info.webglLost,
+            disposedCount: info.disposedCount,
+            trackTime: entry2 ? entry2.trackTime : -1,
+            paused: player ? !!player.paused : true
+          });
+          return;
+        }
+        default: break;
+      }
+      post({ type: "ack", what: m.type });
+    } catch (e) {
+      post({ type: "error", phase: m.type, reason: String(e && e.message || e) });
+    }
+  }
+
+  if (window.chrome && window.chrome.webview) {
+    window.chrome.webview.addEventListener("message", function (ev) { handle(ev.data || {}); });
+  }
+  post({ type: "bridgeReady", spinePlayerLoaded: !!window.spine, phys: PHYS });
+})();

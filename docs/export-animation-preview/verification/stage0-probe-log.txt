@@ -1,0 +1,18 @@
+17:50:58.025  === STAGE-0 PROBE START ===
+17:50:58.618  PASS WebView2 init; browser=157.0.4341.42
+17:51:00.686  PASS Navigate(host.html) via same-origin WebResourceRequested
+17:51:00.689  PASS bridgeReady, spine-player.js loaded; PHYS=2
+17:51:00.792  PASS render: skins=1 animations=11 duration=1.000s canvas=1 webglLost=False
+17:51:00.832  PASS setAnimation -> death dur=4.933300018310547
+17:51:01.296  PASS pause+seek: trackTime=0.4 paused=True canvas=1
+17:51:01.326  PASS play/pause/setSkin/setSpeed/seek all callable
+17:51:01.728    rebuild 10/50 ok; canvas=1 disposed=10 lost=False
+17:51:02.068    rebuild 20/50 ok; canvas=1 disposed=20 lost=False
+17:51:02.568    rebuild 30/50 ok; canvas=1 disposed=30 lost=False
+17:51:02.970    rebuild 40/50 ok; canvas=1 disposed=40 lost=False
+17:51:03.405    rebuild 50/50 ok; canvas=1 disposed=50 lost=False
+17:51:03.407  PASS P0-2: 50/50 rebuilds in 2079ms; maxCanvas=1 anyContextLost=False
+17:51:07.659  PASS P1-7 hide/restore: canvas=1 lost=False trackTime=1.2930000915527344 paused=False
+17:51:07.721  PASS binary .skel render: animations=11
+17:51:07.723  resource requests=125 404=1 (map file 404 is expected)
+17:51:07.725  === RESULT: GO ===

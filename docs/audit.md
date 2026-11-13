@@ -57,6 +57,10 @@
 | AUD-038 | 批量复制并入 CLI 窗口子页 + 源文件批量动画选择（并集弹窗 / 交集写入 / 缺项标红） | 首页标签结构 / 批量复制源列表 / CLI 窗口 | 中 | 已完成 |
 | AUD-039 | 备份后缀 `-n1` 触发静默排除，真实源文件 `*-n1.spine` 在列表里检索不到 | 批量复制源文件列表 / 显示层过滤 | 高 | 已完成 |
 | AUD-040 | 导出页标签改名 + 导出预设（本地持久化） + 批量生成导出配置（4.3+） + export.json 状态列不同步 | CLI 批量导出页 / 本地软件数据 | 中 | 已完成 |
+| AUD-041 | 新增第 4 个独立主分页「导出动画预览」（Spine Web Player + WebView2、BYO runtime、只读扫描、皮肤/动画小列表）**※ V3.0 历史决策，BYO 部分已被 AUD-042 修正** | 主分页结构 / 导出产物只读预览 | 中 | 已完成 |
+| AUD-042 | 导出预览：runtime 改为内置零配置 + 支持 Unity 复合后缀 `.skel.bytes` / `.atlas.txt`（用户真机反馈两处硬伤） | 导出产物只读预览 / 扫描与资源路由 | 高 | 已完成 |
+| AUD-043 | 预览交互与窗口布局修正（用户真机 6 项反馈）：PMA/溢出双复选框、控制条裁切、滚轮缩放与拖拽复位、切动画视图统一、多档背景、虚拟按键窗口最小尺寸贴合 | 导出预览交互 / 嵌入页布局 / 虚拟按键窗口 | 中 | 已完成 |
+| AUD-044 | 批量导出子页新增「导出选中 / 导出选中单纹理图」：`导出`→`导出全部`、`单纹理图`→`导出全部单纹理图`，对列表选中项（1 / N / 全选）执行导出或单纹理图命令；含 4 入口互锁、选中快照、文案常量化、最小窗口布局链修复 | 批量复制/合成/导出 → 批量导出子页 | 中 | 已完成 |
 
 ## 问题详情
 
@@ -408,6 +412,126 @@
   6. 发布 exe 与版本串校验见 V2.94 版本历史条目。
 - **未做且不得宣称通过**（与 AUD-038/039 同口径）：本机启动器 4.1.10 无法验证真实 CLI 生成配置文件，**需用户在 Spine 4.3 及以上环境真机确认**；命名弹窗 / 删除二次确认的模态显示、重启程序后预设从 `export_presets.json` 恢复、预设含已不存在文件时的跳过提示、批量生成的取消与失败汇总、两模式真实复制到磁盘、INV-1~8 全量回归，均需用户真机手工确认，用例见 `docs/verification/manual-verification-plan.md` 的 EP 小节。
 - git：按 AGENTS.md:261 询问后用户拍板「暂不提交」，工作区保留 AUD-038（V2.92）+ AUD-039（V2.93）+ AUD-040（V2.94）三批未提交改动。
+
+### AUD-041 导出动画预览（第 4 个独立主分页）
+
+> **V3.0 历史记录注**：本段完整保留 V3.0 施工时的决策与验证原文。其中「D2=BYO / 应用不打包 `spine-player.js/.css` / 运行前须在『播放资源设置』指定 runtime 目录 / 只认原生后缀」等结论，**已被 V3.1（AUD-042，见下段）按用户真机反馈推翻**：runtime 改为内置 4.1/4.2/4.3 零配置，BYO 降为可选覆盖，并支持 Unity 复合后缀。本段内容**不再作为现行约束**；主分页 / 扫描 / 桥接 / 控制条主体架构仍有效。
+
+- 状态：**已完成**（2026-11-10 用户下达「开始施工」，按 §12 全部推荐值执行；版本 **V3.0**（小功能更新 +0.1 后抹去低位），按 AGENTS.md:261 完成后询问是否提交 git，不擅自提交）。
+- 施工依据：`docs/export-animation-preview/设计文档.md` v3（D0 主分页、D9 皮肤/动画两个小列表已由用户确认）、`preview.html` + 5 张渲染图、`阶段0-技术验证报告.md`。
+- 需求：在 `MainForm._mainTabs` 追加第 4 主分页「导出动画预览」，独立 `ExportPreviewWindow`（`TopLevel=false`）；支持多选文件 / 多选文件夹 / 包含子文件夹 / 只把导出主文件进列表 / 点击列表无缝切换；预览需 skin 小列表、动画小列表、PMA、播放暂停、拖动进度条；另含官方 Skeleton Viewer 交叉验证与批量导出页跳转按钮。
+- 阶段 0 技术验证（前置 Go/No-Go）：**已 GO**，证据 `docs/export-animation-preview/verification/stage0-probe-log.txt`。官方 4.2.120 `Player.d.ts` 明确声明 `play/pause/paused/speed/dispose/setAnimation/setViewport`，`spine-core` 有 `setSkinByName` / `TrackEntry.trackTime` / `Animation.duration`；50 次重建 2079 ms、canvas 恒 1、无 WebGL 上下文丢失；暂停 seek 精确生效；切走/切回恢复；二进制 `.skel` 可渲染。
+- **技术方案修正（S1→S3）**：设计文档 §4.2 的 `SetVirtualHostNameToFolderMapping` 在 BYO 多目录 / 跨盘符下会触发 CORS，改为同源 `WebResourceRequested` 拦截（`/host.html`、`/bridge.js` 走嵌入资源，`/player/*` 走用户 BYO 资源目录，`/files/*` 走当前文件组注册的真实绝对路径），零文件复制、零磁盘写入。详见阶段 0 报告 §3。
+- 本次目标：
+  1. R1 第 4 主分页懒加载 + `DisposeEmbeddedPages()` 清理链 + `UiWindowProfile.ExportPreview`；前 3 个主分页与 `BatchCliWindow` 3 个子页零回归。
+  2. R2~R4 只读扫描：`ExportPreviewEntry` / `ExportPreviewScanner`，主文件结构探测、atlas 四级配对、页图校验、版本提取、去重、五态判定。
+  3. R5 无缝切换：`SpinePlayerHost` + `host.html` / `bridge.js`，复用单个 WebView2，重建 player 不重载页面。
+  4. R6~R9 控制：左列皮肤 / 动画两个并排小列表（`metadata` 回填、点选切换、当前项高亮）；右列 PMA / 播放暂停 / TrackBar seek / 速度 / Mix / 循环 / Setup Pose / Debug + `tick` 回传 + 「当前：…」摘要。
+  5. R10 官方 Skeleton Viewer 交叉验证；D8「验证导出结果」跳转并自动灌入输出目录；独立设置 `%APPDATA%\KeyMacro\export_preview_settings.json`；`OperationLogger` 日志。
+  6. 全程**只读导出源文件**，不复制 / 不改名 / 不写回 / 不在源目录生成任何文件（沿用 INV-1~8 精神）。应用**不打包** `spine-player.js/.css`（BYO，合规见设计文档 §8.2）。
+- 决策默认（用户未逐项回答 D1~D8，按设计文档 §12 推荐执行）：D1=B（Web Player + WebView2）、D2=BYO、D3=B1（重建 player 复用 WebView2）、D4=B（自绘控制条）、D5=单一版本线结构但按 `major.minor` 自动匹配（资源目录结构预留多版本）、D6=保留交叉验证按钮、D7=接受 NuGet + WebView2 Runtime 依赖、D8=加跳转按钮。
+- 零改动边界：`MainForm` 前 3 个主分页创建顺序 / Text / index 0~2 映射 / 默认选中页；`EmbedPage()` / `CloseEmbeddedPage()` / `ExitApp()`；`BatchCliWindow` 3 个子页索引与 `EnsureCopyPage()` 的 `index==0` 语义；`BatchCopyWindow` / `InplaceBackupPanel` / `InplaceBackupService` / `BatchCopyService` / INV-1~8；`SpineCliService` / 导出预设 / AUD-038 动画列 / AUD-039 过滤；`config.json` 与 `path_history.json` 结构；任何导出源文件。
+- 改前备份：`docs/export-animation-preview/backup/*.before`（MainForm.cs / BatchCliWindow.cs / UiTheme.cs / KeyMacro.csproj / AGENTS.md / CLAUDE.md / audit.md）。
+- 验证方式：`dotnet build KeyMacro` 0 警告 0 错误；`git diff --name-only -- KeyMacro/` 核对范围；`docs/export-animation-preview/施工文档.md` 逐条核对 R1~R10 与 EAP-001~020；实机截图；单文件 exe 冷启动。
+- 验证结果（2026-11-10 施工完成）：
+  1. **阶段 0 Go/No-Go：GO**。`docs/export-animation-preview/阶段0-技术验证报告.md` + `verification/stage0-probe-log.txt`：WebView2 Runtime 157.0.4341.42 初始化、同源资源路由 Navigate、官方 4.2.120 `spine-player.js` 加载、`spineboy-pro.json` 真实渲染（skins=1 / animations=11 / duration=1.000s / canvas=1 / webglLost=False）、50 次重建 2079ms 无上下文丢失、暂停 seek 精确、hide/restore、二进制 `.skel` 全通过。
+  2. **构建**：`dotnet build KeyMacro/KeyMacro.csproj` **0 警告 0 错误**（收尾复核再次通过）。`KeyMacro.csproj` 新增 `DropWebView2WpfAssembly` Target 消除 NuGet 引入 WPF 程序集导致的 `MSB3277`。
+  3. **改动范围**：`git status` 核对，仅 `MainForm.cs` / `BatchCliWindow.cs` / `UiTheme.cs` / `KeyMacro.csproj` 4 个既有文件 + 5 个新增 `.cs` + `assets/spine-player/` 2 个嵌入资源 + 文档；`ConfigService.cs` / `config.json` / `path_history.json` / INV-1~8 / 前 3 主分页与 `BatchCliWindow` 3 子页零改动。
+  4. **产品端到端 harness**：`verification/harness-log.txt` 归档**最终一次完整运行并 PASS**（`=== PRODUCT HARNESS RESULT: PASS ===`），真实 `MainForm` 切到 index 3、扫描 2 组官方素材、依次点击 `.json` / `.skel` 两次加载均成功，`pill=✅ 就绪 / anims=11 / skins=1`、时间码与覆盖层状态正确；施工期另连续执行 4 次回归均通过（前 3 次为控制台输出，未单独落盘日志，故不宣称「4 份日志」）；`product-HarnessProgram.cs.txt` 为 harness 源码归档。
+  5. **实机截图 3 张**（真实 WinForms，非 HTML 设计稿）：`runtime-1-preview-tab.png`（4 主标签空态）、`runtime-2-preview-loaded.png`（Spineboy 渲染 + 皮肤/动画小列表回填）、`runtime-3-seamless-switch.png`（切到 `.skel` 仍正常）。
+  6. **只读复核**：扫描 / 解析 / 预览全程只读 `File.ReadAllBytes` / `File.ReadAllText`，未复制 / 改名 / 写回任何导出源文件；WebView2 userDataFolder 与设置只写 `%TEMP%` / `%APPDATA%\KeyMacro\`。测试数据（临时设置、BYO 测试资源、导出素材、`.workbuddy/tmp/spine-player-probe`）已清理。
+  7. **发布**：`dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true` 输出到 `bin/Release/publish-v3/KeyMacro.exe`（约 109.7 MB），静态核验 `WebView2Loader.dll` / `Microsoft.Web.WebView2.Core.dll` / `Microsoft.Web.WebView2.WinForms.dll` 与 `host.html` / `bridge.js` 均已打包；**未终止也未覆盖**用户正在运行的旧 `bin/Release/publish/KeyMacro.exe`。
+  8. **文档同步**：`AGENTS.md` / `CLAUDE.md` 新增 V3.0 版本历史并修正过时「双Tab」描述；`施工文档.md` 标记完成。
+- **未做且不得宣称通过**：用户真实工程导出文件（4.1 / 4.3 版本线、多 atlas、页图子路径、中文路径、超大 PNG）、未装 SDK 机器单文件 exe 冷启动、多皮肤视觉效果、长时间挂机切换，需用户真机确认；BYO 测试资源已清理，用户运行 V3.0 前须在「播放资源设置」自行指定本地 `spine-player.js/.css` 目录，否则预览无法加载。
+- git：按 AGENTS.md:261 询问用户是否提交，**未擅自提交**。
+
+### AUD-042 导出动画预览：内置 runtime 零配置 + Unity 复合后缀（V3.1）
+
+- **发现方式**：用户真机使用反馈（非自测）。原话：「不对，我发现两个问题，需要的runtime还需要手动指定？另外，我们二进制在导出的时候为了方便添加进unity，会在导出的文件后面额外添加后缀，例如*.skel.bytes，*.atlas.txt。因为这个原因，所以我们正常导出的文件在本项目中都无法选取。但是本项目本来目的就是为了方便检查导出文件，不可能因为这个项目而额外导出一份不能直接用于unity的文件」。
+- **处理状态**：**已完成**（2026-11-10）。版本 V3.0 → V3.1；AUD-041 的 D2 决策被推翻，但主分页 / 扫描 / 桥接 / 控制条主体架构零改动。
+- **问题 1 根因（不是症状）**：V3.0 把 Spine Runtimes License 的「每位使用者须持证 + 再分发须附许可与版权声明」**误读**为「不得打包 runtime」，据此设计 D2=BYO，把获取 runtime 的成本转嫁给用户。许可证原文 "provided that each user of the Products must obtain their own Spine Editor license and redistribution of the Products in any form must include this license and copyright notice" 实际**允许**集成进 Products 并再分发。症状：「播放资源设置」必填、未配置则预览完全无法加载。
+- **问题 2 根因（不是症状）**：`ExportPreviewScanner` 按单一扩展名只认 `.skel` / `.json` / `.atlas`，Unity 工作流给导出文件追加的 `.bytes` / `.txt` 复合后缀使主文件、atlas、页图全部落选。症状：文件选择过滤器也不含复合后缀，列表为空。
+- **修复清单**：
+  1. 内置 `@esotericsoftware/spine-player` **4.1.55 / 4.2.120 / 4.3.13** 三套 `spine-player.js` + `.css` 与 `LICENSE-Spine-Runtimes.txt`；`KeyMacro.csproj` 用 10 个显式 `LogicalName` 嵌入（glob 会因同名文件与带点目录名产生资源名歧义）。
+  2. `SpinePlayerHost` 按导出文件 `major.minor` 选内置版本线（默认 4.2）；`/player/*` 先查可选 BYO 覆盖、缺失回退嵌入资源；`ExportPreviewSettings.PlayerResourceRoot` 改为可选，`AvailableVersionLines` 从内置集合起步。
+  3. `ExportPreviewWindow`：文件过滤补 `*.skel.bytes` / `*.json.txt` / `*.json.bytes`；`OnShownAsync` 零配置初始化；「播放资源设置」→「高级设置（全部可选）」+「查看 runtime 许可」；**切文件时清空 `_lstSkins` / `_lstAnims` 选中项**。
+  4. `ExportPreviewScanner` 重写分类表（主文件 5 种、atlas 2 种、页图 3 种后缀）+ `LogicalStem` 配对 + `PageImageMap`；`ExportPreviewEntry` 增加规范化 `SkeletonUrlName` / `AtlasUrlName`；`SpinePlayerHost.LoadGroup` 以 `skeleton.skel` / `skeleton.json` / `atlas.atlas` 作 URL 名，真实路径经 `_fileMap` 映射。
+  5. `bridge.js` 跨版本配置字段兼容（`skeleton` / `atlas` + `jsonUrl` / `binaryUrl` / `atlasUrl`）；`success` 自动选附件最多的皮肤；首帧检测非有限 viewport 并 `setViewport(e0.animation)` 重算。
+  6. 修复 `SpinePlayerHost.Dispose` 事件解绑 typo（`OnWebRequested` → `OnResourceRequested`）。
+- **合规**：再分发附带 `LICENSE-Spine-Runtimes.txt`（2025-04-05 版 `Spine Runtimes License Agreement` 全文），应用内可查看；仍要求每位使用者各自持有 Spine Editor 许可证。
+- **只读红线**：扫描 / 解析 / 预览全程只读，**不要求用户额外导出一份非 Unity 文件**，不复制 / 不改名 / 不写回导出源文件。
+- **验证结果**：
+  1. `dotnet build KeyMacro/KeyMacro.csproj -c Release -r win-x64` → **0 警告 0 错误**。
+  2. `verification/unity-suffix-harness-log.txt` → `=== PRODUCT HARNESS RESULT: PASS ===`；静态检查覆盖 `.skel.bytes` / `.json.txt` / `.skel` / 用户真实 `G2.skel.bytes` 的逻辑基名、版本线、URL 名、atlas 与页图配对；4 个主文件全部「✅就绪」并可依次加载。
+  3. 4.1 真实工程内部诊断（`ExecuteScriptAsync` 读 `window.__eapPlayer`）：`curSkin:"1"`、`attachments=7`、`currentViewport` 与 `camera` 全为有限值、`glLost:false`、动画 `idle` 时长 1.00s；修复前为 `attachments=0` / `x=100000000` / NaN，即「状态就绪但画布空白」。
+  4. **人工视觉复核**：`verification/unity-5-real-41-loaded.png` / `unity-6-real-41-skin2.png` / `unity-7-real-41-skin3.png` 已逐张查看，画布出现完整可见角色，皮肤 `1`→`2` 切换后外壳由黄点变为红色尖刺，控制条摘要同步为「当前: 2 / idle」；另有 `unity-1~4` 覆盖列表态、`.skel.bytes` / `.json.txt` / 原生 `.skel` 加载。
+  5. 实机截图 7 张 `verification/unity-*.png`；harness 源码归档 `verification/unity-HarnessProgram.cs.txt`；首轮失败日志 `unity-suffix-first-run.log` 保留作为 4.1 字段不兼容的原始证据。
+  6. **发布**：重新 `dotnet publish` 到 `bin/Release/publish-v3.1/KeyMacro.exe`（111.5 MB，晚于全部修复）；静态扫描 10 项资源全部 OK（`host.html` / `bridge.js` / `LICENSE` / 4.1–4.3 runtime js / `spine-player.css` / `WebView2Loader.dll` / Core.dll / WinForms.dll）。先前同目录的过期 exe 已被覆盖；用户正在运行的旧 `bin/Release/publish/KeyMacro.exe` 未动。
+  7. 临时素材 `.workbuddy/tmp/spinepkg` / `unity-src` / `unity-preview-assets` 已清理，`git status` 仅剩预期改动；用户 `%APPDATA%\KeyMacro\export_preview_settings.json` 中已有的真实路径未被删除。
+- **有意保留**：`bridge.js` 的只读 `window.__eapPlayer` / `window.__eapCfg` 诊断接口（本地 WebView2 内部引用，供后续真机排查跨版本渲染问题，无远程入口、不写回文件）。
+- **未验证且不得宣称通过**：4.3 导出文件、多 atlas、页图子路径、中文路径、超大 PNG、未装 SDK 机器冷启动、长时间挂机切换、WebView2 Runtime 缺失提示、官方 Skeleton Viewer JAR 外部交叉验证。
+- git：按 AGENTS.md 询问用户是否提交，**未擅自提交**。
+
+---
+
+### AUD-043 预览交互与窗口布局修正（V3.2 · 已完成）
+
+- **发现方式**：用户真机使用反馈 6 项（非自测），证据 `docs/v3.2-preview-interaction/evidence-1-controlbar-clipped.png` / `evidence-2-virtualkey-min-size.png`；方案评审文档 `docs/v3.2-preview-interaction/方案文档.md`（用户选定「先出方案文档再定」，2026-11-11 下达「开始施工」）。
+- **处理状态**：**已完成**（2026-11-11）。版本 V3.1 → V3.2。改前备份 `backup/*.before`（6 个文件）。
+- **修复项（6/6 已落地）**：
+  1. ① PMA 控件改为「预乘(PMA) / 溢出(Bleed)」两个独立复选框（与导出面板同构、允许 4 态），新增 `ExportPreviewSettingsData.Bleed`（旧设置文件缺省 false）+ `PlayerLoadOptions.Bleed` 只读透传；切 Bleed 不重建 player；ToolTip 明示「Bleed 为导出期扩边、运行时与都不选等价」。**运行时仍只按 `premultipliedAlpha` 二态渲染，不得宣称三种渲染效果**。
+  2. ② 根因：`UiTheme.cs:108` 嵌入页 `MinimumSize=1040×680` 与主窗口最小 `1100×650` 不匹配，`Dock=Fill` 无法压到 MinimumSize 以下，底部 84px 控制条被裁。`EmbedPage` 增加 `clearMinimumSize` 参数仅预览页使用；`_btnReset`/`_btnSetup` 文案缩为 `归零`/`Setup` 且 `AutoSize=false`，`row1` 去掉速度/Mix 文字标签（改 ToolTip）、当前摘要移到顶部信息条。
+  3. ③ 三套内置 runtime 中 `new CameraController` 均为 **0 次**（`interactive` 只管骨骼拖拽），`drawFrame()` 又每帧按 `currentViewport` 重算 `camera.zoom/position`；故在 `bridge.js` 维护 `view={zoom,panX,panY}` + `baseViewport`，包装 `drawFrame` 绘制前幂等 `applyView()` 写回 `currentViewport`，canvas 挂 `wheel`（鼠标锚点缩放、限 0.1~10）与 `pointerdown/move/up`（拖拽平移），新增 `resetView` 消息与画布右上角浮动「⟲ 复位视图」。
+  4. ④ `SpinePlayer.setAnimation()` 首行 `setViewport(animation)` 每次按动画包围盒重建 `currentViewport`；`installView()` 在 `success` 阶段包装 `setViewport`，首次与 NaN viewport 放行（**保留 AUD-042 的 4.1 空白画布修复能力**），之后只 `return animation` 并清 `previousViewport`。
+  5. ⑤ `bridge.js` 背景由硬编码 `1E1E20` 改为 `setBackground` 消息直接 `player.bg/bgFullscreen.setFromString(hex)` + 同步 `config`，不重建 player、不中断播放；浮动「◐ 深灰/纯黑/中灰/纯白」4 档循环按钮，`BackgroundIndex` 持久化，`loadGroup` 带上当前 hex。
+  6. ⑥ `VirtualKeyWindow.cs:626/:882` 硬下限 160/100 与内容无关、`:867` AutoGrid 列数依赖 ClientSize 宽高比；新增 `ResolveColumns()` / `ComputeContentSize()` 按行数×按钮高 + gap + padding + ExtraGap + 非客户区动态算下限，拖拽期间沿用 MouseDown 列数防抖动，右键新增「贴合内容」，保留 120×60 绝对下限。
+- **根因 / 症状区分**：详见方案文档 §2 逐项小节；本台账只记录根因结论，不把「按钮文字换行」「留白」当根因。
+- **范围约束（已遵守）**：三套内置官方 runtime、`host.html`、`LICENSE-Spine-Runtimes.txt`、`KeyMacro.csproj`、`ExportPreviewScanner.cs`、`ExportPreviewEntry.cs`、`BatchCliWindow.cs` 零改动；`config.json` / `path_history.json` 结构零改动；扫描/解析/预览全程只读导出源文件。
+- **施工期根因修正（与方案评审的差异）**：③ 评审前曾判断「可借用官方相机控制器」，实测为 0 次实例化后更正为全自研，且视图必须落在 `currentViewport` 而非直接改 camera；④ 包装 `setViewport` 必须对首次/NaN 放行，否则破坏 AUD-042 的 4.1 修复；① 明确 Bleed 只作导出设置核对记录，不参与 `premultipliedAlpha` 计算。
+- **验证结果（2026-11-11）**：
+  - `dotnet build -c Release -r win-x64`：**0 警告 0 错误**；Debug 构建亦 0 警告 0 错误。
+  - 端到端 harness `docs/v3.2-preview-interaction/verification/v32-harness-log.txt`：**57 PASS / 0 FAIL**（源码归档 `v32-HarnessProgram.cs.txt`），覆盖 **4.1.24 / 4.2.36 / 4.3.06 三条版本线的用户真实工程**，补齐 V3.1 未验证的 4.3。
+  - 关键数值断言：切动画前后 `currentViewport` 与 `camera.zoom` 完全一致；wheel → zoom 1.433、viewport 宽 120.82 → 84.29；拖拽 pan 非零；`resetView` 归零并回到基准 viewport；四档背景 `player.bg` 与 `config` 同步且第 5 次点击循环回起始档；Bleed 切换不重建、reload 后透传；**根因级 ②** 最小窗口下嵌入页 `Height=567 == TabPage.ClientSize.Height=567`（不再被 680 撑大）、控制条按钮底边落在客户区内；**⑥** `ComputeContentSize` 1/2/4 列 = 120×263 / 136×159 / 240×107，行数越多最小高度越大、列数越多最小宽度越大，120×60 绝对下限生效。
+  - 9 张实机截图 `verification/v32-*.png` 经**人工视觉复核**：滚轮放大后角色明显变大、纯白背景档清晰、4.1/4.3 角色正常、默认与最小窗口控制条完整。
+  - 用户 `%APPDATA%\KeyMacro\export_preview_settings.json` 运行前备份、结束恢复，harness 新增的 `Bleed` / `BackgroundIndex` 两字段已清除（日志末行 `settings file restored: True`）。
+- **发布产物**：`bin/Release/publish-v3.2/KeyMacro.exe`（111.6 MB / 116,977,528 B），静态核验 **14 项全 OK**（10 项内置 runtime 资源 + `__eapViewState` / `setBackground` / `resetView` / `ComputeContentSize`）；**未覆盖用户正在运行的旧 exe**。
+- **施工期范围外发现（未修，待用户决定）**：本机若干 4.2 导出 `.json` 的 `skeleton.spine` 为 `"4.1-from-4.2.36"` 这类非标准版本串，现有 `ExportPreviewScanner` 判「❌数据无效」。不在本次 6 项范围内，**未擅自扩大修改**；已改用版本串标准的 4.2.36 二进制 `.skel` 完成跨版本验证。若需支持请另开 AUD。
+- **未验证且不得宣称通过**：非标准版本串兼容、4.3 工程 `attachments=0` 统计口径但视觉正常的原因、虚拟按键窗口有真实按钮时拖拽贴合的手感、未装 .NET SDK 机器冷启动、多 atlas / 页图子路径 / 超大 PNG、长时间挂机切换、WebView2 Runtime 缺失提示、官方 Skeleton Viewer JAR 外部交叉验证。
+
+---
+
+### AUD-044 批量导出子页「导出选中 / 导出选中单纹理图」（V3.3 · 已完成）
+
+- **发现方式**：用户新功能需求（2026-11-11），非缺陷。原话：「将最下面的导出和单纹理图按钮分别改名为『导出全部』『导出全部单纹理图』然后再增加两个按钮『导出选中』『导出选中单纹理图』，这两个功能是针对对列表中进行选中的文件（不管单个还是复数），执行导出或者导出单纹理图命令。先制定文档，在制定渲染图我看后确认再决定是否施工」。
+- **方案先行**：`docs/batch-export-selection/设计文档.md`（11 节，逐条代码事实 F1~F18 / 根因 R1~R10 / 施工步 S1~S10 / 验收 AC-01~17 / 决策 D1~D8）、`preview.html` + 5 张状态 PNG（`normal` / `selected` / `running` / `noselection` / `compact`）。用户 2026-11-11 下达「开始施工」。
+- **处理状态**：**已完成**（2026-11-11）。版本 V3.2 → V3.3。改前备份 `docs/batch-export-selection/backup/*.before`（7 个文件）。用户未单独指定 D1~D8，按设计文档 §10 **推荐值**执行：D1=A（沿用 `SelectedItems` 高亮多选，补 `MultiSelect=true` / `HideSelection=false`）、D2=A（抽单一执行核心）、D3=A（加「已选 N / 共 M」计数）、D4=A（全部/选中/其他顺序 + 窄窗口自动换行）、D5=A（只互锁 4 个导出类按钮）、D6=A（无选中弹提示不启动 CLI）、D7=A（按列表显示顺序）、D8=V3.3。
+- **本次目标（6 项需求）**：① `导出` → `导出全部`（行为不变）；② `单纹理图` → `导出全部单纹理图`（行为不变）；③ 新增 `导出选中`；④ 新增 `导出选中单纹理图`；③④ 对 1 / N / 全选均正确。
+- **必须一并根治的既有根因（否则改名/新按钮会踩坑）**：
+  1. **R1**：`:1559` / `:1626` 的 `finally` 把旧文案硬编码写回，改名只改初始化处会跑一次就变回「导出」/「单纹理图」→ 4 个文案常量化，初始化 / 进行中 / 恢复统一。
+  2. **R2**：`BeginCliOperation()`(`:229`) 不禁用其他按钮，4 入口共用 `_cliCts` / 进度条 / 输出目录（`MoveDirectoryContents` 同名覆盖）→ 新增 `SetCliActionsEnabled(bool)` 统一互锁；`btnVerifyExport`(`:1383`) 从局部变量提升为字段；**施工期补充发现** `ExecuteBatchGenerateConfig`(`:1963/:2026`) 原只禁用 2 个按钮，需一并纳入互锁，否则批量生成期间可并发点「导出选中」。
+  3. **R3**：`ListView.SelectedItems` 是实时视图，循环未快照 → `GetSelectedExportEntries()` 启动前 `ToList()` 快照。
+  4. **R4 / R5**：`HideSelection` 默认 true 导致失焦高亮消失但选中集合仍在；`MultiSelect` 依赖默认值 → 显式设置 + 可见计数。
+  5. **R6**：复制第二份 90 行循环会形成双真值源 → 抽 `ExecuteExportCoreAsync(IReadOnlyList<SpineCliEntry> targets, bool pack)`，4 入口只准备集合。
+  6. **R9**：`ValidateExportReady()` 的「请先扫描并选择文件」面向空列表，无选中时语义不对 → 新增 `ValidateSelectionReady()`，且只弹一次窗。
+- **施工期技术补充（设计文档未覆盖，已核对代码）**：`UiTheme.Apply(Button)` 按 `ButtonKind(button.Text)` 选 `BackgroundImage` 并把 `BackColor` 置透明；文案含「导出」即归为 `primary`，因此改名后 `_btnPack` 的图分类由 `neutral` 变 `primary`。按零改动边界**不改 `UiTheme.cs`**，此副作用如实记录；4 个按钮的「实心/描边」区分改用主题应用后设置 `FlatAppearance.BorderColor/BorderSize` 实现（hover 的 `SetButtonImage` 不覆盖这两个属性）。
+- **范围约束**：产品代码仅改 `KeyMacro/Forms/BatchCliWindow.cs` + `MainForm.cs` 版本号一行；`SpineCliService.cs` / 各 Model / `UiTheme.cs` / `VirtualKeyWindow.cs` / `ExportPreviewWindow.cs` / `bridge.js` / `KeyMacro.csproj` / `config.json` / `path_history.json` / `export_presets.json` 结构零改动；导出预设、扫描、状态列、「验证导出结果」跳转、第 4 主分页零改动；只读红线不变。
+- **施工期根因修正（设计文档未预测到，均由实测 harness 布局诊断定位）**：
+  1. **R7 真正根因（布局链撑破）**：设计文档 §6.2 预测「最小窗口按钮自动换行，由行 5 `Percent 100` 弹性吸收，不会裁切」，**实测证伪**。日志显示 1040×680 下 `exportPanel` 仍为 1398px 宽、按钮行屏幕 Y=780 超出客户区底部 813、计数 Label Y=876 完全在窗口外。根因是**三级列宽均为默认 AutoSize**：最外层 `layout` 列 0 未设 `ColumnStyle` → `DarkTabControl` 1434 → `TabPage` 1426 → `exportContainer` 1406 → `exportPanel` 1398，全部按「6 按钮单行 + 340px 预设列」的 PreferredSize 撑破；且 `actionPanel.AutoSize=true` 又按单行把自身撑到 969px，即使父 cell 只有约 566px 也不换行。另外行 1（文件列表）是 `Absolute 250`，行 5 的 Percent 在按钮行**之后**，压缩它无法让按钮行上移。修复共 5 处：① `layout` ② `exportContainer` 显式 `ColumnStyles.Clear()+Percent 100`（注意必须 Clear，直接 Add 会变成第 2 项而无效）；③ `actionPanel.AutoSize=false` 让 `WrapContents=true` 真正生效；④ 行 1 改 `Percent 100`、行 5 改 `AutoSize`；⑤ 源目录 / 输出目录两行由 `FlowLayoutPanel + 固定 620px 输入框` 改为 `TableLayoutPanel`（输入框列 Percent 100 + `MinimumSize 120`），消除窄窗口换行，把高度还给文件列表。最终 `exportPanel` 982 ≤ 客户区 1024，6 按钮分 2 行全部在客户区内，计数可见，列表约 72px（表头 + 2 行，可滚动，窗口拉大后由 Percent 行恢复）。
+  2. **D3 计数刷新盲点**：`ListView.Items.Add` 不触发 `SelectedIndexChanged`，只靠事件订阅会让「共 M」停在旧值。改为在 `RefreshExportStatus()` 末尾统一 `UpdateSelectionCount()`（扫描 / 激活预设 / 切配置名 / 批量生成都会走），并在 `GetSelectedExportEntries()` 开头兜底刷新；删掉两处重建点的重复显式调用。
+  3. **UiTheme 按钮图分类副作用**：`UiTheme.Apply(Button)` 按 `ButtonKind(Text)` 选 `BackgroundImage` 且把 `BackColor` 置透明，含「导出」即归 `primary`；改名使 `_btnPack` 由 `neutral` 变 `primary`。按零改动边界不改 `UiTheme.cs`，如实记录；「实心 / 描边」的选中组区分改由主题应用后设置 `FlatAppearance.BorderColor/BorderSize`（hover 的 `SetButtonImage` 不覆盖这两个属性）。
+  4. **`ExecuteBatchGenerateConfig` 互锁补全**：原只禁用 `_btnExport` / `_btnPack` 两个按钮，新增两个选中入口后批量生成期间可并发触发导出，共用 `_cliCts` / 进度条 / 输出目录会互相覆盖。两处改为 `SetCliActionsEnabled(false/true)`，范围仍只限 4 个导出类按钮。
+  5. **与渲染图的差异（如实记录）**：`preview-*.png` 中的「全部 / 选中 / 其他」小分组标签与竖线**未在真实 UI 实现**——WinForms `FlowLayoutPanel` 换行时标签会与按钮分离（渲染图修版时已用 `.grp` 容器规避），保持 6 按钮按组顺序直排 + 描边区分，避免引入嵌套容器；橙色「改名 / 新增」徽标本就是设计标注，不出现。
+- **验证结果（2026-11-11）**：
+  - `dotnet build -c Debug -r win-x64` 与 `-c Release -r win-x64`：**均 0 警告 0 错误**；验收 harness 项目亦 0 警告 0 错误。
+  - 端到端 harness `docs/batch-export-selection/verification/v33-harness-log.txt`：**74 PASS / 0 FAIL**（源码归档 `v33-HarnessProgram.cs.txt`）。反射驱动真实 `BatchCliWindow` + 真实 `UiTheme`，覆盖：6 按钮文案与顺序、4 按钮互锁集合、D5 另 2 按钮保持可用、`MultiSelect/HideSelection/FullRowSelect/无 CheckBoxes`、选中 0/1/3/5/8 与全选等价、按显示顺序、快照冻结后改选不漂移、R1 文案常量恢复、`ValidateSelectionReady` 空/非空、AC-08 不建输出目录且不启动 CLI、核心运行中与 finally 的互锁 / 文案 / 取消按钮状态、AC-10 空列表、AC-17 根因级屏幕坐标断言。
+  - 5 个模态弹窗（提示 / 汇总 / 空列表等）由 harness 枚举本进程 `#32770` 对话框 + `WM_CLOSE` 自动关闭；期间完成「运行中」断言并截图。
+  - 4 张实机截图 `verification/v33-*.png` 经**人工视觉复核**：默认窗口 6 按钮单行、列表与预设列完整；1040×680 最小窗口 6 按钮 2 行无裁切、计数可见、列表可滚动；0 选中弹窗文案清晰且列表确无高亮；导出中 4 按钮置灰、触发按钮「导出中...」、取消CLI 可用、另 2 按钮保持可用。
+  - 用户 `%APPDATA%\KeyMacro\` 下 5 个配置/历史文件运行前备份、结束原样恢复（日志末行 `settings restored: True`）；harness 临时目录已清理。
+- **发布产物**：`bin/Release/publish-v3.3/KeyMacro.exe`（111.6 MB / 116,981,624 B），静态核验 **24 项全 OK**（V3.2 的 14 项内置 runtime / WebView2 / 诊断接口全部保留 + V3.3 标题 / 4 个新按钮文案 / `ExecuteExportCoreAsync` / `SetCliActionsEnabled` / `GetSelectedExportEntries` / 计数与空选中提示文案）；**未覆盖用户正在运行的旧 exe**。
+- **未验证且不得宣称通过**：真实 Spine CLI 导出 / 打包成功（本机 Spine Launcher 4.1.10，harness 用空 targets 验证控制流，不宣称真机 CLI 产物正确）、4.3+ 环境「批量生成导出配置」回归、真机 Ctrl/Shift 鼠标多选手感、导出中改选的真机时序、扫描 / 激活预设后计数在真机的刷新观感、无 SDK 机器冷启动、长时间挂机切换。
+- git：按 `AGENTS.md` 询问用户是否提交，**未擅自提交**。
+
+---
 
 ## 后续维护规则
 

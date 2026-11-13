@@ -1,0 +1,13 @@
+=== PRODUCT HARNESS START ===
+PASS main tabs=4 [快捷键 | 批量重命名/spine解包整理 | 批量复制/合成/导出 | 导出动画预览]
+previewPage=ExportPreviewWindow
+list items=2 countLabel=共 2 项 · 就绪 2 · 异常 0　｜　点击行即无缝切换
+  row: spineboy-pro.json | spineboy-pro.json | JSON | 4.2.22 | atlas 1 · png 1 | ✅就绪 | SpinePreviewAssets
+  row: spineboy-pro.skel | spineboy-pro.skel | 二进制 | 4.2.22 | atlas 1 · png 1 | ✅就绪 | SpinePreviewAssets
+screenshot runtime-1-preview-tab.png
+after click #0: pill=✅ 就绪 anims=11 skins=1 animTitle=动画 (11) skinTitle=皮肤 (1) time=00:00.25 / 00:01.67 overlayVisible=False overlayTitle=尚未选择文件 overlayBody=从左侧「选择文件」或「选择文件夹」导入导出产物（.skel / .json + .atlas + 页图），点击列表项即可预览。
+应用不内置 Spine Web Player，请通过「播放资源设置」指定本地资源目录。
+screenshot runtime-2-preview-loaded.png
+after switch #1: pill=✅ 就绪 anims=11 time=00:00.60 / 00:01.67
+screenshot runtime-3-seamless-switch.png
+=== PRODUCT HARNESS RESULT: PASS ===

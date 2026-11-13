@@ -1,0 +1,150 @@
+available version lines: 4.1, 4.2, 4.3
+embedded resource: KeyMacro.SpinePlayer.host.html
+embedded resource: KeyMacro.SpinePlayer.bridge.js
+embedded resource: KeyMacro.SpinePlayer.Runtime.41.spine-player.js
+embedded resource: KeyMacro.SpinePlayer.Runtime.42.spine-player.js
+embedded resource: KeyMacro.SpinePlayer.Runtime.43.spine-player.js
+embedded resource: KeyMacro.SpinePlayer.LICENSE.txt
+embedded resource: KeyMacro.SpinePlayer.Runtime.41.spine-player.css
+embedded resource: KeyMacro.SpinePlayer.Runtime.42.spine-player.css
+embedded resource: KeyMacro.SpinePlayer.Runtime.43.spine-player.css
+SCAN spineboy-pro.skel.bytes -> status=Ready format=二进制 ver=4.2.22 line=4.2 binary=True stem=spineboy-pro url=skeleton.skel atlas=spineboy.atlas.txt pages=1 missing=0
+SCAN spineboy-pro.json.txt -> status=Ready format=JSON ver=4.2.22 line=4.2 binary=False stem=spineboy-pro url=skeleton.json atlas=spineboy.atlas.txt pages=1 missing=0
+SCAN spineboy-pro.skel -> status=Ready format=二进制 ver=4.2.22 line=4.2 binary=True stem=spineboy-pro url=skeleton.skel atlas=spineboy.atlas pages=1 missing=0
+static checks: PASS
+=== PRODUCT HARNESS (Unity suffix + built-in runtime / zero config) START ===
+PASS main tabs=4 [快捷键 | 批量重命名/spine解包整理 | 批量复制/合成/导出 | 导出动画预览]
+previewPage=ExportPreviewWindow
+list items=33
+  row: spineboy-pro.skel | spineboy-pro.skel | 二进制 | 4.2.22 | atlas 1 · png 1 | ✅就绪 | native
+  row: spineboy-pro.skel.bytes | spineboy-pro.skel.bytes | 二进制 | 4.2.22 | atlas 1 · png 1 | ✅就绪 | unity-binary
+  row: spineboy-pro.json.txt | spineboy-pro.json.txt | JSON | 4.2.22 | atlas 1 · png 1 | ✅就绪 | unity-json
+  row: G10.skel.bytes | G10.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+  row: G12.skel.bytes | G12.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+  row: G13.skel.bytes | G13.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+  row: G15.skel.bytes | G15.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+  row: G16.skel.bytes | G16.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+  row: G17.skel.bytes | G17.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+  row: G18.skel.bytes | G18.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+  row: G19.skel.bytes | G19.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+  row: G2.skel.bytes | G2.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+  row: G20.skel.bytes | G20.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+  row: G21.skel.bytes | G21.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+  row: G22.skel.bytes | G22.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+  row: G23.skel.bytes | G23.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+  row: G24.skel.bytes | G24.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+  row: G25.skel.bytes | G25.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+  row: G26.skel.bytes | G26.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+  row: G27.skel.bytes | G27.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+  row: G28.skel.bytes | G28.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+  row: G29.skel.bytes | G29.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+  row: G30.skel.bytes | G30.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+  row: G31.skel.bytes | G31.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+  row: G32.skel.bytes | G32.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+  row: G33.skel.bytes | G33.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+  row: G34.skel.bytes | G34.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+  row: G4.skel.bytes | G4.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+  row: G5.skel.bytes | G5.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+  row: G7.skel.bytes | G7.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+  row: G8.skel.bytes | G8.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+  row: G9.skel.bytes | G9.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+  row: tx-sjdg.skel.bytes | tx-sjdg.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+FAIL expected exactly 3 main files
+screenshot unity-1-list.png
+LOAD #0 spineboy-pro.skel: pill=✅ 就绪 anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=False overlayTitle=尚未选择文件
+screenshot unity-2-binary-loaded.png
+LOAD #1 spineboy-pro.skel.bytes: pill=✅ 就绪 anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=False overlayTitle=尚未选择文件
+screenshot unity-3-json-loaded.png
+LOAD #2 spineboy-pro.json.txt: pill=✅ 就绪 anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=False overlayTitle=尚未选择文件
+screenshot unity-4-native-loaded.png
+LOAD #3 G10.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for G10.skel.bytes
+screenshot unity-4-native-loaded.png
+LOAD #4 G12.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for G12.skel.bytes
+screenshot unity-4-native-loaded.png
+LOAD #5 G13.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for G13.skel.bytes
+screenshot unity-4-native-loaded.png
+LOAD #6 G15.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for G15.skel.bytes
+screenshot unity-4-native-loaded.png
+LOAD #7 G16.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for G16.skel.bytes
+screenshot unity-4-native-loaded.png
+LOAD #8 G17.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for G17.skel.bytes
+screenshot unity-4-native-loaded.png
+LOAD #9 G18.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for G18.skel.bytes
+screenshot unity-4-native-loaded.png
+LOAD #10 G19.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for G19.skel.bytes
+screenshot unity-4-native-loaded.png
+LOAD #11 G2.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for G2.skel.bytes
+screenshot unity-4-native-loaded.png
+LOAD #12 G20.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for G20.skel.bytes
+screenshot unity-4-native-loaded.png
+LOAD #13 G21.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for G21.skel.bytes
+screenshot unity-4-native-loaded.png
+LOAD #14 G22.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for G22.skel.bytes
+screenshot unity-4-native-loaded.png
+LOAD #15 G23.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for G23.skel.bytes
+screenshot unity-4-native-loaded.png
+LOAD #16 G24.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for G24.skel.bytes
+screenshot unity-4-native-loaded.png
+LOAD #17 G25.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for G25.skel.bytes
+screenshot unity-4-native-loaded.png
+LOAD #18 G26.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for G26.skel.bytes
+screenshot unity-4-native-loaded.png
+LOAD #19 G27.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for G27.skel.bytes
+screenshot unity-4-native-loaded.png
+LOAD #20 G28.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for G28.skel.bytes
+screenshot unity-4-native-loaded.png
+LOAD #21 G29.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for G29.skel.bytes
+screenshot unity-4-native-loaded.png
+LOAD #22 G30.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for G30.skel.bytes
+screenshot unity-4-native-loaded.png
+LOAD #23 G31.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for G31.skel.bytes
+screenshot unity-4-native-loaded.png
+LOAD #24 G32.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for G32.skel.bytes
+screenshot unity-4-native-loaded.png
+LOAD #25 G33.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for G33.skel.bytes
+screenshot unity-4-native-loaded.png
+LOAD #26 G34.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for G34.skel.bytes
+screenshot unity-4-native-loaded.png
+LOAD #27 G4.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for G4.skel.bytes
+screenshot unity-4-native-loaded.png
+LOAD #28 G5.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for G5.skel.bytes
+screenshot unity-4-native-loaded.png
+LOAD #29 G7.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for G7.skel.bytes
+screenshot unity-4-native-loaded.png
+LOAD #30 G8.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for G8.skel.bytes
+screenshot unity-4-native-loaded.png
+LOAD #31 G9.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for G9.skel.bytes
+screenshot unity-4-native-loaded.png
+LOAD #32 tx-sjdg.skel.bytes: pill=⏳ 加载中… anims=11 skins=1 time=00:00.00 / 00:01.67 overlay=True overlayTitle=加载失败
+FAIL player did not reach ready for tx-sjdg.skel.bytes
+screenshot unity-4-native-loaded.png
+=== PRODUCT HARNESS RESULT: FAIL ===

@@ -1,0 +1,1218 @@
+using System.Diagnostics;
+using KeyMacro.Models;
+using KeyMacro.Services;
+
+namespace KeyMacro.Forms;
+
+/// <summary>
+/// 第 4 个独立主分页「导出动画预览」。TopLevel=false 嵌入 MainForm._mainTabs。
+/// 全程只读导出源文件；内置 4.1 / 4.2 / 4.3 三套 Spine Web Player，按导出版本自动选择，
+/// 用户无需配置；「高级设置」中的 BYO 目录仅作可选覆盖。
+/// 支持 Spine 原生导出与 Unity 附加后缀导出（.skel.bytes / .json.txt / .atlas.txt）。
+/// </summary>
+public sealed class ExportPreviewWindow : Form
+{
+    private readonly ExportPreviewSettingsData _settings = ExportPreviewSettings.Load();
+    private readonly List<ExportPreviewEntry> _entries = [];
+    private readonly List<string> _roots = [];
+    private readonly List<string> _explicitFiles = [];
+    private CancellationTokenSource? _scanCts;
+    private SpinePlayerHost? _host;
+    private ExportPreviewEntry? _current;
+    private System.Windows.Forms.Timer? _filterTimer;
+    private bool _suppress;
+    private bool _dragging;
+    private bool _playing;
+    private bool _debugOn;
+    private double _duration;
+    private bool _hostReady;
+
+    // 左列
+    private readonly Button _btnPickFiles = new(), _btnPickFolders = new(), _btnRefresh = new(),
+        _btnClear = new(), _btnSettings = new(), _btnViewer = new(), _btnCancel = new();
+    private readonly CheckBox _chkSubfolders = new();
+    private readonly TextBox _txtFilter = new();
+    private readonly ListView _listFiles = new();
+    private readonly ListBox _lstSkins = new(), _lstAnims = new();
+    private readonly Label _lblCount = new(), _lblStatus = new(), _lblSkinTitle = new(), _lblAnimTitle = new();
+    private readonly ProgressBar _progress = new();
+
+    // 右列
+    private readonly Label _lblInfo = new(), _lblVersion = new(), _lblCompanion = new(), _lblStatePill = new();
+    private readonly Panel _canvasHost = new(), _overlay = new(), _viewTools = new();
+    private readonly Label _lblOverlayTitle = new(), _lblOverlayBody = new();
+    private readonly Button _btnOverlaySettings = new();
+    private readonly Button _btnPlay = new(), _btnReset = new(), _btnSetup = new(), _btnDebug = new();
+    private readonly Button _btnResetView = new(), _btnBackground = new();
+    private readonly CheckBox _chkPma = new(), _chkBleed = new(), _chkLoop = new();
+    private readonly ComboBox _cmbSpeed = new(), _cmbMix = new();
+    private readonly TrackBar _track = new();
+    private readonly Label _lblTime = new(), _lblCurrent = new();
+    private readonly ToolTip _tip = new();
+    private int _bgIndex;
+
+    /// <summary>AUD-043 ⑤：画布背景四档，6 位 hex（SpinePlayer.Color.setFromString 格式）</summary>
+    private static readonly (string Name, string Hex)[] Backgrounds =
+    [
+        ("深灰", "1E1E20"), ("纯黑", "000000"), ("中灰", "808080"), ("纯白", "FFFFFF")
+    ];
+
+    public ExportPreviewWindow()
+    {
+        Text = "导出动画预览";
+        BackColor = UiTheme.App;
+        _bgIndex = Math.Clamp(_settings.BackgroundIndex, 0, Backgrounds.Length - 1);
+        BuildUi();
+        UiTheme.Apply(this, UiWindowProfile.ExportPreview);
+        WireEvents();
+        Shown += async (_, _) => await OnShownAsync();
+        VisibleChanged += (_, _) => { if (!_suppress) _host?.SetActive(Visible); };
+    }
+
+    // ────────────────────────────── UI ──────────────────────────────
+
+    private void BuildUi()
+    {
+        var left = new Panel
+        {
+            Dock = DockStyle.Left,
+            Width = 470,
+            Padding = new Padding(10, 8, 6, 8),
+            BackColor = UiTheme.Workspace
+        };
+        var right = new Panel
+        {
+            Dock = DockStyle.Fill,
+            Padding = new Padding(6, 8, 10, 8),
+            BackColor = UiTheme.App
+        };
+        Controls.Add(right);
+        Controls.Add(left);
+
+        left.Controls.Add(BuildLeftColumn());
+        right.Controls.Add(BuildRightColumn());
+    }
+
+    private static Button MakeButton(string text, int width = 88)
+    {
+        return new Button
+        {
+            Text = text,
+            Size = new Size(width, 26),
+            FlatStyle = FlatStyle.Flat,
+            BackColor = UiTheme.PanelAlt,
+            ForeColor = UiTheme.Text
+        };
+    }
+
+    private Control BuildLeftColumn()
+    {
+        var grid = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 8,
+            BackColor = UiTheme.Workspace
+        };
+        grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));  // 0 选源工具
+        grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));  // 1 选项
+        grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));  // 2 过滤
+        grid.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // 3 文件列表
+        grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));  // 4 统计
+        grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 176)); // 5 皮肤/动画小列表
+        grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));  // 6 状态条
+        grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));  // 7 底部按钮
+
+        // 0 工具行
+        var tools = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, AutoSize = false };
+        _btnPickFiles.Text = "选择文件"; _btnPickFolders.Text = "选择文件夹";
+        _btnRefresh.Text = "刷新"; _btnClear.Text = "清空"; _btnSettings.Text = "高级设置";
+        foreach (var b in new[] { _btnPickFiles, _btnPickFolders, _btnRefresh, _btnClear, _btnSettings })
+        {
+            b.Size = new Size(b == _btnSettings ? 108 : (b == _btnPickFiles || b == _btnPickFolders ? 96 : 60), 26);
+            b.FlatStyle = FlatStyle.Flat;
+            b.BackColor = UiTheme.PanelAlt;
+            b.ForeColor = UiTheme.Text;
+            tools.Controls.Add(b);
+        }
+        grid.Controls.Add(tools, 0, 0);
+
+        // 1 选项行
+        var options = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false };
+        _chkSubfolders.Text = "包含子文件夹";
+        _chkSubfolders.AutoSize = true;
+        _chkSubfolders.Checked = _settings.IncludeSubfolders;
+        _chkSubfolders.ForeColor = UiTheme.Text;
+        options.Controls.Add(_chkSubfolders);
+        var lblResource = new Label
+        {
+            Text = "  ·  版本线按导出数据自动匹配",
+            AutoSize = true,
+            ForeColor = UiTheme.Muted,
+            Padding = new Padding(0, 4, 0, 0)
+        };
+        options.Controls.Add(lblResource);
+        grid.Controls.Add(options, 0, 1);
+
+        // 2 过滤行
+        var filterPanel = new Panel { Dock = DockStyle.Fill };
+        var lblFilter = new Label
+        {
+            Text = "过滤",
+            AutoSize = true,
+            ForeColor = UiTheme.Muted,
+            Location = new Point(0, 6)
+        };
+        _txtFilter.Dock = DockStyle.Fill;
+        _txtFilter.PlaceholderText = "文件名包含…（仅过滤显示，不重新扫描）";
+        _txtFilter.Text = _settings.FilterText;
+        filterPanel.Controls.Add(_txtFilter);
+        filterPanel.Controls.Add(lblFilter);
+        _txtFilter.BringToFront();
+        filterPanel.Padding = new Padding(38, 2, 0, 2);
+        grid.Controls.Add(filterPanel, 0, 2);
+
+        // 3 文件列表
+        _listFiles.Dock = DockStyle.Fill;
+        _listFiles.View = View.Details;
+        _listFiles.FullRowSelect = true;
+        _listFiles.MultiSelect = false;
+        _listFiles.HideSelection = false;
+        _listFiles.ShowItemToolTips = true;
+        _listFiles.Columns.AddRange(
+        [
+            new ColumnHeader { Text = "主文件", Width = 120 },
+            new ColumnHeader { Text = "格式", Width = 48 },
+            new ColumnHeader { Text = "版本", Width = 56 },
+            new ColumnHeader { Text = "配套", Width = 76 },
+            new ColumnHeader { Text = "状态", Width = 72 },
+            new ColumnHeader { Text = "所在目录", Width = 40 }
+        ]);
+        grid.Controls.Add(_listFiles, 0, 3);
+
+        // 4 统计
+        _lblCount.Dock = DockStyle.Fill;
+        _lblCount.ForeColor = UiTheme.Muted;
+        _lblCount.TextAlign = ContentAlignment.MiddleLeft;
+        _lblCount.Text = "共 0 项 · 尚未选择文件";
+        grid.Controls.Add(_lblCount, 0, 4);
+
+        // 5 皮肤 / 动画两个并排小列表
+        var meta = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1 };
+        meta.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        meta.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        meta.Controls.Add(BuildMetaCard("皮肤", _lstSkins, _lblSkinTitle), 0, 0);
+        meta.Controls.Add(BuildMetaCard("动画", _lstAnims, _lblAnimTitle), 1, 0);
+        grid.Controls.Add(meta, 0, 5);
+
+        // 6 状态条
+        var statusPanel = new Panel { Dock = DockStyle.Fill };
+        _lblStatus.Text = "尚未扫描";
+        _lblStatus.AutoSize = true;
+        _lblStatus.ForeColor = UiTheme.Muted;
+        _lblStatus.Location = new Point(0, 7);
+        _progress.Size = new Size(90, 14);
+        _progress.Anchor = AnchorStyles.Right;
+        _progress.Location = new Point(280, 6);
+        _btnCancel.Text = "取消";
+        _btnCancel.Size = new Size(54, 22);
+        _btnCancel.FlatStyle = FlatStyle.Flat;
+        _btnCancel.Anchor = AnchorStyles.Right;
+        _btnCancel.Location = new Point(378, 3);
+        _btnCancel.Enabled = false;
+        statusPanel.Controls.AddRange([_lblStatus, _progress, _btnCancel]);
+        statusPanel.Resize += (_, _) =>
+        {
+            _btnCancel.Left = statusPanel.Width - 58;
+            _progress.Left = _btnCancel.Left - 100;
+            _progress.Width = 90;
+        };
+        grid.Controls.Add(statusPanel, 0, 6);
+
+        // 7 底部按钮
+        _btnViewer.Dock = DockStyle.Fill;
+        _btnViewer.Text = "用官方 Skeleton Viewer 打开（交叉验证）";
+        _btnViewer.FlatStyle = FlatStyle.Flat;
+        _btnViewer.BackColor = UiTheme.PanelAlt;
+        _btnViewer.ForeColor = UiTheme.Text;
+        _btnViewer.Margin = new Padding(0, 6, 0, 0);
+        grid.Controls.Add(_btnViewer, 0, 7);
+
+        return grid;
+    }
+
+    private static Control BuildMetaCard(string title, ListBox list, Label titleLabel)
+    {
+        var card = new Panel { Dock = DockStyle.Fill, Margin = new Padding(0, 0, 4, 4), BackColor = UiTheme.List };
+        titleLabel.Dock = DockStyle.Top;
+        titleLabel.Height = 24;
+        titleLabel.Text = title + " (—)";
+        titleLabel.ForeColor = UiTheme.Cyan;
+        titleLabel.TextAlign = ContentAlignment.MiddleLeft;
+        titleLabel.Padding = new Padding(6, 0, 0, 0);
+        list.Dock = DockStyle.Fill;
+        list.BorderStyle = BorderStyle.None;
+        list.BackColor = UiTheme.List;
+        list.ForeColor = UiTheme.Text;
+        list.Enabled = false;
+        card.Controls.Add(list);
+        card.Controls.Add(titleLabel);
+        return card;
+    }
+
+    private Control BuildRightColumn()
+    {
+        var grid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3 };
+        grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+        grid.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 84));
+
+        // 信息条
+        var info = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, BackColor = UiTheme.Panel };
+        _lblInfo.Text = "—"; _lblInfo.AutoSize = true; _lblInfo.ForeColor = UiTheme.Text;
+        _lblInfo.Font = new Font(Font, FontStyle.Bold);
+        _lblVersion.Text = "版本 —"; _lblCompanion.Text = "配套 —"; _lblStatePill.Text = "未加载";
+        // AUD-043 ②：当前摘要从控制条 row1 移到顶部信息条，为溢出的复选框腾出宽度。
+        foreach (var l in new[] { _lblVersion, _lblCompanion, _lblStatePill, _lblCurrent })
+        {
+            l.AutoSize = true;
+            l.ForeColor = UiTheme.Muted;
+            l.Padding = new Padding(10, 3, 0, 0);
+        }
+        _lblCurrent.Text = "当前：—";
+        _lblInfo.Padding = new Padding(8, 4, 0, 0);
+        info.Controls.AddRange([_lblInfo, _lblVersion, _lblCompanion, _lblStatePill, _lblCurrent]);
+        grid.Controls.Add(info, 0, 0);
+
+        // 画布
+        _canvasHost.Dock = DockStyle.Fill;
+        _canvasHost.BackColor = UiTheme.ControlWell;
+        _canvasHost.Padding = new Padding(1);
+
+        _overlay.Dock = DockStyle.Fill;
+        _overlay.BackColor = UiTheme.ControlWell;
+        _overlay.Visible = false;
+        var card = new Panel
+        {
+            Size = new Size(440, 176),
+            BackColor = UiTheme.Panel,
+            BorderStyle = BorderStyle.FixedSingle,
+            Anchor = AnchorStyles.None
+        };
+        _lblOverlayTitle.Text = "尚未选择文件";
+        _lblOverlayTitle.Font = new Font(Font.FontFamily, 13f, FontStyle.Bold);
+        _lblOverlayTitle.ForeColor = UiTheme.Text;
+        _lblOverlayTitle.AutoSize = false;
+        _lblOverlayTitle.Size = new Size(400, 28);
+        _lblOverlayTitle.Location = new Point(20, 20);
+        _lblOverlayBody.Text = "从左侧选择导出文件或文件夹后，点击列表项即可预览。";
+        _lblOverlayBody.ForeColor = UiTheme.Muted;
+        _lblOverlayBody.AutoSize = false;
+        _lblOverlayBody.Size = new Size(400, 72);
+        _lblOverlayBody.Location = new Point(20, 56);
+        _btnOverlaySettings.Text = "打开高级设置";
+        _btnOverlaySettings.Size = new Size(150, 28);
+        _btnOverlaySettings.Location = new Point(20, 132);
+        _btnOverlaySettings.FlatStyle = FlatStyle.Flat;
+        _btnOverlaySettings.BackColor = UiTheme.PanelAlt;
+        _btnOverlaySettings.ForeColor = UiTheme.Text;
+        _btnOverlaySettings.Visible = false;
+        card.Controls.AddRange([_lblOverlayTitle, _lblOverlayBody, _btnOverlaySettings]);
+        _overlay.Controls.Add(card);
+        _overlay.Resize += (_, _) =>
+        {
+            card.Left = Math.Max(0, (_overlay.Width - card.Width) / 2);
+            card.Top = Math.Max(0, (_overlay.Height - card.Height) / 2);
+        };
+        _canvasHost.Controls.Add(_overlay);
+
+        // AUD-043 ③⑤：画布右上角浮动视图工具条。放在画布内而非控制条，
+        // 既不增加控制条高度，也不会在主窗口最小尺寸下进一步挤压预览区域。
+        _viewTools.Size = new Size(210, 30);
+        _viewTools.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        _viewTools.BackColor = Color.Transparent;
+        var toolFlow = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            WrapContents = false,
+            FlowDirection = FlowDirection.LeftToRight,
+            Padding = new Padding(0),
+            BackColor = Color.Transparent
+        };
+        _btnResetView.Text = "⟲ 复位视图";
+        _btnResetView.Size = new Size(100, 26);
+        _btnResetView.Margin = new Padding(0, 0, 4, 0);
+        _btnBackground.Size = new Size(100, 26);
+        _btnBackground.Margin = new Padding(0);
+        _btnBackground.Text = "◐ " + Backgrounds[_bgIndex].Name;
+        foreach (var b in new[] { _btnResetView, _btnBackground })
+        {
+            b.FlatStyle = FlatStyle.Flat;
+            b.BackColor = UiTheme.PanelAlt;
+            b.ForeColor = UiTheme.Text;
+            b.TextAlign = ContentAlignment.MiddleCenter;
+        }
+        _tip.SetToolTip(_btnResetView, "把缩放与位置恢复到该文件首次加载时的视图（滚轮缩放 / 拖拽平移后使用）");
+        _tip.SetToolTip(_btnBackground, "循环切换画布背景：深灰 / 纯黑 / 中灰 / 纯白");
+        toolFlow.Controls.AddRange([_btnResetView, _btnBackground]);
+        _viewTools.Controls.Add(toolFlow);
+        _canvasHost.Controls.Add(_viewTools);
+        _canvasHost.Resize += (_, _) => PositionViewTools();
+        PositionViewTools();
+
+        grid.Controls.Add(_canvasHost, 0, 1);
+
+        // 控制条
+        grid.Controls.Add(BuildControls(), 0, 2);
+        return grid;
+    }
+
+    private void PositionViewTools()
+    {
+        _viewTools.Left = Math.Max(0, _canvasHost.ClientSize.Width - _viewTools.Width - 10);
+        _viewTools.Top = 8;
+        _viewTools.BringToFront();
+    }
+
+    private Control BuildControls()
+    {
+        var grid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, BackColor = UiTheme.Panel };
+        grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+        grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 46));
+
+        var row1 = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, Padding = new Padding(6, 6, 0, 0) };
+        // AUD-043 ①：与 Spine Texture Packer 同构的两个独立复选框。
+        // Bleed 只作导出设置记录，不改变运行时混合模式（技术说明见 ToolTip / 方案文档 §2①）。
+        _chkPma.Text = "预乘(PMA)"; _chkPma.AutoSize = true; _chkPma.Checked = _settings.PremultipliedAlpha;
+        _chkPma.ForeColor = UiTheme.Text;
+        _tip.SetToolTip(_chkPma, "Premultiply alpha：导出时 RGB 预先乘上 A，决定运行时 WebGL 混合模式；切换会重新加载当前文件。");
+        _chkBleed.Text = "溢出(Bleed)"; _chkBleed.AutoSize = true; _chkBleed.Checked = _settings.Bleed;
+        _chkBleed.ForeColor = UiTheme.Text;
+        _tip.SetToolTip(_chkBleed,
+            "Bleed（溢出）是导出期把透明边缘像素向外扩边的预处理，结果已烘入 PNG；" +
+            "运行时与「都不选」完全等价。此项只用于核对导出设置，不参与渲染。");
+        _chkLoop.Text = "循环"; _chkLoop.AutoSize = true; _chkLoop.Checked = _settings.Loop;
+        _chkLoop.ForeColor = UiTheme.Text;
+
+        _cmbSpeed.DropDownStyle = ComboBoxStyle.DropDownList;
+        _cmbSpeed.Items.AddRange(["0.25x", "0.5x", "1.0x", "1.5x", "2.0x"]);
+        _cmbSpeed.SelectedItem = SpeedToText(_settings.Speed);
+        _cmbSpeed.Width = 72;
+        _cmbSpeed.FlatStyle = FlatStyle.Flat;
+        _cmbSpeed.BackColor = UiTheme.Input;
+        _cmbSpeed.ForeColor = UiTheme.Text;
+        _tip.SetToolTip(_cmbSpeed, "播放速度");
+
+        _cmbMix.DropDownStyle = ComboBoxStyle.DropDownList;
+        _cmbMix.Items.AddRange(["0s", "0.1s", "0.25s", "0.5s"]);
+        _cmbMix.SelectedItem = MixToText(_settings.Mix);
+        _cmbMix.Width = 72;
+        _cmbMix.FlatStyle = FlatStyle.Flat;
+        _cmbMix.BackColor = UiTheme.Input;
+        _cmbMix.ForeColor = UiTheme.Text;
+        _tip.SetToolTip(_cmbMix, "动画切换混合时长");
+
+        _btnDebug.Text = "Debug"; _btnDebug.Size = new Size(62, 24);
+        _btnDebug.FlatStyle = FlatStyle.Flat; _btnDebug.BackColor = UiTheme.PanelAlt; _btnDebug.ForeColor = UiTheme.Text;
+
+        // AUD-043 ②：去掉「速度」「Mix」两个独立文字标签（改由 ToolTip 承载），
+        // 当前摘要移到顶部信息条，为新增的溢出复选框腾出宽度。
+        row1.Controls.AddRange([
+            _chkPma, _chkBleed, _cmbSpeed, _cmbMix, _chkLoop, _btnDebug
+        ]);
+        grid.Controls.Add(row1, 0, 0);
+
+        var row2 = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 6, RowCount = 1, Padding = new Padding(6, 4, 6, 6) };
+        row2.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 40));
+        row2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        row2.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 128));
+        row2.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70));
+        row2.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92));
+        row2.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 0));
+
+        _btnPlay.Text = "▶"; _btnPlay.Dock = DockStyle.Fill;
+        _btnPlay.FlatStyle = FlatStyle.Flat; _btnPlay.BackColor = UiTheme.Blue; _btnPlay.ForeColor = Color.White;
+        _track.Dock = DockStyle.Fill;
+        _track.Minimum = 0; _track.Maximum = 1000; _track.Value = 0;
+        _track.TickStyle = TickStyle.None;
+        _lblTime.Text = "00:00.00 / 00:00.00";
+        _lblTime.Dock = DockStyle.Fill;
+        _lblTime.TextAlign = ContentAlignment.MiddleCenter;
+        _lblTime.ForeColor = UiTheme.Text;
+        // AUD-043 ②：固定单行文字 + AutoSize=false + 居中，消除截图中的换行与底部裁切。
+        _btnReset.Text = "归零"; _btnReset.Dock = DockStyle.Fill;
+        _btnSetup.Text = "Setup"; _btnSetup.Dock = DockStyle.Fill;
+        foreach (var b in new[] { _btnReset, _btnSetup })
+        {
+            b.AutoSize = false;
+            b.TextAlign = ContentAlignment.MiddleCenter;
+            b.FlatStyle = FlatStyle.Flat; b.BackColor = UiTheme.PanelAlt; b.ForeColor = UiTheme.Text;
+        }
+        _tip.SetToolTip(_btnReset, "回到动画第 0 帧");
+        _tip.SetToolTip(_btnSetup, "恢复 Setup Pose（骨骼初始姿态）");
+        row2.Controls.Add(_btnPlay, 0, 0);
+        row2.Controls.Add(_track, 1, 0);
+        row2.Controls.Add(_lblTime, 2, 0);
+        row2.Controls.Add(_btnReset, 3, 0);
+        row2.Controls.Add(_btnSetup, 4, 0);
+        grid.Controls.Add(row2, 0, 1);
+
+        SetControlsEnabled(false);
+        return grid;
+    }
+
+    // ────────────────────────────── 事件 ──────────────────────────────
+
+    private void WireEvents()
+    {
+        _btnPickFiles.Click += async (_, _) => await PickFilesAsync();
+        _btnPickFolders.Click += async (_, _) => await PickFoldersAsync();
+        _btnRefresh.Click += async (_, _) => await ScanAsync();
+        _btnClear.Click += (_, _) => ClearAll();
+        _btnSettings.Click += (_, _) => ShowSettings();
+        _btnViewer.Click += (_, _) => OpenInSkeletonViewer();
+        _btnCancel.Click += (_, _) => _scanCts?.Cancel();
+        _btnOverlaySettings.Click += (_, _) => ShowSettings();
+        _chkSubfolders.CheckedChanged += (_, _) =>
+        {
+            if (_suppress) return;
+            _settings.IncludeSubfolders = _chkSubfolders.Checked;
+            SaveSettings();
+            if (_roots.Count > 0) _ = ScanAsync();
+        };
+
+        _filterTimer = new System.Windows.Forms.Timer { Interval = 300 };
+        _filterTimer.Tick += (_, _) =>
+        {
+            _filterTimer.Stop();
+            _settings.FilterText = _txtFilter.Text;
+            RebuildList();
+        };
+        _txtFilter.TextChanged += (_, _) => { _filterTimer.Stop(); _filterTimer.Start(); };
+
+        _listFiles.SelectedIndexChanged += (_, _) =>
+        {
+            if (_listFiles.SelectedItems.Count != 1) return;
+            if (_listFiles.SelectedItems[0].Tag is ExportPreviewEntry e) _ = LoadEntryAsync(e);
+        };
+        _listFiles.MouseMove += (_, e) =>
+        {
+            var hit = _listFiles.GetItemAt(e.X, e.Y);
+            if (hit?.Tag is ExportPreviewEntry entry) _listFiles.Cursor = Cursors.Hand;
+        };
+
+        _lstSkins.SelectedIndexChanged += (_, _) =>
+        {
+            if (_suppress || _lstSkins.SelectedItem is not string skin) return;
+            _host?.SetSkin(skin);
+            UpdateCurrentLabel();
+        };
+        _lstAnims.SelectedIndexChanged += (_, _) =>
+        {
+            if (_suppress || _lstAnims.SelectedItem is not string anim) return;
+            _host?.SetAnimation(anim, _chkLoop.Checked);
+            UpdateCurrentLabel();
+        };
+
+        _chkPma.CheckedChanged += (_, _) =>
+        {
+            if (_suppress) return;
+            _settings.PremultipliedAlpha = _chkPma.Checked;
+            SaveSettings();
+            if (_current != null) ReloadCurrent();
+        };
+        // AUD-043 ①：Bleed 不参与运行时渲染，只持久化，绝不触发 player 重建。
+        _chkBleed.CheckedChanged += (_, _) =>
+        {
+            if (_suppress) return;
+            _settings.Bleed = _chkBleed.Checked;
+            SaveSettings();
+        };
+        _chkLoop.CheckedChanged += (_, _) =>
+        {
+            if (_suppress) return;
+            _settings.Loop = _chkLoop.Checked;
+            SaveSettings();
+            _host?.SetLoop(_chkLoop.Checked);
+        };
+        _cmbSpeed.SelectedIndexChanged += (_, _) =>
+        {
+            if (_suppress || _cmbSpeed.SelectedItem is not string s) return;
+            var v = TextToSpeed(s);
+            _settings.Speed = v;
+            SaveSettings();
+            _host?.SetSpeed(v);
+        };
+        _cmbMix.SelectedIndexChanged += (_, _) =>
+        {
+            if (_suppress || _cmbMix.SelectedItem is not string s) return;
+            var v = TextToMix(s);
+            _settings.Mix = v;
+            SaveSettings();
+            _host?.SetMix(v);
+        };
+
+        _btnPlay.Click += (_, _) => TogglePlay();
+        _btnReset.Click += (_, _) => { _host?.Seek(0); _track.Value = 0; };
+        _btnSetup.Click += (_, _) => _host?.SetupPose();
+        // AUD-043 ③⑤：画布浮动工具条
+        _btnResetView.Click += (_, _) => _host?.ResetView();
+        _btnBackground.Click += (_, _) => CycleBackground();
+        _btnDebug.Click += (_, _) =>
+        {
+            _debugOn = !_debugOn;
+            _host?.SetDebug(_debugOn);
+            _btnDebug.BackColor = _debugOn ? UiTheme.Blue : UiTheme.PanelAlt;
+        };
+
+        _track.MouseDown += (_, _) => _dragging = true;
+        _track.MouseUp += (_, _) => _dragging = false;
+        _track.Scroll += (_, _) =>
+        {
+            if (_duration <= 0) return;
+            var t = _track.Value / 1000.0 * _duration;
+            _host?.Seek(t);
+            _lblTime.Text = FormatTime(t) + " / " + FormatTime(_duration);
+        };
+    }
+
+    private async Task OnShownAsync()
+    {
+        try
+        {
+            _roots.AddRange(_settings.LastDirectories.Where(Directory.Exists));
+            _explicitFiles.AddRange(_settings.LastFiles.Where(File.Exists));
+
+            _host = new SpinePlayerHost();
+            _host.Loaded += m => SafeInvoke(() => OnLoaded(m));
+            _host.LoadFailed += reason => SafeInvoke(() => ShowOverlay("加载失败", reason, false));
+            _host.Tick += t => SafeInvoke(() => OnTick(t));
+            _host.TrackChanged += (name, dur) => SafeInvoke(() =>
+            {
+                _duration = dur;
+                _track.Enabled = dur > 0 && _current != null;
+                _lblTime.Text = dur > 0 ? "00:00.00 / " + FormatTime(dur) : "静态动画 / —";
+                _lblCurrent.Text = $"当前：{_lstSkins.SelectedItem ?? "default"} / {name}";
+            });
+            _host.BridgeReady += () => SafeInvoke(() => { _hostReady = true; });
+
+            // WebView2 必须保持 Visible=true：spine-player 的 loadSkeleton() 由
+            // requestAnimationFrame 驱动，隐藏控件会让 Chromium 挂起 rAF，加载永久停住。
+            // 覆盖卡片只靠 Z-order，不改变 View.Visible。
+            _canvasHost.Controls.Add(_host.View);
+            _host.View.Visible = true;
+            _host.View.SendToBack();
+
+            // 默认零配置：内置 runtime。仅当用户在「高级设置」显式配置了 BYO 目录才覆盖。
+            var byoDir = ExportPreviewSettings.ResolvePlayerDirectory(
+                             _settings.PlayerResourceRoot, ExportPreviewSettings.DefaultVersionLine) ?? "";
+            await _host.InitializeAsync(byoDir, ExportPreviewSettings.DefaultVersionLine);
+            _hostReady = true;
+            // AUD-043 ⑤：同步持久化的背景档位。此时 player 尚未创建，消息只更新
+            // 宿主状态；后续 loadGroup 会把该 hex 写进 config.backgroundColor。
+            _host.SetBackground(Backgrounds[_bgIndex].Hex);
+
+            ShowOverlay("尚未选择文件",
+                "从左侧选择导出文件或文件夹，点击列表项即可预览。\n" +
+                "支持 .skel / .json，以及 Unity 的 .skel.bytes / .json.txt + .atlas.txt 后缀，无需额外导出一份不带后缀的文件。\n" +
+                "已内置 Spine Web Player 4.1 / 4.2 / 4.3，按导出版本自动选择，无需配置。",
+                false);
+
+            if (_roots.Count > 0 || _explicitFiles.Count > 0) await ScanAsync();
+        }
+        catch (Exception ex)
+        {
+            OperationLogger.Error("[ExportPreview] WebView2 初始化失败: " + ex.Message);
+            ShowOverlay("WebView2 初始化失败",
+                ex.Message + "\n请确认已安装 Microsoft Edge WebView2 Evergreen Runtime。", false);
+        }
+    }
+
+    private void SafeInvoke(Action action)
+    {
+        if (IsDisposed || !IsHandleCreated) return;
+        try
+        {
+            if (InvokeRequired) BeginInvoke(action);
+            else action();
+        }
+        catch { /* 窗口已关闭 */ }
+    }
+
+    // ────────────────────────────── 选源与扫描 ──────────────────────────────
+
+    private async Task PickFilesAsync()
+    {
+        using var dlg = new OpenFileDialog
+        {
+            Multiselect = true,
+            Title = "选择 Spine 导出主文件（可多选）",
+            Filter = "Spine 导出数据（含 Unity 后缀）|*.skel;*.skel.bytes;*.json;*.json.txt;*.json.bytes|所有文件|*.*"
+        };
+        if (dlg.ShowDialog(this) != DialogResult.OK) return;
+        foreach (var f in dlg.FileNames)
+            if (!_explicitFiles.Contains(f, StringComparer.OrdinalIgnoreCase)) _explicitFiles.Add(f);
+        PersistSources();
+        await ScanAsync();
+    }
+
+    private async Task PickFoldersAsync()
+    {
+        using var dlg = new FolderMultiSelectDialog(_roots.FirstOrDefault());
+        if (dlg.ShowDialog(this) != DialogResult.OK) return;
+        foreach (var d in dlg.SelectedFolders)
+            if (!_roots.Contains(d, StringComparer.OrdinalIgnoreCase)) _roots.Add(d);
+        PersistSources();
+        await ScanAsync();
+    }
+
+    private void PersistSources()
+    {
+        _settings.LastDirectories = _roots.Take(20).ToList();
+        _settings.LastFiles = _explicitFiles.Take(200).ToList();
+        SaveSettings();
+    }
+
+    private async Task ScanAsync()
+    {
+        _scanCts?.Cancel();
+        _scanCts = new CancellationTokenSource();
+        var ct = _scanCts.Token;
+        SetBusy(true);
+        try
+        {
+            var versions = ExportPreviewSettings.AvailableVersionLines(_settings.PlayerResourceRoot);
+            var progress = new Progress<ScanProgress>(p =>
+            {
+                _lblStatus.Text = $"扫描中 {p.Done}/{p.Total} · {p.Current}";
+                _progress.Value = p.Total > 0 ? Math.Min(100, p.Done * 100 / p.Total) : 0;
+            });
+            var list = await ExportPreviewScanner.ScanAsync(
+                _explicitFiles, _roots, _chkSubfolders.Checked, versions, progress, ct);
+            _entries.Clear();
+            _entries.AddRange(list);
+            RebuildList();
+            _lblStatus.Text = $"就绪 · 共扫描 {list.Count} 个文件";
+            OperationLogger.Info($"[ExportPreview] 列表就绪 {list.Count} 项（包含子文件夹={_chkSubfolders.Checked}）");
+        }
+        catch (OperationCanceledException)
+        {
+            _lblStatus.Text = "扫描已取消";
+        }
+        catch (Exception ex)
+        {
+            _lblStatus.Text = "扫描失败：" + ex.Message;
+            OperationLogger.Error("[ExportPreview] 扫描失败: " + ex.Message);
+        }
+        finally
+        {
+            SetBusy(false);
+            _progress.Value = 0;
+        }
+    }
+
+    private void RebuildList()
+    {
+        _listFiles.BeginUpdate();
+        _listFiles.Items.Clear();
+        var filter = _txtFilter.Text.Trim();
+        foreach (var e in _entries)
+        {
+            if (filter.Length > 0
+                && !e.FileName.Contains(filter, StringComparison.OrdinalIgnoreCase)
+                && !e.FullPath.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var item = new ListViewItem(e.FileName) { Tag = e, ToolTipText = e.ToolTip };
+            item.SubItems.Add(e.Format);
+            item.SubItems.Add(e.SpineVersion);
+            item.SubItems.Add(e.CompanionText);
+            item.SubItems.Add(e.StatusText);
+            item.SubItems.Add(Path.GetFileName(e.DirectoryName));
+            item.ForeColor = e.Status switch
+            {
+                ExportPreviewStatus.Ready => UiTheme.Green,
+                ExportPreviewStatus.MissingAtlas or ExportPreviewStatus.MissingPages => UiTheme.Orange,
+                _ => UiTheme.Red
+            };
+            _listFiles.Items.Add(item);
+        }
+        _listFiles.EndUpdate();
+        var ready = _entries.Count(x => x.Status == ExportPreviewStatus.Ready);
+        _lblCount.Text = _entries.Count == 0
+            ? "共 0 项 · 尚未选择文件"
+            : $"共 {_entries.Count} 项 · 就绪 {ready} · 异常 {_entries.Count - ready}　｜　点击行即无缝切换";
+    }
+
+    private void ClearAll()
+    {
+        _scanCts?.Cancel();
+        _roots.Clear();
+        _explicitFiles.Clear();
+        _entries.Clear();
+        RebuildList();
+        _current = null;
+        _host?.DisposePlayer();
+        ClearMetadata();
+        ResetInfoBar();
+        SetControlsEnabled(false);
+        ShowOverlay("尚未选择文件", "列表已清空。从左侧重新选择导出文件或文件夹即可预览。", false);
+        _lblStatus.Text = "尚未扫描";
+        PersistSources();
+    }
+
+    private void SetBusy(bool busy)
+    {
+        _btnCancel.Enabled = busy;
+        _btnRefresh.Enabled = !busy;
+    }
+
+    // ────────────────────────────── 加载与桥接 ──────────────────────────────
+
+    private async Task LoadEntryAsync(ExportPreviewEntry entry)
+    {
+        if (_host == null || !_host.IsInitialized || !_hostReady)
+        {
+            ShowOverlay("预览尚未就绪", "WebView2 正在初始化，请稍后重试。", false);
+            return;
+        }
+
+        _current = entry;
+        // 切换到新文件时不要继承上一个文件的皮肤 / 动画名：不同工程枚举不同，
+        // 且空 default 皮肤会让 4.1 runtime 算出 NaN viewport（状态就绪但画布空白）。
+        // 清空选中后由桥接层按新文件 metadata 选「首个有附件的皮肤 + 首个有时长动画」。
+        _suppress = true;
+        _lstSkins.SelectedIndex = -1;
+        _lstAnims.SelectedIndex = -1;
+        _suppress = false;
+        // 加载期间绝不能遮挡 WebView2：Chromium 的 occlusion detection 会暂停
+        // requestAnimationFrame，而 spine-player 的 loadSkeleton() 正由 rAF 驱动。
+        // 清掉上一张错误卡片，改用信息条的轻量「加载中」提示，旧画面继续显示。
+        HideOverlay();
+        UpdateInfoBar(entry);
+
+        if (!entry.CanPreview)
+        {
+            _host.DisposePlayer();
+            ClearMetadata();
+            SetControlsEnabled(false);
+            ShowOverlay(entry.StatusText + " · " + entry.FileName, entry.StatusDetail, false);
+            return;
+        }
+        if (entry.AtlasPath == null)
+        {
+            _host.DisposePlayer();
+            ClearMetadata();
+            SetControlsEnabled(false);
+            ShowOverlay("缺 atlas · " + entry.FileName,
+                "同目录未找到 .atlas。官方 Skeleton Viewer 会以半透明白块替代贴图；" +
+                "Web Player 无法在无 atlas 时加载，请补齐后点「刷新」。", false);
+            return;
+        }
+
+        // 零配置：内置 4.1 / 4.2 / 4.3 按版本线自动选择；BYO 目录（若配置）优先。
+        // 只有「既无内置、也无 BYO」的版本线才拦截，并给出可选的覆盖入口。
+        var byoDir = ExportPreviewSettings.ResolvePlayerDirectory(
+                         _settings.PlayerResourceRoot, entry.VersionLine) ?? "";
+        var versions = ExportPreviewSettings.AvailableVersionLines(_settings.PlayerResourceRoot);
+        if (string.IsNullOrEmpty(byoDir)
+            && entry.VersionLine.Length > 0
+            && !versions.Contains("*")
+            && !SpinePlayerHost.BuiltInVersionLines.Contains(entry.VersionLine, StringComparer.OrdinalIgnoreCase))
+        {
+            _host.DisposePlayer();
+            ClearMetadata();
+            SetControlsEnabled(false);
+            ShowOverlay("版本线未内置 · " + entry.FileName,
+                $"该导出数据版本为 Spine {entry.SpineVersion}（版本线 {entry.VersionLine}），应用内置 4.1 / 4.2 / 4.3。\n" +
+                "如需预览该版本，可在「高级设置」中指定本地 spine-player.js / .css 目录作为覆盖。",
+                true);
+            return;
+        }
+
+        _lblStatePill.Text = "⏳ 加载中…";
+        _lblStatePill.ForeColor = UiTheme.Cyan;
+        try
+        {
+            await _host.SetPlayerResourceAsync(byoDir, entry.VersionLine);
+            DoLoadGroup(entry);
+        }
+        catch (Exception ex)
+        {
+            OperationLogger.Error("[ExportPreview] 加载失败: " + ex.Message);
+            ShowOverlay("加载失败", ex.Message, false);
+        }
+    }
+
+    private void DoLoadGroup(ExportPreviewEntry entry)
+    {
+        if (_host == null) return;
+        _host.LoadGroup(entry, new PlayerLoadOptions(
+            _chkPma.Checked,
+            TextToSpeed(_cmbSpeed.SelectedItem as string ?? "1.0x"),
+            TextToMix(_cmbMix.SelectedItem as string ?? "0.25s"),
+            _chkLoop.Checked,
+            AutoPlay: true,
+            Skin: _lstSkins.SelectedItem as string,
+            Animation: _lstAnims.SelectedItem as string,
+            Bleed: _chkBleed.Checked));
+    }
+
+    private void ReloadCurrent()
+    {
+        if (_current != null && _host != null) DoLoadGroup(_current);
+    }
+
+    private void OnLoaded(PlayerMetadata m)
+    {
+        HideOverlay();
+        _suppress = true;
+        _lstSkins.Items.Clear();
+        _lstAnims.Items.Clear();
+        foreach (var s in m.Skins) _lstSkins.Items.Add(s);
+        foreach (var a in m.Animations) _lstAnims.Items.Add(a);
+        if (_lstSkins.Items.Count > 0)
+            _lstSkins.SelectedIndex = Math.Max(0, m.Skins.IndexOf(m.Skin));
+        if (_lstAnims.Items.Count > 0)
+            _lstAnims.SelectedIndex = Math.Max(0, m.Animations.IndexOf(m.Animation));
+        _lstSkins.Enabled = _lstSkins.Items.Count > 0;
+        _lstAnims.Enabled = _lstAnims.Items.Count > 0;
+        _suppress = false;
+
+        _lblSkinTitle.Text = $"皮肤 ({_lstSkins.Items.Count})";
+        _lblAnimTitle.Text = $"动画 ({_lstAnims.Items.Count})";
+        _duration = m.Duration;
+        _track.Value = 0;
+        _lblTime.Text = _duration > 0 ? "00:00.00 / " + FormatTime(_duration) : "静态动画 / —";
+        _playing = true;
+        _btnPlay.Text = "❚❚";
+        _host?.SetPlayingWanted(true);
+        SetControlsEnabled(true);
+        UpdateCurrentLabel();
+        _lblStatePill.Text = "✅ 就绪";
+        _lblStatePill.ForeColor = UiTheme.Green;
+        OperationLogger.Info($"[ExportPreview] 加载成功 {_current?.FileName}：皮肤 {m.Skins.Count} / 动画 {m.Animations.Count} / 时长 {m.Duration:F3}s");
+    }
+
+    private void OnTick(PlayerTick t)
+    {
+        if (t.Duration > 0) _duration = t.Duration;
+        if (_duration <= 0)
+        {
+            _lblTime.Text = "静态动画 / —";
+            return;
+        }
+        // AnimationState 的 trackTime 在循环播放时会持续累加并超过 duration，
+        // 时间码与进度条必须按当前循环内的位置取模（官方控件同样这么做）。
+        var pos = t.TrackTime % _duration;
+        if (!_dragging)
+        {
+            var v = (int)Math.Max(0, Math.Min(1000, pos / _duration * 1000));
+            _track.Value = v;
+        }
+        _lblTime.Text = FormatTime(pos) + " / " + FormatTime(_duration);
+    }
+
+    private void TogglePlay()
+    {
+        if (_host == null || _current == null) return;
+        _playing = !_playing;
+        _btnPlay.Text = _playing ? "❚❚" : "▶";
+        _host.SetPlayingWanted(_playing);
+        if (_playing) _host.Play(); else _host.Pause();
+    }
+
+    /// <summary>AUD-043 ⑤：循环切换 4 档背景，实时生效并持久化，不重建 player、不中断播放。</summary>
+    private void CycleBackground()
+    {
+        _bgIndex = (_bgIndex + 1) % Backgrounds.Length;
+        var bg = Backgrounds[_bgIndex];
+        _btnBackground.Text = "◐ " + bg.Name;
+        _settings.BackgroundIndex = _bgIndex;
+        SaveSettings();
+        _host?.SetBackground(bg.Hex);
+    }
+
+    private void SetControlsEnabled(bool enabled)
+    {
+        foreach (var c in new Control[]
+                 {
+                     _chkPma, _chkBleed, _chkLoop, _cmbSpeed, _cmbMix,
+                     _btnPlay, _btnReset, _btnSetup, _btnDebug,
+                     _btnResetView, _btnBackground
+                 })
+            c.Enabled = enabled;
+        // 单帧静态动画 duration=0，拖动进度条无意义
+        _track.Enabled = enabled && _duration > 0;
+    }
+
+    private void ClearMetadata()
+    {
+        _suppress = true;
+        _lstSkins.Items.Clear();
+        _lstAnims.Items.Clear();
+        _lstSkins.Enabled = false;
+        _lstAnims.Enabled = false;
+        _lblSkinTitle.Text = "皮肤 (—)";
+        _lblAnimTitle.Text = "动画 (—)";
+        _lblCurrent.Text = "当前：—";
+        _lblTime.Text = "00:00.00 / 00:00.00";
+        _track.Value = 0;
+        _duration = 0;
+        _suppress = false;
+        if (_current != null)
+        {
+            _lblStatePill.Text = _current.StatusText;
+            _lblStatePill.ForeColor = _current.Status == ExportPreviewStatus.Ready ? UiTheme.Green : UiTheme.Orange;
+        }
+    }
+
+    private void UpdateInfoBar(ExportPreviewEntry e)
+    {
+        _lblInfo.Text = e.FileName;
+        _lblVersion.Text = "Spine " + e.SpineVersion;
+        _lblCompanion.Text = e.CompanionText;
+        _lblStatePill.Text = e.StatusText;
+        _lblStatePill.ForeColor = e.Status switch
+        {
+            ExportPreviewStatus.Ready => UiTheme.Green,
+            ExportPreviewStatus.MissingAtlas or ExportPreviewStatus.MissingPages => UiTheme.Orange,
+            _ => UiTheme.Red
+        };
+    }
+
+    private void ResetInfoBar()
+    {
+        _lblInfo.Text = "—";
+        _lblVersion.Text = "版本 —";
+        _lblCompanion.Text = "配套 —";
+        _lblStatePill.Text = "未加载";
+        _lblStatePill.ForeColor = UiTheme.Muted;
+    }
+
+    private void UpdateCurrentLabel()
+    {
+        var skin = _lstSkins.SelectedItem as string ?? "default";
+        var anim = _lstAnims.SelectedItem as string ?? "—";
+        _lblCurrent.Text = $"当前：{skin} / {anim}";
+    }
+
+    private void ShowOverlay(string title, string body, bool settingsButton)
+    {
+        _lblOverlayTitle.Text = title;
+        _lblOverlayBody.Text = body;
+        _btnOverlaySettings.Visible = settingsButton;
+        _overlay.Visible = true;
+        _overlay.BringToFront();
+        // AUD-043 ③⑤：画布未被占用时隐藏浮动工具条，避免浮在提示卡片之上。
+        _viewTools.Visible = false;
+    }
+
+    private void HideOverlay()
+    {
+        _overlay.Visible = false;
+        _host?.View.SendToBack();
+        _viewTools.Visible = true;
+        PositionViewTools();
+    }
+
+    // ────────────────────────────── 设置 / 交叉验证 / 对外 API ──────────────────────────────
+
+    /// <summary>D8：从批量导出页跳转后灌入输出目录并自动扫描</summary>
+    public void LoadDirectory(string directory)
+    {
+        if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory)) return;
+        if (!_roots.Contains(directory, StringComparer.OrdinalIgnoreCase)) _roots.Add(directory);
+        PersistSources();
+        _ = ScanAsync();
+    }
+
+    /// <summary>主分页切走 / 切回时由 MainForm 调用，暂停或恢复 WebGL 播放</summary>
+    public void SetActive(bool active)
+    {
+        _suppress = true;
+        _host?.SetActive(active);
+        _suppress = false;
+    }
+
+    private void ShowSettings()
+    {
+        using var form = new Form
+        {
+            Text = "高级设置（全部可选）",
+            Size = new Size(720, 300),
+            StartPosition = FormStartPosition.CenterParent,
+            FormBorderStyle = FormBorderStyle.FixedDialog,
+            MaximizeBox = false,
+            MinimizeBox = false,
+            BackColor = UiTheme.App
+        };
+        var grid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 5, Padding = new Padding(12) };
+        for (var i = 0; i < 3; i++) grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+        grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 60));
+        grid.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
+        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 72));
+
+        var txtRoot = new TextBox { Dock = DockStyle.Fill, Text = _settings.PlayerResourceRoot };
+        var txtJar = new TextBox { Dock = DockStyle.Fill, Text = _settings.SkeletonViewerJar };
+        var txtJava = new TextBox { Dock = DockStyle.Fill, Text = _settings.JavaPath };
+        var btnRoot = MakeButton("浏览…", 64);
+        var btnJar = MakeButton("浏览…", 64);
+        btnRoot.Click += (_, _) =>
+        {
+            using var d = new FolderBrowserDialog { Description = "选择包含 spine-player.js / spine-player.css 的目录" };
+            if (d.ShowDialog(form) == DialogResult.OK) txtRoot.Text = d.SelectedPath;
+        };
+        btnJar.Click += (_, _) =>
+        {
+            using var d = new OpenFileDialog { Filter = "Skeleton Viewer JAR|*.jar|所有文件|*.*" };
+            if (d.ShowDialog(form) == DialogResult.OK) txtJar.Text = d.FileName;
+        };
+        grid.Controls.Add(new Label { Text = "播放资源目录", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, ForeColor = UiTheme.Text }, 0, 0);
+        grid.Controls.Add(txtRoot, 1, 0); grid.Controls.Add(btnRoot, 2, 0);
+        grid.Controls.Add(new Label { Text = "Skeleton Viewer JAR", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, ForeColor = UiTheme.Text }, 0, 1);
+        grid.Controls.Add(txtJar, 1, 1); grid.Controls.Add(btnJar, 2, 1);
+        grid.Controls.Add(new Label { Text = "Java 路径（可空）", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, ForeColor = UiTheme.Text }, 0, 2);
+        grid.Controls.Add(txtJava, 1, 2);
+        var note = new Label
+        {
+            Dock = DockStyle.Fill,
+            ForeColor = UiTheme.Muted,
+            Text = "默认已内置 Spine Web Player 4.1 / 4.2 / 4.3，按导出版本自动选择，此目录留空即可。\n" +
+                   "仅特殊版本线或自定义构建才需覆盖：<目录>/<版本线>/spine-player.js，或直接放目录根下。\n" +
+                   "Copyright © 2013-2025 Esoteric Software LLC · Spine Runtimes License；使用者须各自持有 Spine Editor 许可证。",
+            TextAlign = ContentAlignment.MiddleLeft
+        };
+        grid.Controls.Add(note, 0, 3); grid.SetColumnSpan(note, 3);
+        var btnLicense = MakeButton("查看 runtime 许可", 140);
+        btnLicense.Anchor = AnchorStyles.Left | AnchorStyles.Bottom;
+        btnLicense.Click += (_, _) => ShowRuntimeLicense(form);
+        grid.Controls.Add(btnLicense, 0, 4); grid.SetColumnSpan(btnLicense, 2);
+        var ok = MakeButton("保存", 90);
+        ok.Anchor = AnchorStyles.Right | AnchorStyles.Bottom;
+        ok.Click += (_, _) => { form.DialogResult = DialogResult.OK; form.Close(); };
+        grid.Controls.Add(ok, 2, 4);
+        form.Controls.Add(grid);
+        form.AcceptButton = ok;
+        UiTheme.Apply(form, UiWindowProfile.GenericDialog);
+
+        if (form.ShowDialog(this) != DialogResult.OK) return;
+        var rootChanged = _settings.PlayerResourceRoot != txtRoot.Text.Trim();
+        _settings.PlayerResourceRoot = txtRoot.Text.Trim();
+        _settings.SkeletonViewerJar = txtJar.Text.Trim();
+        _settings.JavaPath = txtJava.Text.Trim();
+        SaveSettings();
+        if (rootChanged)
+        {
+            _ = ScanAsync();
+            if (_current != null) _ = LoadEntryAsync(_current);
+        }
+    }
+
+    private void OpenInSkeletonViewer()
+    {
+        if (_current == null)
+        {
+            MessageBox.Show(this, "请先在左侧列表选中一个导出文件。", "交叉验证",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        var jar = _settings.SkeletonViewerJar;
+        if (string.IsNullOrWhiteSpace(jar) || !File.Exists(jar))
+        {
+            var r = MessageBox.Show(this,
+                "尚未配置官方 Skeleton Viewer 的 JAR 路径。\n是否现在打开「高级设置」？",
+                "交叉验证", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (r == DialogResult.Yes) ShowSettings();
+            return;
+        }
+        try
+        {
+            var java = string.IsNullOrWhiteSpace(_settings.JavaPath) ? "java" : _settings.JavaPath;
+            Process.Start(new ProcessStartInfo(java, $"-jar \"{jar}\" \"{_current.FullPath}\"")
+            {
+                UseShellExecute = true
+            });
+            OperationLogger.Info("[ExportPreview] 交叉验证拉起 Skeleton Viewer: " + _current.FullPath);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, "启动失败：" + ex.Message, "交叉验证",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    /// <summary>展示随应用再分发的 Spine Runtimes License 全文（合规要求）</summary>
+    private void ShowRuntimeLicense(IWin32Window owner)
+    {
+        var text = _host?.LicenseText;
+        if (string.IsNullOrWhiteSpace(text))
+            text = "许可文本未随安装打包，请查看安装目录下的 LICENSE-Spine-Runtimes.txt。";
+        using var form = new Form
+        {
+            Text = "Spine Runtimes License Agreement",
+            Size = new Size(700, 520),
+            StartPosition = FormStartPosition.CenterParent,
+            BackColor = UiTheme.App
+        };
+        var box = new TextBox
+        {
+            Dock = DockStyle.Fill,
+            Multiline = true,
+            ReadOnly = true,
+            WordWrap = true,
+            ScrollBars = ScrollBars.Vertical,
+            Text = text,
+            BackColor = UiTheme.Input,
+            ForeColor = UiTheme.Text,
+            Font = new Font(Font.FontFamily, 9f)
+        };
+        form.Controls.Add(box);
+        UiTheme.Apply(form, UiWindowProfile.GenericDialog);
+        form.ShowDialog(owner);
+    }
+
+    private void SaveSettings() => ExportPreviewSettings.Save(_settings);
+
+    protected override void OnFormClosed(FormClosedEventArgs e)
+    {
+        _scanCts?.Cancel();
+        _filterTimer?.Dispose();
+        SaveSettings();
+        _host?.Dispose();
+        _host = null;
+        base.OnFormClosed(e);
+    }
+
+    // ────────────────────────────── 小工具 ──────────────────────────────
+
+    private static string FormatTime(double t)
+    {
+        if (t < 0 || double.IsNaN(t)) t = 0;
+        var m = (int)(t / 60);
+        var s = t - m * 60;
+        return $"{m:00}:{s:00.00}";
+    }
+
+    private static string SpeedToText(double v) => v switch
+    {
+        0.25 => "0.25x", 0.5 => "0.5x", 1.5 => "1.5x", 2.0 => "2.0x", _ => "1.0x"
+    };
+
+    private static double TextToSpeed(string s) => s switch
+    {
+        "0.25x" => 0.25, "0.5x" => 0.5, "1.5x" => 1.5, "2.0x" => 2.0, _ => 1.0
+    };
+
+    private static string MixToText(double v) => v switch
+    {
+        0 => "0s", 0.1 => "0.1s", 0.5 => "0.5s", _ => "0.25s"
+    };
+
+    private static double TextToMix(string s) => s switch
+    {
+        "0s" => 0, "0.1s" => 0.1, "0.5s" => 0.5, _ => 0.25
+    };
+}

@@ -1,0 +1,136 @@
+=== V3.3 / AUD-044 batch-export-selection PRODUCT HARNESS ===
+date 2026-11-11 11:42:23
+PASS version string is V3.3
+PASS R1: no hardcoded old export text
+PASS R1: no hardcoded old pack text
+PASS R6: single execution core exists
+PASS R6: no second foreach over _exportEntries in export/pack loops
+PASS R2: unified interlock call exists
+PASS R3: selection snapshot exists
+PASS const ExportAllText
+PASS const ExportSelectedText
+PASS const PackAllText
+PASS const PackSelectedText
+PASS const ExportingText
+PASS const PackingText
+PASS export subtab active
+PASS AC-01 button 1 renamed
+PASS AC-01 button 2 renamed
+PASS AC-01 button 3 added
+PASS AC-01 button 4 added
+PASS INV-4 save preset unchanged
+PASS INV-7 verify export unchanged
+PASS action row has 6 buttons
+PASS D4: order = all / selected / other
+PASS R2: 4 buttons in interlock set
+PASS R2: interlock set is exactly the 4 export buttons
+PASS D5=A: preset / verify buttons excluded from interlock
+PASS R5: MultiSelect explicitly true
+PASS R4: HideSelection explicitly false
+PASS INV-6: FullRowSelect preserved
+PASS D1=A: no CheckBoxes introduced
+PASS D3: initial selection count
+PASS 8 in-memory entries injected
+PASS D3: count refreshed after list rebuild (via RefreshExportStatus hook)
+PASS AC-08 prep: 0 selected -> snapshot 0
+PASS D3: 0-selected count via event
+PASS AC-04: 1 selected
+PASS D3: 1-selected count
+PASS AC-05: Ctrl multi-select -> 3
+PASS D7=A: display order, not click order
+PASS D3: 3-selected count
+PASS AC-06: Shift continuous select -> 5
+PASS AC-06: 5 consecutive items in display order
+PASS AC-07/E: select all -> 8
+PASS AC-07: select-all equivalent to export-all target set
+PASS R3: frozen snapshot still has 3 items after reselect
+PASS R3: frozen items unchanged
+PASS R3: snapshot holds original entry objects
+PASS AC-11: 4 export buttons disabled together
+PASS D5=A: other 2 buttons stay usable while running
+PASS AC-13/H: 4 buttons re-enabled together
+PASS R1/AC-13: finally restores the 4 NEW names (no rollback to 导出/单纹理图)
+PASS ValidateSelectionReady(non-empty) = true, no dialog
+MODAL VSE: dialog hwnd=2818318
+SHOT v33-3-noselection.png
+PASS R9: empty selection -> false with dedicated prompt
+MODAL RUNSEL0: dialog hwnd=931772
+PASS AC-08: no output directory created on empty selection
+PASS AC-08: no buttons left disabled
+PASS AC-08: CLI operation never started
+MODAL CORE-EXPORT: dialog hwnd=997314
+SHOT v33-4-running.png
+PASS AC-11: core running keeps 4 buttons disabled
+PASS core running: export trigger shows 导出中...
+PASS core running: D5 other buttons still enabled
+PASS core running: 取消CLI enabled
+PASS H/AC-13: core finally re-enables 4 buttons
+PASS H/R1: core finally restores 4 constant names
+PASS H: EndCliOperation disables 取消CLI
+MODAL CORE-PACK: dialog hwnd=1587084
+PASS core pack mode uses 打包中...
+PASS H/R1: pack finally restores selected-pack name
+MODAL EMPTY-ALL: dialog hwnd=1128380
+PASS AC-10: empty list leaves all buttons usable
+PASS AC-10: empty list never starts CLI
+LAYOUT default: win.Size={Width=1440, Height=900} Client={Width=1424, Height=861} Bounds={X=52,Y=52,Width=1440,Height=900}
+LAYOUT default: exportPanel screen={X=81,Y=223} size={Width=1382, Height=642}
+LAYOUT default: actionPanel boundsInPanel={X=76,Y=505,Width=953,Height=100} size={Width=953, Height=100}
+LAYOUT default: _btnExport [导出全部] inAP={X=3,Y=11,Width=100,Height=36} screen={X=160,Y=739} size={Width=100, Height=36} visible=True
+LAYOUT default: _btnPack [导出全部单纹理图] inAP={X=109,Y=11,Width=121,Height=36} screen={X=266,Y=739} size={Width=121, Height=36} visible=True
+LAYOUT default: _btnExportSelected [导出选中] inAP={X=236,Y=11,Width=100,Height=36} screen={X=393,Y=739} size={Width=100, Height=36} visible=True
+LAYOUT default: _btnPackSelected [导出选中单纹理图] inAP={X=342,Y=11,Width=125,Height=36} screen={X=499,Y=739} size={Width=125, Height=36} visible=True
+LAYOUT default: _btnSavePreset [保存为导出预设] inAP={X=473,Y=11,Width=130,Height=36} screen={X=630,Y=739} size={Width=130, Height=36} visible=True
+LAYOUT default: _btnVerifyExport [验证导出结果] inAP={X=609,Y=11,Width=130,Height=36} screen={X=766,Y=739} size={Width=130, Height=36} visible=True
+LAYOUT default: count screen={X=156,Y=835} text=[已选 2 / 共 6 · 按 Ctrl / Shift 多选]
+LAYOUT default: win.Top=52 win.Bottom=952 clientBottomScreen=944
+LAYOUT default: actionPanel AutoSize=False Wrap=True Dock=Fill Preferred={Width=742, Height=50}
+LAYOUT default: parent TableLayoutPanel size={Width=1390, Height=685} AutoSize=False Dock=Fill styles=[Percent]
+LAYOUT default: parent TabPage size={Width=1410, Height=705} AutoSize=False Dock=None
+LAYOUT default: parent DarkTabControl size={Width=1418, Height=749} AutoSize=False Dock=Fill
+LAYOUT default: parent TableLayoutPanel size={Width=1424, Height=861} AutoSize=False Dock=Fill styles=[Percent]
+SHOT v33-1-default.png
+PASS D3: screenshot state count
+LAYOUT min: win.Size={Width=1040, Height=680} Client={Width=1024, Height=641} Bounds={X=52,Y=52,Width=1040,Height=680}
+LAYOUT min: exportPanel screen={X=81,Y=223} size={Width=982, Height=422}
+LAYOUT min: actionPanel boundsInPanel={X=76,Y=285,Width=553,Height=100} size={Width=553, Height=100}
+LAYOUT min: _btnExport [导出全部] inAP={X=3,Y=11,Width=100,Height=36} screen={X=160,Y=519} size={Width=100, Height=36} visible=True
+LAYOUT min: _btnPack [导出全部单纹理图] inAP={X=109,Y=11,Width=121,Height=36} screen={X=266,Y=519} size={Width=121, Height=36} visible=True
+LAYOUT min: _btnExportSelected [导出选中] inAP={X=236,Y=11,Width=100,Height=36} screen={X=393,Y=519} size={Width=100, Height=36} visible=True
+LAYOUT min: _btnPackSelected [导出选中单纹理图] inAP={X=342,Y=11,Width=125,Height=36} screen={X=499,Y=519} size={Width=125, Height=36} visible=True
+LAYOUT min: _btnSavePreset [保存为导出预设] inAP={X=3,Y=53,Width=130,Height=36} screen={X=160,Y=561} size={Width=130, Height=36} visible=True
+LAYOUT min: _btnVerifyExport [验证导出结果] inAP={X=139,Y=53,Width=130,Height=36} screen={X=296,Y=561} size={Width=130, Height=36} visible=True
+LAYOUT min: count screen={X=156,Y=615} text=[已选 2 / 共 6 · 按 Ctrl / Shift 多选]
+LAYOUT min: win.Top=52 win.Bottom=732 clientBottomScreen=724
+LAYOUT min: actionPanel AutoSize=False Wrap=True Dock=Fill Preferred={Width=742, Height=50}
+LAYOUT min: parent TableLayoutPanel size={Width=990, Height=465} AutoSize=False Dock=Fill styles=[Percent]
+LAYOUT min: parent TabPage size={Width=1010, Height=485} AutoSize=False Dock=None
+LAYOUT min: parent DarkTabControl size={Width=1018, Height=529} AutoSize=False Dock=Fill
+LAYOUT min: parent TableLayoutPanel size={Width=1024, Height=641} AutoSize=False Dock=Fill styles=[Percent]
+SHOT v33-2-min-window.png
+PASS AC-17: all 6 buttons inside actionPanel at 1040x680
+PASS AC-17: action row has full button height
+PASS AC-17: selection count visible at min size
+PASS AC-17 ROOT: exportPanel width 982 <= client width 1024
+PASS AC-17 ROOT: all 6 buttons' screen bottom inside window client area
+PASS AC-17 ROOT: selection count inside window client area
+PASS AC-17: file list still visible (height 72 >= 60, scrollable) at 1040x680
+LAYOUT min-after-check: win.Size={Width=1040, Height=680} Client={Width=1024, Height=641} Bounds={X=52,Y=52,Width=1040,Height=680}
+LAYOUT min-after-check: exportPanel screen={X=81,Y=223} size={Width=982, Height=422}
+LAYOUT min-after-check: actionPanel boundsInPanel={X=76,Y=285,Width=553,Height=100} size={Width=553, Height=100}
+LAYOUT min-after-check: _btnExport [导出全部] inAP={X=3,Y=11,Width=100,Height=36} screen={X=160,Y=519} size={Width=100, Height=36} visible=True
+LAYOUT min-after-check: _btnPack [导出全部单纹理图] inAP={X=109,Y=11,Width=121,Height=36} screen={X=266,Y=519} size={Width=121, Height=36} visible=True
+LAYOUT min-after-check: _btnExportSelected [导出选中] inAP={X=236,Y=11,Width=100,Height=36} screen={X=393,Y=519} size={Width=100, Height=36} visible=True
+LAYOUT min-after-check: _btnPackSelected [导出选中单纹理图] inAP={X=342,Y=11,Width=125,Height=36} screen={X=499,Y=519} size={Width=125, Height=36} visible=True
+LAYOUT min-after-check: _btnSavePreset [保存为导出预设] inAP={X=3,Y=53,Width=130,Height=36} screen={X=160,Y=561} size={Width=130, Height=36} visible=True
+LAYOUT min-after-check: _btnVerifyExport [验证导出结果] inAP={X=139,Y=53,Width=130,Height=36} screen={X=296,Y=561} size={Width=130, Height=36} visible=True
+LAYOUT min-after-check: count screen={X=156,Y=615} text=[已选 2 / 共 6 · 按 Ctrl / Shift 多选]
+LAYOUT min-after-check: win.Top=52 win.Bottom=732 clientBottomScreen=724
+LAYOUT min-after-check: actionPanel AutoSize=False Wrap=True Dock=Fill Preferred={Width=742, Height=50}
+LAYOUT min-after-check: parent TableLayoutPanel size={Width=990, Height=465} AutoSize=False Dock=Fill styles=[Percent]
+LAYOUT min-after-check: parent TabPage size={Width=1010, Height=485} AutoSize=False Dock=None
+LAYOUT min-after-check: parent DarkTabControl size={Width=1018, Height=529} AutoSize=False Dock=Fill
+LAYOUT min-after-check: parent TableLayoutPanel size={Width=1024, Height=641} AutoSize=False Dock=Fill styles=[Percent]
+=== V3.3 PRODUCT HARNESS RESULT: PASS ===
+PASS=74 FAIL=0
+settings restored: True

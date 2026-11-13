@@ -1,0 +1,252 @@
+using System.Drawing.Imaging;
+using System.Reflection;
+using KeyMacro.Forms;
+using KeyMacro.Models;
+using KeyMacro.Services;
+
+namespace PreviewHarness;
+
+internal static class Program
+{
+    private const string OutDir = @"D:\AI_cc\spineQuickKeys\docs\export-animation-preview\verification";
+    private const string LogPath = OutDir + @"\unity-suffix-harness-log.txt";
+    private const string Assets = @"D:\AI_cc\spineQuickKeys\.workbuddy\tmp\unity-preview-assets";
+    private const string UserReal41 = @"D:\动画工程\monster-spine-h细线\导出\G2.skel.bytes";
+
+    private static readonly string UnityBinary = Path.Combine(Assets, "unity-binary", "spineboy-pro.skel.bytes");
+    private static readonly string UnityJson = Path.Combine(Assets, "unity-json", "spineboy-pro.json.txt");
+    private static readonly string Native = Path.Combine(Assets, "native", "spineboy-pro.skel");
+
+    [STAThread]
+    private static void Main()
+    {
+        Directory.CreateDirectory(OutDir);
+        try { File.WriteAllText(LogPath, ""); } catch { }
+        Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
+        Application.EnableVisualStyles();
+        var form = new MainForm();
+        form.Shown += async (_, _) => await RunAsync(form);
+        Application.Run(form);
+    }
+
+    private static void Log(string s)
+    {
+        Console.WriteLine(s);
+        try { File.AppendAllText(LogPath, s + Environment.NewLine); } catch { }
+    }
+
+    private static object? Field(object target, string name) =>
+        target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
+            ?.GetValue(target);
+
+    private const string ProbeJs = @"(function(){
+  var p=window.__eapPlayer;
+  if(!p) return JSON.stringify({error:'no player'});
+  var s=p.skeleton, c=p.canvas||document.querySelector('#stage canvas');
+  var cam=null; try{var r=p.renderer||p.sceneRenderer;if(r&&r.camera)cam={x:r.camera.position.x,y:r.camera.position.y,zoom:r.camera.zoom};}catch(e){}
+  var drawOrder=s?s.drawOrder.length:-1, attachments=0;
+  try{for(var i=0;i<s.drawOrder.length;i++)if(s.drawOrder[i].attachment)attachments++;}catch(e){}
+  var texCount=-1; try{texCount=Object.keys(p.assetManager.assets||{}).length;}catch(e){}
+  var gl=null; try{gl=(c.getContext('webgl2')||c.getContext('webgl'));}catch(e){}
+  var skinsInfo=[];
+  try{for(var k=0;k<s.data.skins.length;k++){var sk=s.data.skins[k];var n=0;
+    try{n=sk.attachments?Object.keys(sk.attachments).length:(sk.getAttachments?sk.getAttachments().length:-1);}catch(e){n=-2;}
+    skinsInfo.push({name:sk.name,entries:n});}}catch(e){}
+  var slotInfo=[];
+  try{for(var j=0;j<s.slots.length&&j<4;j++)slotInfo.push({name:s.slots[j].data.name,
+    att:s.slots[j].attachment?s.slots[j].attachment.name:null,attName:s.slots[j].data.attachmentName});}catch(e){}
+  return JSON.stringify({paused:p.paused,hasSkeleton:!!s,drawOrder:drawOrder,attachments:attachments,
+    skins:skinsInfo,slots:slotInfo,curSkin:s.skin?s.skin.name:null,
+    currentViewport:p.currentViewport,camera:cam,
+    glLost:gl?gl.isContextLost():null,assetKeys:texCount,
+    configAnim:p.config&&p.config.animation,timeTotal:p.time&&p.time.totalTime});
+})()";
+
+    private static async Task Probe(object preview, string label)
+    {
+        try
+        {
+            var hostObj = Field(preview, "_host");
+            var view = hostObj?.GetType().GetProperty("View")?.GetValue(hostObj);
+            var core = view?.GetType().GetProperty("CoreWebView2")?.GetValue(view);
+            if (core == null) { Log("PROBE " + label + ": no core"); return; }
+            var mi = core.GetType().GetMethod("ExecuteScriptAsync", new[] { typeof(string) });
+            var task = (Task<string>)mi!.Invoke(core, new object[] { ProbeJs })!;
+            Log("PROBE " + label + ": " + await task);
+        }
+        catch (Exception ex) { Log("PROBE " + label + " failed: " + ex.Message); }
+    }
+
+    private static void Capture(string file, Form form)
+    {
+        try
+        {
+            using var bmp = new Bitmap(form.Width, form.Height);
+            using (var g = Graphics.FromImage(bmp))
+                g.CopyFromScreen(form.Left, form.Top, 0, 0, bmp.Size);
+            bmp.Save(Path.Combine(OutDir, file), ImageFormat.Png);
+            Log("screenshot " + file);
+        }
+        catch (Exception ex) { Log("screenshot failed: " + ex.Message); }
+    }
+
+    /// <summary>纯扫描层断言：复合后缀分类、逻辑基名、atlas/页图配对、规范化 URL 名</summary>
+    private static bool StaticChecks()
+    {
+        var ok = true;
+        var versions = ExportPreviewSettings.AvailableVersionLines("");
+        Log("available version lines: " + string.Join(", ", versions.Order()));
+        foreach (var n in typeof(MainForm).Assembly.GetManifestResourceNames().Where(n => n.Contains("SpinePlayer")))
+            Log("embedded resource: " + n);
+
+        var cases = new[]
+        {
+            (UnityBinary, true, "spineboy-pro", "4.2"),
+            (UnityJson, false, "spineboy-pro", "4.2"),
+            (Native, true, "spineboy-pro", "4.2"),
+            (UserReal41, true, "G2", "4.1")
+        };
+        foreach (var (path, binary, stem, line) in cases)
+        {
+            if (!File.Exists(path)) { Log("FAIL asset missing: " + path); ok = false; continue; }
+            var e = ExportPreviewScanner.Inspect(path, versions);
+            Log($"SCAN {Path.GetFileName(path)} -> status={e.Status} format={e.Format} ver={e.SpineVersion} "
+                + $"line={e.VersionLine} binary={e.IsBinarySkeleton} stem={e.LogicalStem} "
+                + $"url={e.SkeletonUrlName} atlas={Path.GetFileName(e.AtlasPath ?? "(none)")} "
+                + $"pages={e.PageImageMap.Count} missing={e.MissingPages.Count}");
+            if (e.Status != ExportPreviewStatus.Ready) { Log("FAIL status not Ready"); ok = false; }
+            if (e.IsBinarySkeleton != binary) { Log("FAIL binary classification"); ok = false; }
+            if (e.LogicalStem != stem) { Log("FAIL logical stem"); ok = false; }
+            if (e.VersionLine != line) { Log("FAIL version line"); ok = false; }
+            if (e.SkeletonUrlName != (binary ? "skeleton.skel" : "skeleton.json"))
+            { Log("FAIL skeleton URL name"); ok = false; }
+            if (e.AtlasPath == null || e.PageImageMap.Count != 1 || e.MissingPages.Count != 0)
+            { Log("FAIL atlas / page pairing"); ok = false; }
+        }
+        if (ExportPreviewScanner.IsMainFileCandidate(Path.Combine(Assets, "unity-binary", "spineboy.atlas.txt")))
+        { Log("FAIL .atlas.txt misclassified as main file"); ok = false; }
+        Log("static checks: " + (ok ? "PASS" : "FAIL"));
+        return ok;
+    }
+
+    private static async Task RunAsync(MainForm form)
+    {
+        var ok = StaticChecks();
+        try
+        {
+            Log("=== PRODUCT HARNESS (Unity suffix + built-in runtime / zero config) START ===");
+            form.TopMost = true;
+            form.Activate();
+            await Task.Delay(1200);
+
+            var tabs = Field(form, "_mainTabs") as TabControl;
+            if (tabs == null || tabs.TabPages.Count != 4) { Log("FAIL main tabs"); ok = false; }
+            else
+            {
+                Log("PASS main tabs=" + tabs.TabPages.Count
+                    + " [" + string.Join(" | ", tabs.TabPages.Cast<TabPage>().Select(t => t.Text)) + "]");
+                tabs.SelectedIndex = 3;
+            }
+            await Task.Delay(5500);
+
+            var preview = Field(form, "_previewPage");
+            Log("previewPage=" + (preview?.GetType().Name ?? "null"));
+            if (preview == null) { Log("FAIL lazy-load did not create preview page"); ok = false; }
+            else
+            {
+                // 只用内存中的四个主文件，避开设置里残留的历史来源；不写回用户设置。
+                var roots = Field(preview, "_roots") as List<string>;
+                var explicitFiles = Field(preview, "_explicitFiles") as List<string>;
+                if (roots == null || explicitFiles == null) { Log("FAIL sources missing"); ok = false; }
+                else
+                {
+                    roots.Clear();
+                    explicitFiles.Clear();
+                    explicitFiles.AddRange([UnityBinary, UnityJson, Native, UserReal41]);
+                }
+                await Task.Delay(300);
+                var scan = preview.GetType().GetMethod("ScanAsync", BindingFlags.Instance | BindingFlags.NonPublic);
+                if (scan == null) { Log("FAIL ScanAsync missing"); ok = false; }
+                else await (Task)scan.Invoke(preview, null)!;
+                await Task.Delay(1200);
+
+                var list = Field(preview, "_listFiles") as ListView;
+                var status = Field(preview, "_lblStatePill") as Label;
+                var anims = Field(preview, "_lstAnims") as ListBox;
+                var skins = Field(preview, "_lstSkins") as ListBox;
+                var time = Field(preview, "_lblTime") as Label;
+                var overlay = Field(preview, "_overlay") as Panel;
+                var oTitle = Field(preview, "_lblOverlayTitle") as Label;
+                var oBody = Field(preview, "_lblOverlayBody") as Label;
+
+                Log("list items=" + (list?.Items.Count ?? -1));
+                if (list != null)
+                    foreach (ListViewItem it in list.Items)
+                        Log("  row: " + it.Text + " | " + string.Join(" | ", it.SubItems.Cast<ListViewItem.ListViewSubItem>().Select(x => x.Text)));
+                if (list == null || list.Items.Count != 4) { Log("FAIL expected exactly 4 main files"); ok = false; }
+                if (list != null)
+                    foreach (ListViewItem it in list.Items)
+                        if (!it.SubItems[4].Text.Contains("就绪")) { Log("FAIL row not Ready: " + it.Text); ok = false; }
+
+                Capture("unity-1-list.png", form);
+
+                if (list != null)
+                {
+                    for (var i = 0; i < list.Items.Count; i++)
+                    {
+                        var name = list.Items[i].Text;
+                        list.Items[i].Selected = true;
+                        await Task.Delay(3000);
+                        Log($"LOAD #{i} {name}: pill={status?.Text} anims={anims?.Items.Count} "
+                            + $"skins={skins?.Items.Count} time={time?.Text} "
+                            + $"overlay={overlay?.Visible} title={oTitle?.Text} body={oBody?.Text}");
+                        await Probe(preview, name);
+                        if ((anims?.Items.Count ?? 0) < 1 || overlay?.Visible == true)
+                        { Log("FAIL player did not reach ready for " + name); ok = false; }
+                        var shot = name switch
+                        {
+                            var s when s.EndsWith(".json.txt") => "unity-3-json-loaded.png",
+                            var s when s.EndsWith(".skel.bytes") && !s.StartsWith("spineboy") => "unity-5-real-41-loaded.png",
+                            var s when s.EndsWith(".skel.bytes") => "unity-2-binary-loaded.png",
+                            _ => "unity-4-native-loaded.png"
+                        };
+                        Capture(shot, form);
+
+                        // 用户真实 4.1 工程有 3 个皮肤，验证切到具名皮肤后画布是否出现内容
+                        if (name == "G2.skel.bytes" && skins is { Items.Count: > 1 })
+                        {
+                            skins.SelectedIndex = 1;
+                            await Task.Delay(1800);
+                            Log("SKIN SWITCH -> " + skins.SelectedItem + " pill=" + status?.Text);
+                            await Probe(preview, "after skin " + skins.SelectedItem);
+                            Capture("unity-6-real-41-skin2.png", form);
+                            skins.SelectedIndex = 2;
+                            await Task.Delay(1800);
+                            Log("SKIN SWITCH -> " + skins.SelectedItem + " pill=" + status?.Text);
+                            await Probe(preview, "after skin " + skins.SelectedItem);
+                            Capture("unity-7-real-41-skin3.png", form);
+                        }
+                    }
+                }
+            }
+
+            Log("=== PRODUCT HARNESS RESULT: " + (ok ? "PASS" : "FAIL") + " ===");
+        }
+        catch (Exception ex)
+        {
+            Log("EXCEPTION " + ex);
+            Log("=== PRODUCT HARNESS RESULT: FAIL ===");
+        }
+        finally
+        {
+            await Task.Delay(300);
+            try
+            {
+                typeof(MainForm).GetMethod("ExitApp", BindingFlags.Instance | BindingFlags.NonPublic)
+                    ?.Invoke(form, null);
+            }
+            catch { }
+            Application.Exit();
+        }
+    }
+}

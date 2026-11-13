@@ -1,0 +1,334 @@
+/* ------------------------------------------------------------------
+ * Spine Export Preview - JS bridge (host.html <-> WinForms)
+ * All asset URLs are same-origin under https://spinepreview.local/ and are
+ * served by C# through CoreWebView2.WebResourceRequested (S3 route).
+ * No file:// access, no copying of export files.
+ *
+ * Stage-0 verified against @esotericsoftware/spine-player 4.2.120.
+ * ------------------------------------------------------------------ */
+(function () {
+  "use strict";
+
+  var player = null;
+  var host = null;
+  var lastTick = 0;
+  var needPose = false;
+  var disposedCount = 0;
+  var currentAnimation = "";
+  var currentSkin = "default";
+  var loop = true;
+  var metadataSent = false;
+  var viewportFixed = false;
+  var bootstrapTimer = null;
+  var PHYS = (window.spine && spine.Physics && spine.Physics.update) || 0;
+
+  function post(obj) {
+    try {
+      if (window.chrome && window.chrome.webview)
+        window.chrome.webview.postMessage(obj);
+    } catch (e) { /* host gone */ }
+  }
+
+  function currentEntry() {
+    try {
+      return player && player.animationState
+        ? player.animationState.getCurrent(0) : null;
+    } catch (e) { return null; }
+  }
+
+  function glInfo() {
+    var count = document.querySelectorAll("canvas").length;
+    var lost = null;
+    try {
+      var c = host && host.querySelector("canvas");
+      if (c) {
+        var gl = c.getContext("webgl2") || c.getContext("webgl");
+        lost = gl ? gl.isContextLost() : null;
+      }
+    } catch (e) { /* ignore */ }
+    return { canvasCount: count, webglLost: lost, disposedCount: disposedCount };
+  }
+
+  function emitMetadata() {
+    if (!player || !player.skeleton) return;
+    var data = player.skeleton.data;
+    var skins = (data.skins || []).map(function (s) { return s.name; });
+    var anims = (data.animations || []).map(function (a) { return a.name; });
+    var entry = currentEntry();
+    var info = glInfo();
+    currentAnimation = entry && entry.animation ? entry.animation.name : "";
+    currentSkin = player.skeleton.skin ? player.skeleton.skin.name : "default";
+    post({
+      type: "ready",
+      skins: skins,
+      animations: anims,
+      duration: entry && entry.animation ? entry.animation.duration : 0,
+      skin: currentSkin,
+      animation: currentAnimation,
+      canvasCount: info.canvasCount,
+      webglLost: info.webglLost,
+      disposedCount: info.disposedCount
+    });
+  }
+
+  function onFrame(p, delta) {
+    // 4.1.x quirk: the official post-success branch guards viewport setup with
+    // `else if (!this.currentViewport)`, but currentViewport starts as {} (truthy).
+    // If track 0 was already installed before success(), setViewport() is skipped,
+    // the camera gets NaN coordinates and the canvas stays blank even though
+    // ready/metadata/tick all look healthy. By the first frame track 0 is always
+    // installed, so repair the viewport here. 4.2/4.3 already have a valid
+    // currentViewport.x and are left untouched.
+    if (!viewportFixed && p.skeleton && p.animationState) {
+      viewportFixed = true;
+      try {
+        var cv = p.currentViewport;
+        var badViewport = !cv || !isFinite(cv.x) || !isFinite(cv.y)
+                          || !isFinite(cv.width) || !isFinite(cv.height)
+                          || !isFinite(cv.padLeft);
+        var e0 = p.animationState.getCurrent(0);
+        if (badViewport && typeof p.setViewport === "function" && e0 && e0.animation)
+          p.setViewport(e0.animation);
+      } catch (e) { /* best effort */ }
+    }
+    // config.success() fires before track 0 is installed. The first frame
+    // callback runs after the official post-success branch, so metadata is
+    // emitted here (duration / current animation are then reliable).
+    if (!metadataSent && p.skeleton && p.animationState) {
+      metadataSent = true;
+      emitMetadata();
+    }
+    // drawFrame() keeps requesting frames while paused but skips
+    // animationState.apply(). Re-apply here so seek() is visible when paused.
+    if (p.paused && needPose) {
+      needPose = false;
+      try { p.animationState.apply(p.skeleton); } catch (e) { }
+      try { p.skeleton.updateWorldTransform(PHYS); } catch (e) { }
+    }
+    var now = performance.now();
+    if (now - lastTick < 100) return;
+    lastTick = now;
+    var entry = currentEntry();
+    if (!entry || !entry.animation) return;
+    post({
+      type: "tick",
+      trackTime: entry.trackTime,
+      duration: entry.animation.duration,
+      paused: !!p.paused
+    });
+  }
+
+  function startBootstrapPump() {
+    // SpinePlayer.loadSkeleton() is driven by requestAnimationFrame. Chromium
+    // suspends rAF when the WebView is occluded / backgrounded / not focused,
+    // which can leave loading stuck forever. Pump drawFrame(false) ourselves
+    // (no extra rAF scheduling) until the skeleton is ready, then stop.
+    if (bootstrapTimer) clearInterval(bootstrapTimer);
+    bootstrapTimer = setInterval(function () {
+      if (!player) return;
+      if (player.skeleton || player.error) {
+        clearInterval(bootstrapTimer);
+        bootstrapTimer = null;
+        return;
+      }
+      try { player.drawFrame(false); } catch (e) { }
+    }, 120);
+  }
+
+  function loadGroup(m) {
+    try {
+      if (bootstrapTimer) { clearInterval(bootstrapTimer); bootstrapTimer = null; }
+      if (player) {
+        try { player.dispose(); } catch (e) { }
+        player = null;
+        disposedCount++;
+      }
+      var stage = document.getElementById("stage");
+      while (stage.firstChild) stage.removeChild(stage.firstChild);
+      host = document.createElement("div");
+      stage.appendChild(host);
+
+      var g = m.group || {};
+      loop = m.loop !== false;
+      metadataSent = false;
+      viewportFixed = false;
+      // 配置字段跨版本兼容（三个内置版本线各取所需，值相同不会重复加载）：
+      //   4.1.x  validateConfig 只认 jsonUrl / binaryUrl + atlasUrl
+      //   4.2.x  skeleton / atlas 优先，同时兼容旧字段
+      //   4.3.x  只认 skeleton / atlas
+      // 磁盘文件名可能是 Unity 的 .skel.bytes，但 C# 已把 URL 规范化为
+      // skeleton.json / skeleton.skel，因此按结尾判格式是可靠的。
+      var skeletonUrl = g.skeleton || "";
+      var isJsonSkeleton = /\.json$/i.test(skeletonUrl);
+      var cfg = {
+        skeleton: skeletonUrl,
+        jsonUrl: isJsonSkeleton ? skeletonUrl : undefined,
+        binaryUrl: isJsonSkeleton ? undefined : skeletonUrl,
+        atlas: g.atlas,
+        atlasUrl: g.atlas,
+        showControls: false,
+        showLoading: false,
+        premultipliedAlpha: g.premultipliedAlpha !== false,
+        preserveDrawingBuffer: false,
+        backgroundColor: "1E1E20",
+        alpha: false,
+        interactive: false,
+        mipmaps: true,
+        defaultMix: m.mix === undefined ? 0.25 : m.mix,
+        scale: 1,
+        success: function (p) {
+          player = p;
+          // Official success() fires BEFORE track 0 is installed. Do NOT call
+          // setAnimation() here (viewport/renderer not ready yet -> throws and
+          // leaves an empty animation). Instead write the preferred animation
+          // back to config; the official branch right after success() installs
+          // it, and the first frame() callback then emits reliable metadata.
+          if (!g.animation) {
+            // Prefer "idle", then the first animation with a positive duration,
+            // then simply the first. Some Spine animations (e.g. aim) are
+            // single-frame poses with duration 0, which makes the timeline useless.
+            var anims = p.skeleton.data.animations || [];
+            var first = null, firstTimed = null, firstIdle = null;
+            for (var i = 0; i < anims.length; i++) {
+              if (!first) first = anims[i].name;
+              if (!firstTimed && anims[i].duration > 0) firstTimed = anims[i].name;
+              if (!firstIdle && /idle/i.test(anims[i].name) && anims[i].duration > 0)
+                firstIdle = anims[i].name;
+            }
+            var chosen = firstIdle || firstTimed || first;
+            if (chosen) { try { p.config.animation = chosen; } catch (e) { } }
+          }
+          // Pick a skin with actual attachments. Many production projects keep
+          // "default" nearly empty and put all regions in named skins; under 4.1
+          // that leaves every slot without an attachment at viewport-calculation
+          // time, producing NaN camera values and a permanently blank canvas.
+          try {
+            var wantedSkin = g.skin;
+            if (!wantedSkin) {
+              var allSkins = p.skeleton.data.skins || [];
+              var bestCount = -1;
+              for (var si = 0; si < allSkins.length; si++) {
+                var cnt = 0;
+                try {
+                  var am = allSkins[si].attachments;
+                  if (am) cnt = Object.keys(am).length;
+                } catch (e2) { cnt = 0; }
+                if (cnt > bestCount) { bestCount = cnt; wantedSkin = allSkins[si].name; }
+              }
+            }
+            if (wantedSkin) {
+              p.skeleton.setSkinByName(wantedSkin);
+              p.skeleton.setSlotsToSetupPose();
+            }
+          } catch (e) { /* keep whatever skin the runtime set up */ }
+          if (m.speed !== undefined) p.speed = m.speed;
+          if (m.autoPlay !== false) p.play();
+          needPose = true;
+        },
+        error: function (p, msg) {
+          post({ type: "error", phase: "load", reason: String(msg) });
+        },
+        frame: onFrame
+      };
+      if (g.animation) cfg.animation = g.animation;
+      if (g.skin) cfg.skin = g.skin;
+      player = new spine.SpinePlayer(host, cfg);
+      // 有意保留的发布版只读诊断接口：供 harness / 真机排查跨版本渲染问题
+      // （空皮肤、NaN viewport、WebGL 丢失等）读取 player 内部状态。
+      // 仅暴露对象引用，不提供远程入口，也不写回任何导出源文件。
+      try { window.__eapPlayer = player; window.__eapCfg = cfg; } catch (e) { }
+      startBootstrapPump();
+    } catch (e) {
+      post({ type: "error", phase: "construct", reason: String(e && e.message || e) });
+    }
+  }
+
+  function handle(m) {
+    try {
+      switch (m.type) {
+        case "loadGroup": loadGroup(m); return;
+        case "play": if (player) player.play(); break;
+        case "pause": if (player) player.pause(); break;
+        case "setSpeed": if (player) player.speed = m.value; break;
+        case "setMix":
+          if (player && player.animationState && player.animationState.data)
+            player.animationState.data.defaultMix = m.value;
+          break;
+        case "setSkin":
+          if (player && player.skeleton) {
+            player.skeleton.setSkinByName(m.name);
+            player.skeleton.setSlotsToSetupPose();
+            currentSkin = m.name;
+            needPose = true;
+          }
+          break;
+        case "setAnimation":
+          if (player) {
+            var e = player.setAnimation(m.name, m.loop !== false);
+            currentAnimation = m.name;
+            loop = m.loop !== false;
+            needPose = true;
+            post({
+              type: "trackChanged",
+              animation: m.name,
+              duration: e && e.animation ? e.animation.duration : 0
+            });
+            return;
+          }
+          break;
+        case "setLoop":
+          loop = !!m.value;
+          if (player && currentAnimation) {
+            var e2 = player.setAnimation(currentAnimation, loop);
+            needPose = true;
+            post({
+              type: "trackChanged",
+              animation: currentAnimation,
+              duration: e2 && e2.animation ? e2.animation.duration : 0
+            });
+            return;
+          }
+          break;
+        case "seek":
+          var entry = currentEntry();
+          if (entry) { entry.trackTime = Math.max(0, m.time); needPose = true; }
+          break;
+        case "setupPose":
+          if (player && player.skeleton) { player.skeleton.setToSetupPose(); needPose = true; }
+          break;
+        case "setDebug":
+          if (player && player.config && player.config.debug)
+            player.config.debug.bones = !!m.value;
+          break;
+        case "dispose":
+          if (bootstrapTimer) { clearInterval(bootstrapTimer); bootstrapTimer = null; }
+          if (player) { try { player.dispose(); } catch (e) { } player = null; disposedCount++; }
+          break;
+        case "probeState": {
+          var cur = currentEntry();
+          var info = glInfo();
+          post({
+            type: "state",
+            canvasCount: info.canvasCount,
+            webglLost: info.webglLost,
+            disposedCount: info.disposedCount,
+            trackTime: cur ? cur.trackTime : -1,
+            paused: player ? !!player.paused : true,
+            animation: currentAnimation,
+            skin: currentSkin
+          });
+          return;
+        }
+        default: break;
+      }
+      post({ type: "ack", what: m.type });
+    } catch (e) {
+      post({ type: "error", phase: m.type, reason: String(e && e.message || e) });
+    }
+  }
+
+  if (window.chrome && window.chrome.webview)
+    window.chrome.webview.addEventListener("message", function (ev) { handle(ev.data || {}); });
+
+  post({ type: "bridgeReady", spinePlayerLoaded: !!window.spine });
+})();

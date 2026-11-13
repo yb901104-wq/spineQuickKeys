@@ -18,6 +18,33 @@
     <EmbeddedResource Include="icons\**" />
     <EmbeddedResource Include="assets\ui\**" />
     <EmbeddedResource Include="virtual_layout.json" />
+
+    <!-- 内置 Spine Web Player（4.1 / 4.2 / 4.3）。显式 LogicalName 避免目录名中的
+         点号与多个同名 spine-player.js 造成 GetManifestResourceNames 歧义。
+         随应用再分发遵循包内 LICENSE-Spine-Runtimes.txt（Spine Runtimes License）。 -->
+    <EmbeddedResource Include="assets\spine-player\host.html" LogicalName="KeyMacro.SpinePlayer.host.html" />
+    <EmbeddedResource Include="assets\spine-player\bridge.js" LogicalName="KeyMacro.SpinePlayer.bridge.js" />
+    <EmbeddedResource Include="assets\spine-player\LICENSE-Spine-Runtimes.txt" LogicalName="KeyMacro.SpinePlayer.LICENSE.txt" />
+    <EmbeddedResource Include="assets\spine-player\runtime\4.1\spine-player.js" LogicalName="KeyMacro.SpinePlayer.Runtime.41.spine-player.js" />
+    <EmbeddedResource Include="assets\spine-player\runtime\4.1\spine-player.css" LogicalName="KeyMacro.SpinePlayer.Runtime.41.spine-player.css" />
+    <EmbeddedResource Include="assets\spine-player\runtime\4.2\spine-player.js" LogicalName="KeyMacro.SpinePlayer.Runtime.42.spine-player.js" />
+    <EmbeddedResource Include="assets\spine-player\runtime\4.2\spine-player.css" LogicalName="KeyMacro.SpinePlayer.Runtime.42.spine-player.css" />
+    <EmbeddedResource Include="assets\spine-player\runtime\4.3\spine-player.js" LogicalName="KeyMacro.SpinePlayer.Runtime.43.spine-player.js" />
+    <EmbeddedResource Include="assets\spine-player\runtime\4.3\spine-player.css" LogicalName="KeyMacro.SpinePlayer.Runtime.43.spine-player.css" />
   </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2957.106" />
+  </ItemGroup>
+
+  <!-- WebView2 包的 Common.targets 无条件引用 WPF 程序集，其 WindowsBase 5.0
+       与 net9.0 的 WindowsBase 4.0 冲突产生 MSB3277。本项目只用 WinForms，
+       显式移除该多余引用，保持 0 警告构建。 -->
+  <Target Name="DropWebView2WpfAssembly" BeforeTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <_WebView2WpfRef Include="@(Reference)" Condition="'%(Filename)' == 'Microsoft.Web.WebView2.Wpf'" />
+      <Reference Remove="@(_WebView2WpfRef)" />
+    </ItemGroup>
+  </Target>
 
 </Project>

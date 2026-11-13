@@ -1,0 +1,143 @@
+using System.Drawing.Imaging;
+using System.Reflection;
+using KeyMacro.Forms;
+
+namespace PreviewHarness;
+
+internal static class Program
+{
+    private const string OutDir = @"D:\AI_cc\spineQuickKeys\docs\export-animation-preview\verification";
+    private const string LogPath = OutDir + @"\harness-log.txt";
+
+    [STAThread]
+    private static void Main()
+    {
+        Directory.CreateDirectory(OutDir);
+        try { File.WriteAllText(LogPath, ""); } catch { }
+        Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
+        Application.EnableVisualStyles();
+        var form = new MainForm();
+        form.Shown += async (_, _) => await RunAsync(form);
+        Application.Run(form);
+    }
+
+    private static void Log(string s)
+    {
+        Console.WriteLine(s);
+        try { File.AppendAllText(LogPath, s + Environment.NewLine); } catch { }
+    }
+
+    private static object? Field(object target, string name) =>
+        target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
+            ?.GetValue(target);
+
+    private static void Capture(string file, Form form)
+    {
+        try
+        {
+            using var bmp = new Bitmap(form.Width, form.Height);
+            using (var g = Graphics.FromImage(bmp))
+                g.CopyFromScreen(form.Left, form.Top, 0, 0, bmp.Size);
+            bmp.Save(Path.Combine(OutDir, file), ImageFormat.Png);
+            Log("screenshot " + file);
+        }
+        catch (Exception ex) { Log("screenshot failed: " + ex.Message); }
+    }
+
+    private static async Task RunAsync(MainForm form)
+    {
+        var ok = true;
+        try
+        {
+            Log("=== PRODUCT HARNESS START ===");
+            form.TopMost = true;
+            form.Activate();
+            await Task.Delay(1200);
+
+            var tabs = Field(form, "_mainTabs") as TabControl;
+            if (tabs == null) { Log("FAIL _mainTabs missing"); ok = false; }
+            else
+            {
+                Log("PASS main tabs=" + tabs.TabPages.Count
+                    + " [" + string.Join(" | ", tabs.TabPages.Cast<TabPage>().Select(t => t.Text)) + "]");
+                if (tabs.TabPages.Count != 4) ok = false;
+                if (tabs.TabPages[^1].Text != "导出动画预览") ok = false;
+                tabs.SelectedIndex = 3;
+            }
+
+            await Task.Delay(4000);
+
+            var preview = Field(form, "_previewPage");
+            Log("previewPage=" + (preview?.GetType().Name ?? "null"));
+            if (preview == null) { Log("FAIL lazy-load did not create preview page"); ok = false; }
+            else
+            {
+                var list = Field(preview, "_listFiles") as ListView;
+                var status = Field(preview, "_lblStatePill") as Label;
+                var anims = Field(preview, "_lstAnims") as ListBox;
+                var skins = Field(preview, "_lstSkins") as ListBox;
+                var animTitle = Field(preview, "_lblAnimTitle") as Label;
+                var skinTitle = Field(preview, "_lblSkinTitle") as Label;
+                var time = Field(preview, "_lblTime") as Label;
+                var count = Field(preview, "_lblCount") as Label;
+
+                Log("list items=" + (list?.Items.Count ?? -1) + " countLabel=" + count?.Text);
+                if (list == null || list.Items.Count < 2) { Log("FAIL scan produced <2 main files"); ok = false; }
+                if (list != null)
+                    foreach (ListViewItem it in list.Items)
+                        Log("  row: " + it.Text + " | " + string.Join(" | ", it.SubItems.Cast<ListViewItem.ListViewSubItem>().Select(x => x.Text)));
+
+                Capture("runtime-1-preview-tab.png", form);
+
+                if (list != null && list.Items.Count > 0)
+                {
+                    var overlay = Field(preview, "_overlay") as Panel;
+                    var oTitle = Field(preview, "_lblOverlayTitle") as Label;
+                    var oBody = Field(preview, "_lblOverlayBody") as Label;
+                    list.Items[0].Selected = true;
+                    await Task.Delay(7000);
+                    Log("after click #0: pill=" + status?.Text
+                        + " anims=" + anims?.Items.Count + " skins=" + skins?.Items.Count
+                        + " animTitle=" + animTitle?.Text + " skinTitle=" + skinTitle?.Text
+                        + " time=" + time?.Text
+                        + " overlayVisible=" + overlay?.Visible + " overlayTitle=" + oTitle?.Text
+                        + " overlayBody=" + oBody?.Text);
+                    if ((anims?.Items.Count ?? 0) < 2 || overlay?.Visible == true)
+                    { Log("FAIL player did not reach ready"); ok = false; }
+                    if (time != null && time.Text.Contains("00:00.00 / 00:00.00"))
+                    { Log("FAIL timeline duration missing"); ok = false; }
+                    Capture("runtime-2-preview-loaded.png", form);
+
+                    if (list.Items.Count > 1)
+                    {
+                        list.Items[1].Selected = true;
+                        await Task.Delay(4000);
+                        Log("after switch #1: pill=" + status?.Text + " anims=" + anims?.Items.Count
+                            + " time=" + time?.Text);
+                        if ((anims?.Items.Count ?? 0) < 2 || overlay?.Visible == true)
+                        { Log("FAIL seamless switch broke player"); ok = false; }
+                        Capture("runtime-3-seamless-switch.png", form);
+                    }
+                }
+            }
+
+            Log("=== PRODUCT HARNESS RESULT: " + (ok ? "PASS" : "FAIL") + " ===");
+        }
+        catch (Exception ex)
+        {
+            Log("EXCEPTION " + ex);
+            Log("=== PRODUCT HARNESS RESULT: FAIL ===");
+        }
+        finally
+        {
+            await Task.Delay(300);
+            try
+            {
+                typeof(MainForm).GetMethod("ExitApp", BindingFlags.Instance | BindingFlags.NonPublic)
+                    ?.Invoke(form, null);
+            }
+            catch { }
+            Application.Exit();
+        }
+    }
+}

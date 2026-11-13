@@ -84,6 +84,8 @@ public class VirtualKeyWindow : Form
     private bool _layouting;
     private Point _resizeStartCursor;
     private Size _resizeStartSize;
+    /// <summary>AUD-043 ⑥：拖拽开始时的列数，拖拽期间固定，避免 AutoGrid 行数抖动</summary>
+    private int _resizeColumns;
     private readonly Panel _resizeGrip = new();
     // ── Layout base metrics at 100% scale ──
     private const int BASE_BTN_H = 48;
@@ -438,6 +440,8 @@ public class VirtualKeyWindow : Form
             if (int.TryParse(input, out var val) && val >= 0) { vbtn.ExtraGap = val; SaveLayout(); RecalculateSize(); }
         });
         menu.Items.Add(gapMenu);
+        // AUD-043 ⑥：一键回到按当前按钮网格计算的贴合尺寸
+        menu.Items.Add("贴合内容", null, (_, _) => RecalculateSize(true));
         menu.Items.Add("强制停止", null, (_, _) => _loopExecutor.ForceStopLoop(vbtn.Id));
         menu.Items.Add("-");
         menu.Items.Add("删除当前按钮", null, (_, _) =>
@@ -614,6 +618,9 @@ public class VirtualKeyWindow : Form
         _interactionHold = true;
         _resizeStartCursor = Cursor.Position;
         _resizeStartSize = Size;
+        // AUD-043 ⑥：记录拖拽起始列数，整个拖拽过程沿用，防止窗口高度变化
+        // 反向改变 AutoGrid 列数、造成行数跳变与最小尺寸来回抖动。
+        _resizeColumns = ResolveColumns();
         _lastInteractionUtc = DateTime.UtcNow;
     }
 
@@ -623,7 +630,11 @@ public class VirtualKeyWindow : Form
         var cursor = Cursor.Position;
         var deltaX = cursor.X - _resizeStartCursor.X;
         var deltaY = cursor.Y - _resizeStartCursor.Y;
-        Size = new Size(Math.Max(160, _resizeStartSize.Width + deltaX), Math.Max(100, _resizeStartSize.Height + deltaY));
+        // AUD-043 ⑥：下限改为按当前按钮网格动态计算的贴合尺寸，
+        // 不再使用与内容无关的写死 160x100（含 120x60 绝对安全下限）。
+        var min = ComputeContentSize(_resizeColumns > 0 ? _resizeColumns : ResolveColumns());
+        Size = new Size(Math.Max(min.Width, _resizeStartSize.Width + deltaX),
+                        Math.Max(min.Height, _resizeStartSize.Height + deltaY));
         RecalculateSize(false);
     }
 
@@ -631,6 +642,7 @@ public class VirtualKeyWindow : Form
     {
         if (e.Button != MouseButtons.Left || !_resizingWindow) return;
         _resizingWindow = false;
+        _resizeColumns = 0;
         _interactionHold = false;
         _windowSizeInitialized = true;
         SnapToScreenEdge();
@@ -836,14 +848,65 @@ public class VirtualKeyWindow : Form
         foreach (var w in _widgets.Values) { w.ScaleFactor = eff; w.UpdateSize(); }
     }
 
+    /// <summary>AUD-043 ⑥：按当前布局模式解析列数（逻辑与 RecalculateSize 原实现一致）。</summary>
+    private int ResolveColumns()
+    {
+        int n = _widgets.Count;
+        if (n == 0) return 1;
+        return _layoutMode switch
+        {
+            VirtualLayoutSerializer.LayoutMode.SingleRow => n,
+            VirtualLayoutSerializer.LayoutMode.SingleColumn => 1,
+            VirtualLayoutSerializer.LayoutMode.FixedColumns => Math.Clamp(_fixedColumns, 1, n),
+            VirtualLayoutSerializer.LayoutMode.FixedRows =>
+                Math.Max(1, (int)Math.Ceiling(n / (double)Math.Max(1, _fixedRows))),
+            _ => Math.Max(1, (int)Math.Ceiling(Math.Sqrt(
+                     n * Math.Max(0.5, (double)ClientSize.Width / Math.Max(1, ClientSize.Height)))))
+        };
+    }
+
+    /// <summary>
+    /// AUD-043 ⑥：按实际按钮网格计算「贴合」窗口尺寸，取代写死的 160x100 下限。
+    /// 计入内边距、按钮间距、ExtraGap、DPI 缩放与非客户区；四种布局模式通用。
+    /// 保留 120x60 绝对下限，防止窗口缩到不可见。
+    /// </summary>
+    private Size ComputeContentSize(int columns)
+    {
+        float dpi = DeviceDpi / 96f;
+        float S = _buttonScale * dpi;
+        int margin = Math.Max(2, (int)(_innerPadding * dpi));
+        int gap = Math.Max(0, (int)(_buttonGap * dpi));
+        int n = _widgets.Count;
+        int ncW = Width - ClientSize.Width;
+        int ncH = Height - ClientSize.Height;
+        if (n == 0)
+            return new Size(Math.Max(120, margin * 2 + 20 + ncW),
+                            Math.Max(60, margin * 2 + 20 + ncH));
+
+        columns = Math.Clamp(columns, 1, n);
+        int rows = (int)Math.Ceiling(n / (double)columns);
+        var items = _widgets.Values.ToList();
+        var rowWidths = new int[rows];
+        for (int row = 0; row < rows; row++)
+        {
+            var rowItems = items.Skip(row * columns).Take(columns).ToList();
+            rowWidths[row] = rowItems.Sum(w =>
+                                 Math.Max(1, (int)(BaseBtnWidth(w.VirtualButton.StyleType) * S))
+                                 + (int)(w.VirtualButton.ExtraGap * S))
+                             + Math.Max(0, rowItems.Count - 1) * gap;
+        }
+        int contentW = rowWidths.Max();
+        int contentH = rows * Math.Max(1, (int)(BASE_BTN_H * S)) + Math.Max(0, rows - 1) * gap;
+        return new Size(Math.Max(120, margin * 2 + contentW + ncW),
+                        Math.Max(60, margin * 2 + contentH + ncH));
+    }
+
     private void RecalculateSize(bool resizeWindow = false)
     {
         if (_layouting) return;
         _layouting = true;
         try
         {
-            int ncW = Width - ClientSize.Width;
-            int ncH = Height - ClientSize.Height;
             float dpi = DeviceDpi / 96f;
             float S = _buttonScale * dpi;
             int margin = Math.Max(2, (int)(_innerPadding * dpi));
@@ -852,35 +915,22 @@ public class VirtualKeyWindow : Form
 
             if (n == 0)
             {
-                if (resizeWindow) Size = new Size(Math.Max(160, margin * 2 + 20 + ncW), Math.Max(100, margin * 2 + 20 + ncH));
+                if (resizeWindow) Size = ComputeContentSize(1);
                 PositionResizeGrip();
                 return;
             }
 
             var items = _widgets.Values.ToList();
-            int columns = _layoutMode switch
-            {
-                VirtualLayoutSerializer.LayoutMode.SingleRow => n,
-                VirtualLayoutSerializer.LayoutMode.SingleColumn => 1,
-                VirtualLayoutSerializer.LayoutMode.FixedColumns => Math.Clamp(_fixedColumns, 1, n),
-                VirtualLayoutSerializer.LayoutMode.FixedRows => Math.Max(1, (int)Math.Ceiling(n / (double)Math.Max(1, _fixedRows))),
-                _ => Math.Max(1, (int)Math.Ceiling(Math.Sqrt(n * Math.Max(0.5, (double)ClientSize.Width / Math.Max(1, ClientSize.Height)))) )
-            };
+            // AUD-043 ⑥：拖拽期间沿用 MouseDown 时的列数，避免窗口高度变化
+            // 反作用于 AutoGrid 列数、造成行数跳变与最小尺寸来回抖动。
+            int columns = _resizingWindow && _resizeColumns > 0
+                ? Math.Clamp(_resizeColumns, 1, n)
+                : ResolveColumns();
             int rows = (int)Math.Ceiling(n / (double)columns);
 
-            if (resizeWindow)
-            {
-                var rowWidths = new int[rows];
-                for (int row = 0; row < rows; row++)
-                {
-                    var rowItems = items.Skip(row * columns).Take(columns);
-                    rowWidths[row] = rowItems.Sum(w => Math.Max(1, (int)(BaseBtnWidth(w.VirtualButton.StyleType) * S)) + (int)(w.VirtualButton.ExtraGap * S))
-                        + Math.Max(0, rowItems.Count() - 1) * gap;
-                }
-                int contentW = rowWidths.Max();
-                int contentH = rows * Math.Max(1, (int)(BASE_BTN_H * S)) + Math.Max(0, rows - 1) * gap;
-                Size = new Size(Math.Max(160, margin * 2 + contentW + ncW), Math.Max(100, margin * 2 + contentH + ncH));
-            }
+            // AUD-043 ⑥：贴合尺寸按实际按钮网格计算（含 padding / gap / ExtraGap /
+            // DPI / 非客户区），不再用与内容无关的写死 160x100。
+            if (resizeWindow) Size = ComputeContentSize(columns);
 
             _panel.WrapContents = true;
             _panel.FlowDirection = FlowDirection.LeftToRight;

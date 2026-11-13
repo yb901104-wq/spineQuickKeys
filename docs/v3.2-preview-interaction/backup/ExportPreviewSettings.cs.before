@@ -1,0 +1,114 @@
+using System.Text.Json;
+
+namespace KeyMacro.Services;
+
+/// <summary>
+/// 「导出动画预览」独立设置。落盘 %APPDATA%\KeyMacro\export_preview_settings.json，
+/// 不修改 config.json / path_history.json 的既有结构。
+/// 播放资源默认使用内置 runtime，PlayerResourceRoot 仅作为可选覆盖。
+/// </summary>
+public sealed class ExportPreviewSettingsData
+{
+    public List<string> LastDirectories { get; set; } = [];
+    public List<string> LastFiles { get; set; } = [];
+    public bool IncludeSubfolders { get; set; } = true;
+    public bool PremultipliedAlpha { get; set; } = true;
+    public double Speed { get; set; } = 1.0;
+    public double Mix { get; set; } = 0.25;
+    public bool Loop { get; set; } = true;
+
+    /// <summary>可选：BYO 覆盖目录。留空 = 使用应用内置的 4.1 / 4.2 / 4.3 runtime</summary>
+    public string PlayerResourceRoot { get; set; } = "";
+    public string SkeletonViewerJar { get; set; } = "";
+    public string JavaPath { get; set; } = "";
+    public string FilterText { get; set; } = "";
+}
+
+public static class ExportPreviewSettings
+{
+    public const string DefaultVersionLine = SpinePlayerHost.DefaultVersionLine;
+
+    private static readonly string DataDir = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "KeyMacro");
+
+    public static string FilePath => Path.Combine(DataDir, "export_preview_settings.json");
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNameCaseInsensitive = true
+    };
+
+    public static ExportPreviewSettingsData Load()
+    {
+        try
+        {
+            if (File.Exists(FilePath))
+            {
+                var json = File.ReadAllText(FilePath);
+                return JsonSerializer.Deserialize<ExportPreviewSettingsData>(json, JsonOptions)
+                       ?? new ExportPreviewSettingsData();
+            }
+        }
+        catch (Exception ex)
+        {
+            OperationLogger.Warn("[ExportPreview] 设置读取失败，使用默认值: " + ex.Message);
+        }
+        return new ExportPreviewSettingsData();
+    }
+
+    public static void Save(ExportPreviewSettingsData data)
+    {
+        try
+        {
+            if (!Directory.Exists(DataDir)) Directory.CreateDirectory(DataDir);
+            File.WriteAllText(FilePath, JsonSerializer.Serialize(data, JsonOptions));
+        }
+        catch (Exception ex)
+        {
+            OperationLogger.Warn("[ExportPreview] 设置写入失败: " + ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// 可选 BYO 目录：先找 &lt;root&gt;\&lt;major.minor&gt;\spine-player.js，
+    /// 再回退 &lt;root&gt;\spine-player.js。返回 null 表示使用内置 runtime。
+    /// </summary>
+    public static string? ResolvePlayerDirectory(string root, string versionLine)
+    {
+        if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root)) return null;
+        if (!string.IsNullOrWhiteSpace(versionLine))
+        {
+            var versioned = Path.Combine(root, versionLine);
+            if (File.Exists(Path.Combine(versioned, "spine-player.js"))) return versioned;
+        }
+        if (File.Exists(Path.Combine(root, "spine-player.js"))) return root;
+        return null;
+    }
+
+    /// <summary>
+    /// 当前可用版本线 = 内置 4.1/4.2/4.3 ∪ BYO 子目录。
+    /// BYO 根目录直接放一份通用 player 时加入 "*"，表示任意版本线都允许尝试。
+    /// </summary>
+    public static HashSet<string> AvailableVersionLines(string root)
+    {
+        var result = SpinePlayerHost.BuiltInVersionSet();
+        if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root)) return result;
+        try
+        {
+            if (File.Exists(Path.Combine(root, "spine-player.js"))) result.Add("*");
+            foreach (var dir in Directory.EnumerateDirectories(root))
+            {
+                var name = Path.GetFileName(dir);
+                if (name.Length >= 3 && char.IsDigit(name[0]) && name.Contains('.')
+                    && File.Exists(Path.Combine(dir, "spine-player.js")))
+                    result.Add(name);
+            }
+        }
+        catch (Exception ex)
+        {
+            OperationLogger.Warn("[ExportPreview] 播放资源目录扫描失败: " + ex.Message);
+        }
+        return result;
+    }
+}

@@ -54,7 +54,16 @@ public class BatchCliWindow : Form
     private readonly Button _btnBrowseOutput = new();
     private readonly Button _btnExport = new();
     private readonly Button _btnPack = new();
+    // AUD-044 ③④：新增「导出选中」两个入口；「验证导出结果」由局部变量提升为字段，
+    // 以便 SetCliActionsEnabled 统一互锁时不再遗漏（设计文档 F1/R2）。
+    private readonly Button _btnExportSelected = new();
+    private readonly Button _btnPackSelected = new();
+    private readonly Button _btnVerifyExport = new();
     private readonly Button _btnSavePreset = new();      // AUD-040 R3
+    // AUD-044 D3：可见选中计数（R4 的「不知道选没选中」）。
+    private readonly Label _lblSelectionCount = new();
+    private readonly ToolTip _actionTip = new();
+    private readonly List<Button> _exportActionButtons = [];
     private readonly RadioButton _rbFinish = new();
     private readonly RadioButton _rbDemotion = new();
     private readonly RadioButton _rbOther = new();
@@ -74,6 +83,16 @@ public class BatchCliWindow : Form
 
     private readonly BindingList<SpineCliEntry> _exportEntries = [];
     private CancellationTokenSource? _cliCts;
+
+    // ── AUD-044 R1：4 个入口文案与 2 个进行中文案集中管理 ──
+    // 旧代码在 ExecuteExport/ExecutePack 的 finally 里把「导出」「单纹理图」硬编码写回，
+    // 只改初始化处会导致跑一次后按钮名回退。所有赋值一律改读这些常量。
+    private const string ExportAllText = "导出全部";
+    private const string ExportSelectedText = "导出选中";
+    private const string PackAllText = "导出全部单纹理图";
+    private const string PackSelectedText = "导出选中单纹理图";
+    private const string ExportingText = "导出中...";
+    private const string PackingText = "打包中...";
 
     /// <summary>AUD-040 F1：导出配置名的单一真值源，状态列 / 预设 / 批量生成统一读取。</summary>
     private string CurrentExportConfigName =>
@@ -110,6 +129,12 @@ public class BatchCliWindow : Form
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 58));
+        // AUD-044 R7 施工期根因修正：列 0 未设 ColumnStyle 时按子控件 PreferredSize
+        // 撑宽，整条链 TabControl → TabPage → exportContainer → exportPanel 会被
+        // 「6 个按钮 + 340px 预设列」的内容最小宽撑到 1400+，窗口缩到 1040 时
+        // 右侧内容（含动作按钮）画到窗口外被裁。显式 Percent 100 让列宽由窗口决定。
+        layout.ColumnStyles.Clear();
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
         layout.Controls.Add(BuildTopBar(), 0, 0);
         BuildTabControl();
@@ -125,6 +150,16 @@ public class BatchCliWindow : Form
         // 「必须 4.3 及以上版本」备注改为醒目橙色，保证深色界面上可读。
         _lblVersionNote.ForeColor = UiTheme.Orange;
         _lblPresetHeader.ForeColor = UiTheme.Text;
+
+        // AUD-044 D4：UiTheme.Apply(Button) 按 ButtonKind(button.Text) 选背景图并把
+        // BackColor 置为透明，4 个含「导出」的按钮都会被归为 primary，无法用底色区分
+        // 「全部组 / 选中组」。主题应用完成后只给选中组补一层描边；SetButtonImage 的
+        // hover / EnabledChanged 回调不会覆盖 FlatAppearance 的边框属性，故状态稳定。
+        // 零改动边界：不改 UiTheme.cs，不强行覆盖主题的 BackgroundImage。
+        _btnExportSelected.FlatAppearance.BorderSize = 2;
+        _btnExportSelected.FlatAppearance.BorderColor = Color.FromArgb(0x5B, 0xB8, 0xF0);
+        _btnPackSelected.FlatAppearance.BorderSize = 2;
+        _btnPackSelected.FlatAppearance.BorderColor = Color.FromArgb(0xB9, 0x9B, 0xF2);
 
         LoadSavedPath();
 
@@ -1187,6 +1222,15 @@ public class BatchCliWindow : Form
         _tabExport.BackColor = Color.FromArgb(0xEA, 0xEA, 0xEA);
 
         var exportContainer = BuildSectionContainer("导出任务");
+        // AUD-044 R7 施工期根因修正：BuildSectionContainer 的列 0 未显式设 ColumnStyle，
+        // 默认按内容 AutoSize。新增两个按钮后内容最小宽（6 按钮单行 + 340 预设列）超过
+        // 窗口最小宽 1040，exportPanel 被撑到 1398px，按钮行画到窗口外被裁切。
+        // 显式 Percent 100 让列宽由容器决定，内容按 FlowLayoutPanel 自动换行。
+        // 只给导出页加，合并页容器保持原样（INV-3 零改动）。
+        // 注意用 Clear+Add 而不是 Add：ColumnCount=1 时集合里已有默认 AutoSize 样式，
+        // 直接 Add 会变成第 2 项，index 0 仍按内容撑宽，修复无效。
+        exportContainer.ColumnStyles.Clear();
+        exportContainer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         var exportPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
@@ -1199,17 +1243,32 @@ public class BatchCliWindow : Form
         exportPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         exportPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         exportPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 340));
-        exportPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        exportPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 250));
-        exportPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        exportPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        exportPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        exportPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        // AUD-044 R7 施工期根因修正：原行 1 固定 250、行 5 用 Percent 100 占位。
+        // 行 5 在按钮行「之后」，压缩它并不能让按钮行上移；窄窗口下 6 个按钮换行后，
+        // 前面所有固定行之和 > 容器高度，按钮行被推出可视区。改为列表行吃弹性、
+        // 计数行 AutoSize，保证按钮行与计数始终落在容器底部可视范围内。
+        exportPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));       // 0 源目录
+        exportPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // 1 文件列表（弹性）
+        exportPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));       // 2 刷新状态 / 导出配置
+        exportPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));       // 3 输出目录
+        exportPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));       // 4 动作按钮（可换行）
+        exportPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));       // 5 选中计数
 
         // Row 0: Source dir
         exportPanel.Controls.Add(new Label { Text = "源目录:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft }, 0, 0);
-        var srcDirPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3) };
-        _txtSourceDir.Size = new Size(620, 24);
+        // AUD-044 R7：原 FlowLayoutPanel + 固定 620px 输入框在 1040 宽窗口会换行，
+        // 多出的一行会吃掉文件列表的弹性高度（列表被压到几乎不可见）。
+        // 改 TableLayoutPanel，输入框列 Percent 100 自适应、两个按钮 AutoSize，单行不换行。
+        var srcDirPanel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill, AutoSize = true, ColumnCount = 3, RowCount = 1,
+            BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3)
+        };
+        srcDirPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        srcDirPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        srcDirPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        _txtSourceDir.Dock = DockStyle.Fill;
+        _txtSourceDir.MinimumSize = new Size(120, 24);
         _txtSourceDir.BorderStyle = BorderStyle.FixedSingle;
         _txtSourceDir.BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6);
         _btnBrowseSource.Text = "浏览";
@@ -1231,14 +1290,22 @@ public class BatchCliWindow : Form
         _btnScan.FlatStyle = FlatStyle.Flat;
         StyleButton(_btnScan, Color.FromArgb(0x00, 0x78, 0xD7), Color.White);
         _btnScan.Click += ScanSourceDir;
-        srcDirPanel.Controls.AddRange([_txtSourceDir, _btnBrowseSource, _btnScan]);
+        srcDirPanel.Controls.Add(_txtSourceDir, 0, 0);
+        srcDirPanel.Controls.Add(_btnBrowseSource, 1, 0);
+        srcDirPanel.Controls.Add(_btnScan, 2, 0);
         exportPanel.Controls.Add(srcDirPanel, 1, 0);
 
         // Row 1: File list
         _lvExportFiles.View = View.Details;
         _lvExportFiles.FullRowSelect = true;
+        // AUD-044 R4/R5：把「可多选」与「失焦仍显示选中」从 WinForms 隐式默认值提升为
+        // 显式约束。HideSelection 默认 true 时点别处高亮消失，但 SelectedItems 仍保留，
+        // 会让「导出选中」悄悄作用于用户看不见的行。
+        _lvExportFiles.MultiSelect = true;
+        _lvExportFiles.HideSelection = false;
         _lvExportFiles.Dock = DockStyle.Fill;
         StyleListView(_lvExportFiles);
+        _lvExportFiles.SelectedIndexChanged += (_, _) => UpdateSelectionCount();
         _lvExportFiles.Columns.Add("文件名", 200);
         _lvExportFiles.Columns.Add("export.json", 100);
         _lvExportFiles.Columns.Add("路径", 400);
@@ -1329,8 +1396,16 @@ public class BatchCliWindow : Form
 
         // Row 3: Output dir
         exportPanel.Controls.Add(new Label { Text = "输出目录:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft }, 0, 3);
-        var outDirPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3) };
-        _txtOutputDir.Size = new Size(620, 24);
+        // AUD-044 R7：同 srcDirPanel，输出目录输入框改为自适应宽度，避免窄窗口换行。
+        var outDirPanel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill, AutoSize = true, ColumnCount = 2, RowCount = 1,
+            BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3)
+        };
+        outDirPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        outDirPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        _txtOutputDir.Dock = DockStyle.Fill;
+        _txtOutputDir.MinimumSize = new Size(120, 24);
         _txtOutputDir.BorderStyle = BorderStyle.FixedSingle;
         _txtOutputDir.BackColor = Color.FromArgb(0xFF, 0xFA, 0xE6);
         _btnBrowseOutput.Text = "浏览";
@@ -1344,13 +1419,19 @@ public class BatchCliWindow : Form
             if (dlg.ShowDialog() == DialogResult.OK)
                 _txtOutputDir.Text = dlg.SelectedPath;
         };
-        outDirPanel.Controls.AddRange([_txtOutputDir, _btnBrowseOutput]);
+        outDirPanel.Controls.Add(_txtOutputDir, 0, 0);
+        outDirPanel.Controls.Add(_btnBrowseOutput, 1, 0);
         exportPanel.Controls.Add(outDirPanel, 1, 3);
 
         // Row 4: Action buttons
-        var actionPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, Padding = new Padding(0, 8, 0, 0), BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3) };
+        // AUD-044 R7：AutoSize=true 会按「6 个按钮排成一行」的 PreferredSize 把本面板
+        // 撑到约 969px，即使父 cell 只有约 600px，按钮会溢出到右侧预设列并被窗口裁掉。
+        // 改为 false + Dock=Fill，让宽度由 cell 决定，WrapContents=true 才会真正换行；
+        // 行 4 仍是 AutoSize，TableLayoutPanel 会按约束宽度取换行后的 PreferredSize 高度。
+        var actionPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = false, Padding = new Padding(0, 8, 0, 0), BackColor = Color.FromArgb(0xF3, 0xF3, 0xF3) };
 
-        _btnExport.Text = "导出";
+        // ── 全部组：仅改文案，行为与 V3.2 逐字一致 ──
+        _btnExport.Text = ExportAllText;
         _btnExport.AutoSize = true;
         _btnExport.MinimumSize = new Size(100, 36);
         _btnExport.BackColor = Color.FromArgb(0x00, 0x78, 0xD7);
@@ -1358,8 +1439,9 @@ public class BatchCliWindow : Form
         _btnExport.FlatStyle = FlatStyle.Flat;
         StyleButton(_btnExport, Color.FromArgb(0x00, 0x78, 0xD7), Color.White);
         _btnExport.Click += async (_, _) => await ExecuteExport();
+        _actionTip.SetToolTip(_btnExport, "对文件列表中的全部文件执行导出（原「导出」，行为不变）。");
 
-        _btnPack.Text = "单纹理图";
+        _btnPack.Text = PackAllText;
         _btnPack.AutoSize = true;
         _btnPack.MinimumSize = new Size(100, 36);
         _btnPack.BackColor = Color.FromArgb(0x6B, 0x46, 0xC3);
@@ -1367,6 +1449,30 @@ public class BatchCliWindow : Form
         _btnPack.FlatStyle = FlatStyle.Flat;
         StyleButton(_btnPack, Color.FromArgb(0x6B, 0x46, 0xC3), Color.White);
         _btnPack.Click += async (_, _) => await ExecutePack();
+        _actionTip.SetToolTip(_btnPack, "为文件列表中的全部文件生成单纹理图（原「单纹理图」，行为不变）。");
+
+        // ── AUD-044 ③④ 选中组：与「全部组」共用同一执行核心，只换目标集合 ──
+        _btnExportSelected.Text = ExportSelectedText;
+        _btnExportSelected.AutoSize = true;
+        _btnExportSelected.MinimumSize = new Size(100, 36);
+        _btnExportSelected.BackColor = Color.FromArgb(0x17, 0x32, 0x47);
+        _btnExportSelected.ForeColor = Color.FromArgb(0xA8, 0xDC, 0xFA);
+        _btnExportSelected.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnExportSelected, Color.FromArgb(0x17, 0x32, 0x47), Color.FromArgb(0xA8, 0xDC, 0xFA));
+        _btnExportSelected.Click += async (_, _) => await ExecuteExportSelected();
+        _actionTip.SetToolTip(_btnExportSelected,
+            "只导出列表中选中的文件（Ctrl / Shift 可多选，1 个或多个均可）。全选时与「导出全部」等价。");
+
+        _btnPackSelected.Text = PackSelectedText;
+        _btnPackSelected.AutoSize = true;
+        _btnPackSelected.MinimumSize = new Size(100, 36);
+        _btnPackSelected.BackColor = Color.FromArgb(0x2A, 0x20, 0x40);
+        _btnPackSelected.ForeColor = Color.FromArgb(0xD9, 0xC8, 0xFA);
+        _btnPackSelected.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnPackSelected, Color.FromArgb(0x2A, 0x20, 0x40), Color.FromArgb(0xD9, 0xC8, 0xFA));
+        _btnPackSelected.Click += async (_, _) => await ExecutePackSelected();
+        _actionTip.SetToolTip(_btnPackSelected,
+            "只为列表中选中的文件生成单纹理图（Ctrl / Shift 可多选）。全选时与「导出全部单纹理图」等价。");
 
         // AUD-040 R3：单纹理图右侧新增「保存为导出预设」
         _btnSavePreset.Text = "保存为导出预设";
@@ -1378,8 +1484,48 @@ public class BatchCliWindow : Form
         StyleButton(_btnSavePreset, Color.FromArgb(0x6B, 0x46, 0xC3), Color.White);
         _btnSavePreset.Click += (_, _) => SavePreset();
 
-        actionPanel.Controls.AddRange([_btnExport, _btnPack, _btnSavePreset]);
+        // AUD-041 D8：导出质检动线，跳到第 4 主分页「导出动画预览」并自动灌入输出目录。
+        // 非顶层 Form 的 Parent 链为 TabPage → TabControl → MainForm，遍历查找避免静态耦合。
+        _btnVerifyExport.Text = "验证导出结果";
+        _btnVerifyExport.AutoSize = true;
+        _btnVerifyExport.MinimumSize = new Size(130, 36);
+        _btnVerifyExport.BackColor = Color.FromArgb(0x14, 0x87, 0x92);
+        _btnVerifyExport.ForeColor = Color.White;
+        _btnVerifyExport.FlatStyle = FlatStyle.Flat;
+        StyleButton(_btnVerifyExport, Color.FromArgb(0x14, 0x87, 0x92), Color.White);
+        _btnVerifyExport.Click += (_, _) =>
+        {
+            var dir = _txtOutputDir.Text.Trim();
+            if (string.IsNullOrWhiteSpace(dir))
+            {
+                MessageBox.Show(this, "请先设置输出目录。", "验证导出结果",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            Control? anchor = Parent;
+            while (anchor != null && anchor is not MainForm) anchor = anchor.Parent;
+            if (anchor is MainForm main) main.NavigateToPreview(dir);
+            else MessageBox.Show(this, "未能定位主窗口，请手动切换到「导出动画预览」分页。",
+                "验证导出结果", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        };
+
+        // AUD-044：顺序固定为「全部组 → 选中组 → 其他组」，与渲染图一致。
+        // 外层 actionPanel 的 WrapContents 默认 true，最小窗口（1040×680）下会自动换成
+        // 2 行，由行 5 的 Percent 100 弹性吸收，不会裁切（V3.2 的裁切根因是 MinimumSize，此处不存在）。
+        actionPanel.Controls.AddRange([
+            _btnExport, _btnPack, _btnExportSelected, _btnPackSelected,
+            _btnSavePreset, _btnVerifyExport
+        ]);
+        _exportActionButtons.AddRange([_btnExport, _btnPack, _btnExportSelected, _btnPackSelected]);
         exportPanel.Controls.Add(actionPanel, 1, 4);
+
+        // AUD-044 D3：计数放在行 5（弹性占位行）顶部，不参与 actionPanel 的换行排布，
+        // 默认窗口与最小窗口都稳定显示在动作行正下方。
+        _lblSelectionCount.AutoSize = true;
+        _lblSelectionCount.Margin = new Padding(2, 4, 0, 0);
+        _lblSelectionCount.TextAlign = ContentAlignment.MiddleLeft;
+        exportPanel.Controls.Add(_lblSelectionCount, 1, 5);
+        UpdateSelectionCount();
 
         BuildPresetColumn(exportPanel);
 
@@ -1415,7 +1561,8 @@ public class BatchCliWindow : Form
             _lvExportFiles.Items.Clear();
             foreach (var f in picker.SelectedFolders)
                 AddExportEntry(_lvExportFiles, _exportEntries, f);
-            // AUD-040 F4：扫描后按单一真值源立即重算状态列，不再需要来回切换配置名
+            // AUD-040 F4：扫描后按单一真值源立即重算状态列，不再需要来回切换配置名。
+            // AUD-044 F15/R8：RefreshExportStatus 内已统一刷新选中计数（列表重建会清零选中态）。
             RefreshExportStatus();
         }
     }
@@ -1435,18 +1582,106 @@ public class BatchCliWindow : Form
                 item.BackColor = hasConfig ? ColorOk : ColorMissing;
             }
         }
+        // AUD-044 D3：ListView.Items.Add 不触发 SelectedIndexChanged，光靠事件订阅
+        // 无法刷新「共 M」。扫描 / 激活预设 / 切配置名 / 批量生成都会走本方法，
+        // 在这里统一补一次，保证总数与列表永远一致。
+        UpdateSelectionCount();
     }
 
-    private async Task ExecuteExport()
-    {
-        if (!ValidateExportReady()) return;
+    // ────────────── AUD-044：4 个导出入口 + 单一执行核心 ──────────────
+    // 四个入口的差异只有「目标集合」与「命令种类」，其余 90 行（临时目录、CLI 调用、
+    // 结果搬运、缺省配置日志、进度、取消、汇总）逐字相同。抽成单一核心，避免
+    // AUD-040 曾出现过的「两个真值源漂移」（设计文档 R6 / D2=A）。
 
-        _btnExport.Enabled = false;
-        _btnExport.Text = "导出中...";
+    private Task ExecuteExport()
+    {
+        if (!ValidateExportReady()) return Task.CompletedTask;
+        return ExecuteExportCoreAsync(_exportEntries.ToList(), pack: false, trigger: _btnExport);
+    }
+
+    private Task ExecuteExportSelected() => RunSelectedAsync(pack: false, trigger: _btnExportSelected);
+
+    private Task ExecutePack()
+    {
+        if (!ValidateExportReady()) return Task.CompletedTask;
+        return ExecuteExportCoreAsync(_exportEntries.ToList(), pack: true, trigger: _btnPack);
+    }
+
+    private Task ExecutePackSelected() => RunSelectedAsync(pack: true, trigger: _btnPackSelected);
+
+    /// <summary>AUD-044 S9：选中路径先基础校验，再空选中校验（只弹一次窗），最后取快照。</summary>
+    private Task RunSelectedAsync(bool pack, Button trigger)
+    {
+        if (!ValidateExportReady()) return Task.CompletedTask;
+        var targets = GetSelectedExportEntries();
+        if (!ValidateSelectionReady(targets)) return Task.CompletedTask;
+        return ExecuteExportCoreAsync(targets, pack, trigger);
+    }
+
+    /// <summary>
+    /// AUD-044 R3/D7：按列表显示顺序取选中项快照。ListView.SelectedItems 是实时视图，
+    /// 导出途中用户改选或列表被重建都会让目标漂移；必须在启动前物化为 List。
+    /// 不按用户点选先后，保证结果可预期、且全选时与「导出全部」等价。
+    /// </summary>
+    private List<SpineCliEntry> GetSelectedExportEntries()
+    {
+        UpdateSelectionCount();     // 点击选中入口时兜底，保证计数与本次快照一致
+        var result = new List<SpineCliEntry>();
+        foreach (ListViewItem item in _lvExportFiles.Items)
+            if (item.Selected && item.Tag is SpineCliEntry entry) result.Add(entry);
+        return result;
+    }
+
+    /// <summary>AUD-044 D3/R4：可见选中计数；HideSelection=false 让失焦后高亮常驻。</summary>
+    private void UpdateSelectionCount()
+    {
+        _lblSelectionCount.Text =
+            $"已选 {_lvExportFiles.SelectedItems.Count} / 共 {_lvExportFiles.Items.Count} · 按 Ctrl / Shift 多选";
+    }
+
+    /// <summary>
+    /// AUD-044 R1/R2：统一互锁 4 个导出类按钮；恢复时把文案一并还原为常量，
+    /// 彻底消除旧 finally 里硬编码「导出」/「单纹理图」造成的改名回退。
+    /// 「保存为导出预设」「验证导出结果」按 D5=A 保持可用，不纳入禁用集合。
+    /// </summary>
+    private void SetCliActionsEnabled(bool enabled)
+    {
+        foreach (var b in _exportActionButtons) b.Enabled = enabled;
+        if (!enabled) return;
+        _btnExport.Text = ExportAllText;
+        _btnExportSelected.Text = ExportSelectedText;
+        _btnPack.Text = PackAllText;
+        _btnPackSelected.Text = PackSelectedText;
+    }
+
+    /// <summary>AUD-044 R9：无选中时给出面向「选中」的提示，不启动 CLI、不建输出目录。</summary>
+    private bool ValidateSelectionReady(IReadOnlyList<SpineCliEntry> targets)
+    {
+        if (targets.Count > 0) return true;
+        MessageBox.Show(this,
+            "请先在文件列表中选中要导出的文件（可按 Ctrl / Shift 多选）。",
+            "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        return false;
+    }
+
+    /// <summary>
+    /// AUD-044 S8：合并原 ExecuteExport / ExecutePack 的两段循环。行为逐字保留：
+    /// 临时目录名、CLI 调用、缺省 export.json 日志、MoveDirectoryContents、进度文案、
+    /// 取消/异常清理、汇总 MessageBox 文案与标题、OperationLogger 记录一律不变；
+    /// 唯一变化是 total 取 targets.Count、foreach 遍历传入的快照。
+    /// </summary>
+    private async Task ExecuteExportCoreAsync(IReadOnlyList<SpineCliEntry> targets, bool pack, Button trigger)
+    {
+        SetCliActionsEnabled(false);
+        trigger.Text = pack ? PackingText : ExportingText;
         var ct = BeginCliOperation();
         var current = 0;
-        var total = _exportEntries.Count;
+        var total = targets.Count;
         ShowProgress(true);
+
+        var tempRoot = pack ? "cli_pack" : "cli_export";
+        var progressPrefix = pack ? "单纹理图" : "批量导出";
+        var logVerb = pack ? "pack" : "export";
 
         try
         {
@@ -1456,17 +1691,22 @@ public class BatchCliWindow : Form
             var missingList = new List<string>();
             int ok = 0, fail = 0;
 
-            foreach (var entry in _exportEntries)
+            foreach (var entry in targets)
             {
                 ct.ThrowIfCancellationRequested();
                 current++;
-                SetProgress(current, total, $"批量导出: {entry.FileName}");
-                var tempOutputDir = Path.Combine(Path.GetTempPath(), "KeyMacro", "cli_export", Guid.NewGuid().ToString("N"));
+                SetProgress(current, total, $"{progressPrefix}: {entry.FileName}");
+                var tempOutputDir = Path.Combine(Path.GetTempPath(), "KeyMacro", tempRoot, Guid.NewGuid().ToString("N"));
                 try
                 {
                     Directory.CreateDirectory(tempOutputDir);
                     CliResult result;
-                    if (entry.HasExportConfig && entry.ExportConfigPath != null)
+                    if (pack)
+                    {
+                        var name = Path.GetFileNameWithoutExtension(entry.FileName);
+                        result = await _cli.Pack(entry.FilePath, tempOutputDir, name, ct);
+                    }
+                    else if (entry.HasExportConfig && entry.ExportConfigPath != null)
                         result = await _cli.Export(entry.FilePath, tempOutputDir, entry.ExportConfigPath, ct);
                     else
                     {
@@ -1479,7 +1719,7 @@ public class BatchCliWindow : Form
                         MoveDirectoryContents(tempOutputDir, outputDir);
                         ok++;
                     }
-                    else { fail++; OperationLogger.Error($"CLI export failed: {entry.FileName}: {result.Error}"); }
+                    else { fail++; OperationLogger.Error($"CLI {logVerb} failed: {entry.FileName}: {result.Error}"); }
                 }
                 catch (OperationCanceledException)
                 {
@@ -1489,7 +1729,7 @@ public class BatchCliWindow : Form
                 catch (Exception ex)
                 {
                     fail++;
-                    OperationLogger.Error($"CLI export error: {entry.FileName}: {ex.Message}");
+                    OperationLogger.Error($"CLI {logVerb} error: {entry.FileName}: {ex.Message}");
                 }
                 finally
                 {
@@ -1497,7 +1737,12 @@ public class BatchCliWindow : Form
                 }
             }
 
-            if (missingList.Count > 0)
+            if (pack)
+            {
+                MessageBox.Show(this, $"纹理打包完成！成功 {ok}，失败 {fail}", "打包结果", MessageBoxButtons.OK,
+                    fail > 0 ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
+            }
+            else if (missingList.Count > 0)
             {
                 var logPath = Path.Combine(outputDir, "cli_export_log.txt");
                 var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
@@ -1521,81 +1766,16 @@ public class BatchCliWindow : Form
         }
         catch (OperationCanceledException)
         {
-            MessageBox.Show(this, "导出已取消，当前临时文件已清理，已完成结果保留。", "已取消", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(this,
+                pack ? "打包已取消，当前临时文件已清理，已完成结果保留。"
+                     : "导出已取消，当前临时文件已清理，已完成结果保留。",
+                "已取消", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         finally
         {
             ShowProgress(false);
             EndCliOperation();
-            _btnExport.Enabled = true;
-            _btnExport.Text = "导出";
-        }
-    }
-
-    private async Task ExecutePack()
-    {
-        if (!ValidateExportReady()) return;
-
-        _btnPack.Enabled = false;
-        _btnPack.Text = "打包中...";
-        var ct = BeginCliOperation();
-        var current = 0;
-        var total = _exportEntries.Count;
-        ShowProgress(true);
-
-        try
-        {
-            var outputDir = _txtOutputDir.Text.Trim();
-            Directory.CreateDirectory(outputDir);
-
-            int ok = 0, fail = 0;
-            foreach (var entry in _exportEntries)
-            {
-                ct.ThrowIfCancellationRequested();
-                current++;
-                SetProgress(current, total, $"单纹理图: {entry.FileName}");
-                var tempOutputDir = Path.Combine(Path.GetTempPath(), "KeyMacro", "cli_pack", Guid.NewGuid().ToString("N"));
-                try
-                {
-                    Directory.CreateDirectory(tempOutputDir);
-                    var name = Path.GetFileNameWithoutExtension(entry.FileName);
-                    var result = await _cli.Pack(entry.FilePath, tempOutputDir, name, ct);
-                    if (result.Success)
-                    {
-                        MoveDirectoryContents(tempOutputDir, outputDir);
-                        ok++;
-                    }
-                    else { fail++; OperationLogger.Error($"CLI pack failed: {entry.FileName}: {result.Error}"); }
-                }
-                catch (OperationCanceledException)
-                {
-                    TryDeleteDirectory(tempOutputDir);
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    fail++;
-                    OperationLogger.Error($"CLI pack error: {entry.FileName}: {ex.Message}");
-                }
-                finally
-                {
-                    TryDeleteDirectory(tempOutputDir);
-                }
-            }
-
-            MessageBox.Show(this, $"纹理打包完成！成功 {ok}，失败 {fail}", "打包结果", MessageBoxButtons.OK,
-                fail > 0 ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
-        }
-        catch (OperationCanceledException)
-        {
-            MessageBox.Show(this, "打包已取消，当前临时文件已清理，已完成结果保留。", "已取消", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
-        finally
-        {
-            ShowProgress(false);
-            EndCliOperation();
-            _btnPack.Enabled = true;
-            _btnPack.Text = "单纹理图";
+            SetCliActionsEnabled(true);
         }
     }
 
@@ -1827,7 +2007,7 @@ public class BatchCliWindow : Form
 
         _txtSourceDir.Text = preset.SourceDir;
         _txtOutputDir.Text = preset.OutputDir;
-        RefreshExportStatus();     // F7：用恢复后的配置名重算 ✅/❌
+        RefreshExportStatus();     // F7：用恢复后的配置名重算 ✅/❌；AUD-044 同时刷新选中计数
         _lblPresetHeader.Text = $"导出预设（共 {_presets.Count} 个）· 已激活「{preset.Name}」";
 
         if (missing > 0)
@@ -1932,8 +2112,10 @@ public class BatchCliWindow : Form
 
         _btnBatchGenerate.Enabled = false;
         _btnBatchGenerate.Text = "生成中...";
-        _btnExport.Enabled = false;
-        _btnPack.Enabled = false;
+        // AUD-044 R2：原代码只禁用「导出」「单纹理图」两个按钮；新增两个选中入口后，
+        // 批量生成期间仍可点「导出选中」造成 _cliCts / 进度条 / 输出目录并发覆盖。
+        // 改为统一互锁，行为范围不变（仍只影响导出类按钮，不动预设与验证按钮）。
+        SetCliActionsEnabled(false);
         var ct = BeginCliOperation();
         ShowProgress(true);
 
@@ -1995,8 +2177,7 @@ public class BatchCliWindow : Form
             EndCliOperation();
             _btnBatchGenerate.Enabled = true;
             _btnBatchGenerate.Text = "批量生成导出配置";
-            _btnExport.Enabled = true;
-            _btnPack.Enabled = true;
+            SetCliActionsEnabled(true);
             RefreshExportStatus();      // F6：新生成的配置立刻显示 ✅
         }
 

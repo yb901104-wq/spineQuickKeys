@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>批量导出子页 · 导出选中 / 导出选中单纹理图 · 渲染图（待评审）</title>
+<style>
+:root{
+  --app:#2B2B2B; --workspace:#3A3A3C; --panel:#454547; --panel-alt:#505052;
+  --input:#262628; --well:#1E1E20; --list:#202023; --list-alt:#3D3D40;
+  --border:#5E5E60; --border-strong:#727274;
+  --text:#F2F4F7; --muted:#C7CDD4; --dim:#8A8A8D;
+  --blue:#0078D7; --blue-lt:#2388C9; --cyan:#148792; --cyan-lt:#39C5D8;
+  --orange:#F08A3C; --red:#D95C5C; --green:#6BBF59; --purple:#6B46C3;
+  --sel:#2B5563; --header:#2B2B2D; --doc:#171719;
+  --yellow:#FFFAE6; --okbg:#E8FFE8; --missbg:#FFE8E8;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--doc)}
+body{font-family:"Microsoft YaHei UI","Microsoft YaHei","Segoe UI",sans-serif;color:var(--text);font-size:11.5px;-webkit-font-smoothing:antialiased;overflow:auto;width:1480px}
+body.capture{overflow:hidden}
+.mono{font-family:Consolas,"Courier New",monospace}
+
+.switcher{position:fixed;top:8px;right:20px;z-index:95;display:flex;align-items:center;gap:4px;
+  background:#1B1B1D;border:1px solid #55555A;border-radius:16px;padding:4px 6px 4px 12px;
+  font-size:11px;color:var(--muted);box-shadow:0 3px 12px rgba(0,0,0,.7)}
+.switcher span{margin-right:5px;letter-spacing:.3px}
+.switcher button{height:22px;padding:0 10px;border-radius:11px;border:1px solid transparent;
+  background:#333336;color:var(--muted);font-size:10.5px;cursor:pointer;font-family:inherit}
+.switcher button:hover{background:#444448}
+.switcher button.active{background:#1C4E68;border-color:var(--cyan-lt);color:#fff;font-weight:700}
+body.capture .switcher{display:none}
+
+.window{width:1440px;height:900px;background:var(--app);display:flex;flex-direction:column;
+  border:1px solid #101012;position:relative;overflow:hidden}
+body[data-s="compact"] .window{width:1040px;height:680px}
+
+.titlebar{height:32px;flex:0 0 32px;background:#202023;border-bottom:1px solid #141416;
+  display:flex;align-items:center;justify-content:space-between;padding-left:10px}
+.tb-left{display:flex;align-items:center;gap:8px;font-size:11.5px;color:#E6E6E6}
+.appicon{width:16px;height:16px;border-radius:3px;background:linear-gradient(160deg,#2E86C9,#1B5E8E);
+  display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;border:1px solid #4AA3DE}
+.tb-right{display:flex;height:100%}
+.tb-btn{width:44px;height:100%;display:flex;align-items:center;justify-content:center;color:#B8B8B8;font-size:12px}
+.tb-btn:last-child{background:#5A2020;color:#fff}
+.maintabs{height:44px;flex:0 0 44px;display:flex;align-items:flex-end;gap:6px;padding:0 16px 6px;background:var(--app)}
+.mtab{height:34px;padding:0 14px;border-radius:7px;display:flex;align-items:center;gap:7px;white-space:nowrap;
+  font-size:11px;border:1px solid var(--border);background:#333335;color:var(--muted)}
+.mtab.active{background:var(--panel-alt);border-color:var(--blue-lt);color:#fff;font-weight:700;position:relative}
+.mtab.active::before{content:"";position:absolute;left:10px;right:10px;top:3px;height:3px;background:var(--cyan-lt);border-radius:2px}
+.tag{font-size:9px;color:#0E2A30;background:var(--orange);border-radius:3px;padding:1px 5px;font-weight:700;white-space:nowrap}
+.tag.new{background:var(--cyan-lt)}
+.tag.ghost{background:transparent;border:1px solid var(--orange);color:var(--orange)}
+
+.hostpage{flex:1;min-height:0;display:flex;flex-direction:column;background:var(--app)}
+.cli-top{height:48px;flex:0 0 48px;display:flex;align-items:center;gap:9px;padding:0 14px;
+  background:#333336;border-bottom:1px solid #4A4A4D}
+.cli-top .lbl{font-size:11.5px;color:var(--text);white-space:nowrap}
+.pathfield{width:600px;height:26px;background:var(--yellow);border:1px solid #8A8A6A;border-radius:3px;
+  display:flex;align-items:center;padding:0 8px;color:#3A3418;font-size:11px}
+body[data-s="compact"] .pathfield{width:380px}
+.cli-top .spacer{flex:1}
+.ok{font-size:11px;color:#7DD87D}
+.btn{height:26px;min-width:60px;padding:0 12px;border:1px solid var(--blue-lt);border-radius:3px;
+  background:var(--blue-lt);color:#fff;font-size:11px;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;font-family:inherit}
+.btn.gray{background:#4A4A4D;border-color:#69696C;color:#E3E3E5}
+.btn.disabled{background:#3A3A3D;border-color:#555558;color:#8A8A8D;cursor:default}
+.btn.cancel{background:var(--red);border-color:#B94A4A;color:#fff}
+.subtabs{height:38px;flex:0 0 38px;display:flex;align-items:flex-end;gap:4px;padding:0 14px;
+  background:#2F2F32;border-bottom:1px solid #4A4A4D}
+.subtab{height:30px;padding:0 18px;border:1px solid var(--border);border-bottom:none;border-radius:5px 5px 0 0;
+  background:#3A3A3D;color:var(--muted);font-size:11px;display:flex;align-items:center;gap:7px;white-space:nowrap;position:relative}
+.subtab.on{background:var(--panel-alt);color:#fff;border-color:var(--border-strong);font-weight:700}
+.subtab.on::before{content:"";position:absolute;left:8px;right:8px;top:2px;height:3px;background:var(--cyan-lt);border-radius:2px}
+
+.content{flex:1;min-height:0;padding:10px 12px;background:var(--app)}
+.section{height:100%;display:flex;flex-direction:column;background:#F3F3F3;border:1px solid #6C6C6E}
+.section-hd{height:34px;flex:0 0 34px;background:#DCE7EC;color:#16262E;display:flex;align-items:center;
+  padding:0 12px;font-weight:700;font-size:11.5px;gap:10px;border-bottom:1px solid #9AAEB7}
+.section-hd .tag{background:var(--orange);color:#2A1608}
+.exp-body{flex:1;min-height:0;display:flex;gap:10px;padding:10px;background:#F3F3F3}
+.left{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
+.right{flex:0 0 340px;display:flex;flex-direction:column;gap:8px;background:#E7E9EA;border:1px solid #B9BEC1;padding:8px}
+body[data-s="compact"] .right{flex:0 0 280px}
+
+.row{display:flex;align-items:center;gap:8px;flex:0 0 auto;min-height:30px}
+.row .lab{width:76px;flex:0 0 76px;color:#263238;font-size:11px}
+.field{height:26px;background:var(--yellow);border:1px solid #8A8A6A;border-radius:2px;
+  display:flex;align-items:center;padding:0 8px;color:#3A3418;font-size:11px;flex:1;min-width:0}
+.field .ph{color:#8A8570}
+
+.filelist{flex:1;min-height:0;background:var(--list);border:1px solid #4C4C50;display:flex;flex-direction:column;overflow:hidden}
+.fl-head{height:28px;flex:0 0 28px;display:flex;background:#333336;border-bottom:1px solid #555559;color:#E9EDF0;font-size:11px}
+.fl-head div{display:flex;align-items:center;padding:0 10px;border-right:1px solid #4A4A4E}
+.fl-head .c1{width:200px;flex:0 0 200px}
+.fl-head .c2{width:110px;flex:0 0 110px}
+.fl-head .c3{flex:1}
+.fl-row{height:26px;flex:0 0 26px;display:flex;border-bottom:1px solid #343437;color:#DCE1E5;font-size:11px}
+.fl-row div{display:flex;align-items:center;padding:0 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fl-row .c1{width:200px;flex:0 0 200px}
+.fl-row .c2{width:110px;flex:0 0 110px;justify-content:center;font-size:12px}
+.fl-row .c3{flex:1;color:#B9C0C6}
+.fl-row.ok .c2{color:#8CE08C}
+.fl-row.miss .c2{color:#FF9A9A}
+.fl-row.miss{background:#3A2628}
+.fl-row.sel{background:var(--sel);color:#fff;box-shadow:inset 3px 0 0 var(--cyan-lt)}
+.fl-row.sel .c2,.fl-row.sel .c3{color:#D5ECF2}
+.fl-row.miss.sel{background:#2F4552}
+
+.cfgrow{display:flex;align-items:center;gap:7px;padding:6px 8px;background:#E7E9EA;border:1px solid #C6CBCE;min-height:42px;flex-wrap:wrap}
+.cfgsep{color:#5A6469;font-size:11px;margin:0 2px}
+.radio{display:inline-flex;align-items:center;gap:5px;color:#263238;font-size:11px;white-space:nowrap}
+.dot{width:12px;height:12px;border-radius:50%;border:2px solid #6E7A80;display:inline-flex;align-items:center;justify-content:center}
+.radio.on .dot{border-color:var(--blue-lt)}
+.radio.on .dot::after{content:"";width:6px;height:6px;border-radius:50%;background:var(--blue-lt)}
+.cfgrow .btn{height:28px}
+.btn.small{height:28px;min-width:96px;font-size:11px}
+.btn.gen{background:var(--cyan-lt);border-color:#2A9BAA;color:#072A31;min-width:150px;font-weight:700}
+.vernote{font-size:10px;color:#9A5417;background:#FFF2DE;border:1px solid #E0B378;border-radius:3px;padding:3px 7px;white-space:nowrap;font-weight:600}
+
+.actions-wrap{flex:0 0 auto;display:flex;flex-direction:column;gap:3px}
+.actions{display:flex;align-items:center;gap:8px;min-height:46px;padding-top:9px;flex-wrap:wrap}
+.actions .btn{height:36px;min-width:100px;font-size:11.5px;position:relative;border-radius:3px}
+.grp{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.btn.all-export{background:var(--blue);border-color:#2E91DE;color:#fff;font-weight:700}
+.btn.all-pack{background:var(--purple);border-color:#7E58D6;color:#fff;font-weight:700}
+.btn.sel-export{background:#173247;border:2px solid var(--blue-lt);color:#A8DCFA;font-weight:700}
+.btn.sel-pack{background:#281C40;border:2px solid var(--purple);color:#CFB6FF;font-weight:700}
+.btn.savepreset{background:var(--purple);border-color:#7E58D6;color:#fff}
+.btn.verify{background:var(--cyan);border-color:#2A9BAA;color:#fff}
+.grpsep{width:1px;height:26px;background:#B7BDC0;margin:0 3px;flex:0 0 1px}
+.grp-label{font-size:9.5px;color:#5C666B;font-weight:700;letter-spacing:.5px;margin-right:-4px}
+.mini-tag{position:absolute;top:-12px;right:-10px;font-size:8.5px;padding:1px 4px;border-radius:3px;
+  font-weight:700;background:var(--orange);color:#2A1608;z-index:3;white-space:nowrap;border:1px solid #B56A22}
+.mini-tag.new{background:var(--cyan-lt);color:#072A31;border-color:#2A9BAA}
+.selcount{font-size:10.5px;color:#33474F;font-weight:700;padding-left:2px}
+.selcount .n{color:#0B5C7A}
+body[data-s="running"] .btn.all-export,
+body[data-s="running"] .btn.all-pack,
+body[data-s="running"] .btn.sel-export,
+body[data-s="running"] .btn.sel-pack{background:#4A4A4D;border-color:#69696C;color:#8E9296;font-weight:400}
+body[data-s="running"] .mini-tag{display:none}
+
+.preset-hd{height:26px;flex:0 0 26px;display:flex;align-items:center;justify-content:space-between;
+  color:#1E2A30;font-weight:700;font-size:11.5px;border-bottom:1px solid #B9BEC1}
+.preset-hd .cnt{font-weight:400;color:#5A6469;font-size:10.5px}
+.preset-list{flex:1;min-height:0;background:var(--list);border:1px solid #4C4C50;overflow:hidden;display:flex;flex-direction:column}
+.pl-head{height:26px;flex:0 0 26px;display:flex;background:#333336;color:#E9EDF0;font-size:10.5px;border-bottom:1px solid #555559}
+.pl-head div{display:flex;align-items:center;padding:0 8px;border-right:1px solid #4A4A4E}
+.pl-head .p1{width:150px;flex:0 0 150px}
+.pl-head .p2{width:64px;flex:0 0 64px}
+.pl-head .p3{flex:1}
+.pl-item{height:30px;flex:0 0 30px;display:flex;border-bottom:1px solid #343437;color:#DCE1E5;font-size:10.5px}
+.pl-item div{display:flex;align-items:center;padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl-item .p1{width:150px;flex:0 0 150px}
+.pl-item .p2{width:64px;flex:0 0 64px;color:#9FC7D6}
+.pl-item .p3{flex:1;color:#A9B2B8}
+.pl-empty{flex:1;display:flex;align-items:center;justify-content:center;color:#77797C;font-size:11px}
+.preset-btns{height:44px;flex:0 0 44px;display:flex;align-items:center;gap:6px}
+.preset-btns .btn{height:36px;min-width:0;flex:1;font-size:10.5px;padding:0 4px}
+.btn.danger{background:#8A3B3B;border-color:#A44C4C;color:#fff}
+
+.hostprogress{height:58px;flex:0 0 58px;background:#303033;border-top:1px solid #4A4A4D;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;color:var(--dim);font-size:10.5px}
+.prog-track{width:900px;height:12px;background:#1D1D20;border:1px solid #4E4E52;border-radius:2px;overflow:hidden;position:relative}
+.prog-fill{height:100%;width:0%;background:linear-gradient(90deg,#2388C9,#39C5D8)}
+.prog-txt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#EAF4F8;font-size:9px}
+body[data-s="running"] .prog-fill{width:66.6%}
+body[data-s="running"] .hostprogress{color:#D6EEF4}
+
+/* 弹窗 / 提示 */
+.overlay{position:absolute;inset:0;background:rgba(8,9,11,.62);z-index:60;display:none;align-items:center;justify-content:center}
+body[data-s="noselection"] .overlay{display:flex}
+.dlg{width:470px;background:var(--app);border:1px solid #6A6A6E;border-radius:4px;box-shadow:0 18px 48px rgba(0,0,0,.75);overflow:hidden}
+.dlg-title{height:34px;background:#202023;border-bottom:1px solid #4A4A4D;display:flex;align-items:center;padding:0 12px;font-size:12px;font-weight:700;color:#fff}
+.dlg-body{padding:20px 20px 14px;display:flex;gap:14px;align-items:flex-start}
+.dlg-ico{width:32px;height:32px;flex:0 0 32px;border-radius:50%;background:#6A5320;color:#FFD48A;
+  display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:700}
+.dlg-msg{color:var(--text);font-size:12px;line-height:1.85}
+.dlg-msg small{color:var(--dim);font-size:10.5px;display:block;margin-top:6px;line-height:1.7}
+.dlg-btns{height:54px;display:flex;align-items:center;justify-content:flex-end;padding:0 18px;background:#2F2F32;border-top:1px solid #454548}
+.dlg-btns .btn{height:30px;min-width:82px}
+
+.toast{position:absolute;left:50%;top:170px;transform:translateX(-50%);z-index:55;
+  background:rgba(28,78,104,.96);border:1px solid var(--cyan-lt);color:#EAF8FB;border-radius:4px;padding:9px 18px;
+  font-size:11.5px;box-shadow:0 8px 24px rgba(0,0,0,.6);display:none;white-space:nowrap}
+body[data-s="running"] .toast{display:block}
+
+/* 标注（仅设计稿） */
+.callout{position:absolute;inset:0;z-index:40;display:none;pointer-events:none}
+body[data-s="selected"] .callout{display:block}
+.co-box{border:2px dashed var(--orange);border-radius:4px;position:absolute}
+.co-num{position:absolute;left:-11px;top:-12px;width:20px;height:20px;border-radius:50%;background:var(--orange);
+  color:#2A1608;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid #fff}
+.co-txt{position:absolute;background:rgba(24,26,29,.96);border:1px solid var(--orange);color:#FFD8B0;
+  border-radius:3px;padding:6px 9px;font-size:10px;line-height:1.65;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.6)}
+.co-txt b{color:#fff}
+
+.legend{position:absolute;left:0;right:0;bottom:64px;z-index:45;display:none;justify-content:center;gap:10px;pointer-events:none}
+body[data-s="selected"] .legend{display:flex}
+.lg{background:rgba(20,22,25,.95);border:1px solid #5E5E60;border-radius:4px;padding:8px 12px;font-size:10px;color:var(--muted);line-height:1.7}
+.lg b{color:#FFD8B0}
+.lg code{font-family:Consolas,monospace;color:#9FE3EE}
+
+.side-note{display:none;position:fixed;left:1060px;top:70px;width:390px;color:var(--muted);font-size:11.5px;line-height:1.9}
+body.capture[data-s="compact"] .side-note{display:block}
+.side-note h3{color:#fff;font-size:13px;margin-bottom:10px}
+.side-note .k{color:var(--cyan-lt);font-weight:700}
+
+/* 说明区（PNG 导出时隐藏） */
+.notes{width:1440px;background:var(--doc);padding:22px 26px 36px;color:var(--muted);font-size:11.5px;line-height:1.85}
+.notes h3{color:#fff;font-size:13px;margin:0 0 10px}
+.notes table{width:100%;border-collapse:collapse;margin:8px 0 18px}
+.notes th,.notes td{border:1px solid #3A3A3E;padding:6px 10px;text-align:left;font-size:11px;vertical-align:top}
+.notes th{background:#252528;color:#DCE3E8}
+.notes code{font-family:Consolas,monospace;color:#9FE3EE}
+.notes .warn{color:#FFC58A}
+body.capture .notes{display:none}
+</style>
+</head>
+<body data-s="normal">
+<div class="window" id="win">
+  <div class="titlebar">
+    <div class="tb-left"><span class="appicon">S</span><span>spine宏助手（TANRY） V3.2</span></div>
+    <div class="tb-right"><div class="tb-btn">─</div><div class="tb-btn">□</div><div class="tb-btn">×</div></div>
+  </div>
+
+  <div class="maintabs">
+    <div class="mtab">快捷键</div>
+    <div class="mtab">批量重命名/spine解包整理</div>
+    <div class="mtab active">批量复制/合成/导出</div>
+    <div class="mtab">导出动画预览 <span class="tag new">V3.0</span></div>
+  </div>
+
+  <div class="hostpage">
+    <div class="cli-top">
+      <span class="lbl">Spine.com 路径:</span>
+      <div class="pathfield mono">D:\Program Files\Spine\Spine.com</div>
+      <div class="btn">检测</div><div class="btn">选择</div>
+      <div class="btn disabled" id="cancelCli">取消CLI</div>
+      <div class="ok">✓ OK</div>
+      <div class="spacer"></div>
+    </div>
+
+    <div class="subtabs">
+      <div class="subtab">批量复制</div>
+      <div class="subtab">批量合并</div>
+      <div class="subtab on">批量导出 <span class="tag new">本次改造</span></div>
+    </div>
+
+    <div class="content">
+      <div class="section">
+        <div class="section-hd">导出任务 <span class="tag">动作行：4 个 → 6 个按钮 · 2 处改名 + 2 个新增</span></div>
+        <div class="exp-body">
+          <div class="left">
+            <div class="row">
+              <span class="lab">源目录:</span>
+              <div class="field mono">D:\动画工程\monster-spine-h细线</div>
+              <div class="btn gray">浏览</div><div class="btn">扫描</div>
+            </div>
+
+            <div class="filelist">
+              <div class="fl-head"><div class="c1">文件名</div><div class="c2">export.json</div><div class="c3">路径</div></div>
+              <div class="fl-row ok"><div class="c1">G2.spine</div><div class="c2">✅</div><div class="c3 mono">projects\G2.spine</div></div>
+              <div class="fl-row ok sel" id="sel1"><div class="c1">G2-n1.spine</div><div class="c2">✅</div><div class="c3 mono">projects\G2-n1.spine</div></div>
+              <div class="fl-row miss"><div class="c1">tx-xy.spine</div><div class="c2">❌</div><div class="c3 mono">projects\tx-xy.spine</div></div>
+              <div class="fl-row ok sel" id="sel2"><div class="c1">G4.spine</div><div class="c2">✅</div><div class="c3 mono">projects\G4.spine</div></div>
+              <div class="fl-row ok"><div class="c1">G5.spine</div><div class="c2">✅</div><div class="c3 mono">projects\G5.spine</div></div>
+              <div class="fl-row ok"><div class="c1">G7.spine</div><div class="c2">✅</div><div class="c3 mono">projects\G7.spine</div></div>
+              <div class="fl-row miss"><div class="c1">G8.spine</div><div class="c2">❌</div><div class="c3 mono">projects\G8.spine</div></div>
+              <div class="fl-row ok"><div class="c1">G9.spine</div><div class="c2">✅</div><div class="c3 mono">projects\G9.spine</div></div>
+            </div>
+
+            <div class="cfgrow">
+              <div class="btn small">刷新状态</div>
+              <div class="btn gen small">批量生成导出配置</div>
+              <div class="vernote">（必须 4.3 及以上版本才能使用）</div>
+              <div class="cfgsep">| 导出配置:</div>
+              <div class="radio on"><span class="dot"></span>finish.export.json</div>
+              <div class="radio"><span class="dot"></span>demotion.export.json</div>
+              <div class="radio"><span class="dot"></span>其他</div>
+            </div>
+
+            <div class="row">
+              <span class="lab">输出目录:</span>
+              <div class="field mono">D:\exports</div>
+              <div class="btn gray">浏览</div>
+            </div>
+
+            <div class="actions-wrap">
+              <div class="actions">
+                <div class="grp"><span class="grp-label">全部</span>
+                  <div class="btn all-export" id="b1">导出全部<span class="mini-tag">改名</span></div>
+                  <div class="btn all-pack" id="b2">导出全部单纹理图<span class="mini-tag">改名</span></div>
+                </div>
+                <span class="grpsep"></span>
+                <div class="grp"><span class="grp-label">选中</span>
+                  <div class="btn sel-export" id="b3">导出选中<span class="mini-tag new">新增</span></div>
+                  <div class="btn sel-pack" id="b4">导出选中单纹理图<span class="mini-tag new">新增</span></div>
+                </div>
+                <span class="grpsep"></span>
+                <div class="grp"><span class="grp-label">其他</span>
+                  <div class="btn savepreset">保存为导出预设</div>
+                  <div class="btn verify">验证导出结果</div>
+                </div>
+              </div>
+              <div class="selcount" id="selcount">已选 <span class="n">2</span> / 共 8 · 按 Ctrl / Shift 多选，失焦后高亮常驻</div>
+            </div>
+          </div>
+
+          <div class="right">
+            <div class="preset-hd">导出预设 <span class="cnt">共 3 个 · 双击可激活</span></div>
+            <div class="preset-list">
+              <div class="pl-head"><div class="p1">预设名</div><div class="p2">文件数</div><div class="p3">配置名</div></div>
+              <div class="pl-item"><div class="p1">G2 系列导出</div><div class="p2">3</div><div class="p3">finish</div></div>
+              <div class="pl-item"><div class="p1">怪物合集</div><div class="p2">12</div><div class="p3">demotion</div></div>
+              <div class="pl-item"><div class="p1">测试用-其他</div><div class="p2">5</div><div class="p3">mycfg.json</div></div>
+              <div class="pl-empty">（激活预设会重建列表，选中态清零）</div>
+            </div>
+            <div class="preset-btns">
+              <div class="btn">激活预设</div>
+              <div class="btn gray">删除预设</div>
+              <div class="btn danger">删除全部预设</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hostprogress">
+      <div id="progLabel">就绪 · 导出任务</div>
+      <div class="prog-track"><div class="prog-fill"></div><div class="prog-txt" id="progTxt">0%</div></div>
+    </div>
+  </div>
+
+  <!-- 状态 3：进行中 toast -->
+  <div class="toast" id="toast">导出选中：G4.spine — 2/3 · 4 个导出按钮已统一互锁，仅「取消CLI」可用</div>
+
+  <!-- 状态 4：无选中提示 -->
+  <div class="overlay">
+    <div class="dlg">
+      <div class="dlg-title">提示</div>
+      <div class="dlg-body">
+        <div class="dlg-ico">!</div>
+        <div class="dlg-msg">请先在文件列表中选中要导出的文件（可按 Ctrl / Shift 多选）。
+          <small>不会启动 CLI、不会创建输出目录。列表为空时仍走原有「请先扫描并选择文件」提示。</small>
+        </div>
+      </div>
+      <div class="dlg-btns"><div class="btn">确定</div></div>
+    </div>
+  </div>
+
+  <!-- 状态 2：设计标注（说明框放在文件列表下方空白，不遮挡动作行） -->
+  <div class="callout">
+    <div class="co-box" style="left:26px;top:258px;width:690px;height:246px"></div>
+    <div class="co-num" style="left:14px;top:246px">1</div>
+    <div class="co-box" style="left:26px;top:768px;width:800px;height:62px;border-color:var(--cyan-lt)"></div>
+    <div class="co-num" style="left:14px;top:756px;background:var(--cyan-lt);color:#072A31">2</div>
+    <div class="co-txt" style="left:40px;top:520px;width:500px;white-space:normal">
+      <b>① 选中语义沿用 SelectedItems（高亮多选）</b><br>
+      Ctrl / Shift 多选，不引入勾选框；补 <code>MultiSelect=true</code> 与 <code>HideSelection=false</code>，失焦后选中态仍可见。启动前做集合快照，导出中改选不影响已跑任务（R3/R4/R5）。
+    </div>
+    <div class="co-txt" style="left:560px;top:520px;width:500px;white-space:normal;border-color:var(--cyan-lt);color:#C8EFF5">
+      <b>② 4 个入口共用单一执行核心</b><br>
+      实心=全部 / 描边=选中；差异只有「目标集合」与「命令种类」，不复制第二份 90 行循环（R6）。统一互锁 4 个按钮（R2），文案走常量避免 <code>finally</code> 回滚（R1）。
+    </div>
+  </div>
+
+  <!-- 状态 5：窄窗口侧注 -->
+  <div class="side-note">
+    <h3>状态 5 · 最小窗口 1040 × 680</h3>
+    <p>左列可用宽约 <span class="k">560 px</span>，6 个按钮合计约 <span class="k">736 px</span>，动作行<b>自动换成两行</b>。</p>
+    <p>行 4 为 <code>AutoSize</code>、行 5 为 <code>Percent 100</code> 弹性占位，因此多出的约 36px 由占位行吸收，<span class="k">不会裁切</span>（V3.2 的裁切根因是 MinimumSize，此处不存在）。</p>
+    <p>右列预设按钮顶部对齐，其下方多约 36px 留白；按「全部 / 选中 / 其他」分组，换行后语义仍然清楚。</p>
+    <p style="color:#FFC58A">备选 D4-B：若你更在意视觉稳定，可改为固定两行分组（默认窗口也占 80px）。</p>
+  </div>
+</div>
+
+<div class="switcher">
+  <span>场景</span>
+  <button data-go="normal">1 总览</button>
+  <button data-go="selected">2 设计标注</button>
+  <button data-go="running">3 导出中</button>
+  <button data-go="noselection">4 未选中提示</button>
+  <button data-go="compact">5 最小窗口</button>
+</div>
+
+<div class="notes">
+  <h3>渲染图与代码事实对照（与 docs/batch-export-selection/设计文档.md 一致）</h3>
+  <table>
+    <tr><th>项</th><th>渲染图取值</th><th>依据</th></tr>
+    <tr><td>主分页</td><td>4 个（快捷键 / 批量重命名 / 批量复制合成导出 / 导出动画预览）</td><td>V3.0 起 4 个主分页；本功能只在第 3 页内改动</td></tr>
+    <tr><td>内层子页</td><td>批量复制 / 批量合并 / <b>批量导出</b>（3 个，选中第 3 个）</td><td>BuildTabControl() :250-264，顺序不变</td></tr>
+    <tr><td>动作行</td><td>6 个按钮：2 处改名 + 2 个新增 + 原有「保存为导出预设」「验证导出结果」</td><td>BuildExportTab() :1409 现有 4 个</td></tr>
+    <tr><td>按钮配色</td><td>实心蓝 / 实心紫 / 描边蓝 / 描边紫 / 紫 / 青</td><td>前两个沿用 :1356 / :1364 现色；描边为「选中」组新增区分</td></tr>
+    <tr><td>文件列表示例</td><td>8 行，其中 2 行高亮选中；状态列 ✅ / ❌ 沿用浅绿浅红行底色</td><td>RefreshExportStatus() :1451-1466</td></tr>
+    <tr><td>右列预设</td><td>340px Absolute，列表跨行 0~3 + 按钮行 4</td><td>BuildPresetColumn() :1654+；历史渲染图为 320px，此处按现行代码 340px</td></tr>
+    <tr><td>橙色 / 青色「改名 / 新增」徽标</td><td>仅设计标注，实际 UI 不出现</td><td>与 docs/export-preset/preview.html 标注约定一致</td></tr>
+  </table>
+  <h3>5 个状态</h3>
+  <table>
+    <tr><th>状态</th><th>看什么</th></tr>
+    <tr><td>1 总览</td><td>改名后的 4 个按钮与新增 2 个按钮、分组顺序、「已选 2 / 共 8」计数</td></tr>
+    <tr><td>2 设计标注</td><td>选中语义与单一执行核心；R1/R2/R3 三条根因级风险的对策</td></tr>
+    <tr><td>3 导出中</td><td>4 个导出按钮统一置灰、触发按钮「导出中...」、进度 2/3、「取消CLI」可用</td></tr>
+    <tr><td>4 未选中提示</td><td>0 选中点「导出选中」的弹窗文案，不启动 CLI</td></tr>
+    <tr><td>5 最小窗口</td><td>1040×680 下动作行自动换两行，无裁切；右侧说明为设计标注</td></tr>
+  </table>
+  <div class="footnote" style="color:#8A8A8D;font-size:10.5px">本轮为设计阶段产物，零代码改动。待用户审阅后决定是否下达施工令；施工令后再追加 AUD-044 与 V3.3。</div>
+</div>
+
+<script>
+(function(){
+  var q = new URLSearchParams(location.search);
+  var s = q.get('s') || 'normal';
+  var capture = q.get('capture') === '1';
+  document.body.dataset.s = s;
+  if (capture) document.body.classList.add('capture');
+  document.querySelectorAll('.switcher button').forEach(function(b){
+    b.classList.toggle('active', b.getAttribute('data-go') === s);
+    b.addEventListener('click', function(){
+      location.href = location.pathname + '?s=' + b.getAttribute('data-go');
+    });
+  });
+
+  var sel1 = document.getElementById('sel1');
+  var sel2 = document.getElementById('sel2');
+  var selcount = document.getElementById('selcount');
+  var progLabel = document.getElementById('progLabel');
+  var progTxt = document.getElementById('progTxt');
+  var cancelCli = document.getElementById('cancelCli');
+  var b3 = document.getElementById('b3');
+
+  if (s === 'noselection') {
+    sel1.classList.remove('sel');
+    sel2.classList.remove('sel');
+    selcount.innerHTML = '已选 <span class="n">0</span> / 共 8 · 按 Ctrl / Shift 多选，失焦后高亮常驻';
+    progLabel.textContent = '就绪 · 未选中任何文件';
+  } else if (s === 'running') {
+    cancelCli.classList.remove('disabled');
+    cancelCli.classList.add('cancel');
+    cancelCli.textContent = '取消CLI';
+    b3.innerHTML = '导出中...';
+    progLabel.textContent = '批量导出: G4.spine  —  2/3（目标集合已快照，导出中改选不影响）';
+    progTxt.textContent = '2/3';
+  } else if (s === 'selected') {
+    progLabel.textContent = '就绪 · 设计标注模式';
+  } else if (s === 'compact') {
+    progLabel.textContent = '就绪 · 最小窗口 1040 × 680（动作行自动换两行）';
+  }
+})();
+</script>
+</body>
+</html>

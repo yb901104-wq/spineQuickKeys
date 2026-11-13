@@ -1,0 +1,51 @@
+available version lines: 4.1, 4.2, 4.3
+embedded resource: KeyMacro.SpinePlayer.host.html
+embedded resource: KeyMacro.SpinePlayer.bridge.js
+embedded resource: KeyMacro.SpinePlayer.Runtime.41.spine-player.js
+embedded resource: KeyMacro.SpinePlayer.Runtime.42.spine-player.js
+embedded resource: KeyMacro.SpinePlayer.Runtime.43.spine-player.js
+embedded resource: KeyMacro.SpinePlayer.LICENSE.txt
+embedded resource: KeyMacro.SpinePlayer.Runtime.41.spine-player.css
+embedded resource: KeyMacro.SpinePlayer.Runtime.42.spine-player.css
+embedded resource: KeyMacro.SpinePlayer.Runtime.43.spine-player.css
+SCAN spineboy-pro.skel.bytes -> status=Ready format=二进制 ver=4.2.22 line=4.2 binary=True stem=spineboy-pro url=skeleton.skel atlas=spineboy.atlas.txt pages=1 missing=0
+SCAN spineboy-pro.json.txt -> status=Ready format=JSON ver=4.2.22 line=4.2 binary=False stem=spineboy-pro url=skeleton.json atlas=spineboy.atlas.txt pages=1 missing=0
+SCAN spineboy-pro.skel -> status=Ready format=二进制 ver=4.2.22 line=4.2 binary=True stem=spineboy-pro url=skeleton.skel atlas=spineboy.atlas pages=1 missing=0
+SCAN G2.skel.bytes -> status=Ready format=二进制 ver=4.1.24 line=4.1 binary=True stem=G2 url=skeleton.skel atlas=G2.atlas.txt pages=1 missing=0
+static checks: PASS
+=== PRODUCT HARNESS (Unity suffix + built-in runtime / zero config) START ===
+PASS main tabs=4 [快捷键 | 批量重命名/spine解包整理 | 批量复制/合成/导出 | 导出动画预览]
+previewPage=ExportPreviewWindow
+list items=4
+  row: spineboy-pro.skel | spineboy-pro.skel | 二进制 | 4.2.22 | atlas 1 · png 1 | ✅就绪 | native
+  row: spineboy-pro.skel.bytes | spineboy-pro.skel.bytes | 二进制 | 4.2.22 | atlas 1 · png 1 | ✅就绪 | unity-binary
+  row: spineboy-pro.json.txt | spineboy-pro.json.txt | JSON | 4.2.22 | atlas 1 · png 1 | ✅就绪 | unity-json
+  row: G2.skel.bytes | G2.skel.bytes | 二进制 | 4.1.24 | atlas 1 · png 1 | ✅就绪 | 导出
+screenshot unity-1-list.png
+LOAD #0 spineboy-pro.skel: pill=✅ 就绪 anims=11 skins=1 time=00:01.26 / 00:01.67 overlay=False title=尚未选择文件 body=从左侧选择导出文件或文件夹，点击列表项即可预览。
+支持 .skel / .json，以及 Unity 的 .skel.bytes / .json.txt + .atlas.txt 后缀，无需额外导出一份不带后缀的文件。
+已内置 Spine Web Player 4.1 / 4.2 / 4.3，按导出版本自动选择，无需配置。
+PROBE spineboy-pro.skel: "{\"paused\":false,\"hasSkeleton\":true,\"drawOrder\":52,\"attachments\":18,\"skins\":[{\"name\":\"default\",\"entries\":52}],\"slots\":[{\"name\":\"portal-bg\",\"att\":null,\"attName\":null},{\"name\":\"portal-shade\",\"att\":null,\"attName\":null},{\"name\":\"portal-streaks2\",\"att\":null,\"attName\":null},{\"name\":\"portal-streaks1\",\"att\":null,\"attName\":null}],\"curSkin\":\"default\",\"currentViewport\":{\"padLeft\":47.017047459549076,\"padRight\":47.017047459549076,\"padTop\":66.55453096105444,\"padBottom\":66.55453096105444,\"x\":-174.31755713982062,\"y\":-8.172115077874361,\"width\":470.17047459549076,\"height\":665.5453096105443},\"camera\":{\"x\":60.76768015792476,\"y\":324.60053972739775,\"zoom\":1.11856354556394},\"glLost\":false,\"assetKeys\":0,\"configAnim\":\"idle\",\"timeTotal\":3.011000156402588}"
+screenshot unity-4-native-loaded.png
+LOAD #1 spineboy-pro.skel.bytes: pill=✅ 就绪 anims=11 skins=1 time=00:01.22 / 00:01.67 overlay=False title=尚未选择文件 body=从左侧选择导出文件或文件夹，点击列表项即可预览。
+支持 .skel / .json，以及 Unity 的 .skel.bytes / .json.txt + .atlas.txt 后缀，无需额外导出一份不带后缀的文件。
+已内置 Spine Web Player 4.1 / 4.2 / 4.3，按导出版本自动选择，无需配置。
+PROBE spineboy-pro.skel.bytes: "{\"paused\":false,\"hasSkeleton\":true,\"drawOrder\":52,\"attachments\":18,\"skins\":[{\"name\":\"default\",\"entries\":52}],\"slots\":[{\"name\":\"portal-bg\",\"att\":null,\"attName\":null},{\"name\":\"portal-shade\",\"att\":null,\"attName\":null},{\"name\":\"portal-streaks2\",\"att\":null,\"attName\":null},{\"name\":\"portal-streaks1\",\"att\":null,\"attName\":null}],\"curSkin\":\"default\",\"currentViewport\":{\"padLeft\":47.017047459549076,\"padRight\":47.017047459549076,\"padTop\":66.55453096105444,\"padBottom\":66.55453096105444,\"x\":-174.31755713982062,\"y\":-8.172115077874361,\"width\":470.17047459549076,\"height\":665.5453096105443},\"camera\":{\"x\":60.76768015792476,\"y\":324.60053972739775,\"zoom\":1.11856354556394},\"glLost\":false,\"assetKeys\":0,\"configAnim\":\"idle\",\"timeTotal\":3.006999969482422}"
+screenshot unity-2-binary-loaded.png
+LOAD #2 spineboy-pro.json.txt: pill=✅ 就绪 anims=11 skins=1 time=00:01.22 / 00:01.67 overlay=False title=尚未选择文件 body=从左侧选择导出文件或文件夹，点击列表项即可预览。
+支持 .skel / .json，以及 Unity 的 .skel.bytes / .json.txt + .atlas.txt 后缀，无需额外导出一份不带后缀的文件。
+已内置 Spine Web Player 4.1 / 4.2 / 4.3，按导出版本自动选择，无需配置。
+PROBE spineboy-pro.json.txt: "{\"paused\":false,\"hasSkeleton\":true,\"drawOrder\":52,\"attachments\":18,\"skins\":[{\"name\":\"default\",\"entries\":52}],\"slots\":[{\"name\":\"portal-bg\",\"att\":null,\"attName\":null},{\"name\":\"portal-shade\",\"att\":null,\"attName\":null},{\"name\":\"portal-streaks2\",\"att\":null,\"attName\":null},{\"name\":\"portal-streaks1\",\"att\":null,\"attName\":null}],\"curSkin\":\"default\",\"currentViewport\":{\"padLeft\":47.01530210988699,\"padRight\":47.01530210988699,\"padTop\":66.55433716972962,\"padBottom\":66.55433716972962,\"x\":-174.33181688356933,\"y\":-8.175451257066157,\"width\":470.1530210988699,\"height\":665.5433716972962},\"camera\":{\"x\":60.74469366586561,\"y\":324.5962345915819,\"zoom\":1.1185602885668842},\"glLost\":false,\"assetKeys\":0,\"configAnim\":\"idle\",\"timeTotal\":3.009000062942505}"
+screenshot unity-3-json-loaded.png
+LOAD #3 G2.skel.bytes: pill=✅ 就绪 anims=4 skins=3 time=00:00.80 / 00:01.00 overlay=False title=尚未选择文件 body=从左侧选择导出文件或文件夹，点击列表项即可预览。
+支持 .skel / .json，以及 Unity 的 .skel.bytes / .json.txt + .atlas.txt 后缀，无需额外导出一份不带后缀的文件。
+已内置 Spine Web Player 4.1 / 4.2 / 4.3，按导出版本自动选择，无需配置。
+PROBE G2.skel.bytes: "{\"paused\":false,\"hasSkeleton\":true,\"drawOrder\":21,\"attachments\":7,\"skins\":[{\"name\":\"default\",\"entries\":2},{\"name\":\"1\",\"entries\":18},{\"name\":\"2\",\"entries\":18}],\"slots\":[{\"name\":\"yy1\",\"att\":null,\"attName\":null},{\"name\":\"ps10\",\"att\":null,\"attName\":null},{\"name\":\"ps9\",\"att\":null,\"attName\":null},{\"name\":\"ps8\",\"att\":null,\"attName\":null}],\"curSkin\":\"1\",\"currentViewport\":{\"padLeft\":12.082121873730799,\"padRight\":12.082121873730799,\"padTop\":9.55399491830155,\"padBottom\":9.55399491830155,\"x\":-60.672273742680474,\"y\":-6.2971373332029374,\"width\":120.82121873730799,\"height\":95.53994918301551},\"camera\":{\"x\":-0.2616643740264806,\"y\":41.47283725830482,\"zoom\":0.16057134316473196},\"glLost\":false,\"assetKeys\":2,\"configAnim\":\"idle\",\"timeTotal\":0.9110000133514404}"
+screenshot unity-5-real-41-loaded.png
+SKIN SWITCH -> 1 pill=✅ 就绪
+PROBE after skin 1: "{\"paused\":false,\"hasSkeleton\":true,\"drawOrder\":21,\"attachments\":7,\"skins\":[{\"name\":\"default\",\"entries\":2},{\"name\":\"1\",\"entries\":18},{\"name\":\"2\",\"entries\":18}],\"slots\":[{\"name\":\"yy1\",\"att\":null,\"attName\":null},{\"name\":\"ps10\",\"att\":null,\"attName\":null},{\"name\":\"ps9\",\"att\":null,\"attName\":null},{\"name\":\"ps8\",\"att\":null,\"attName\":null}],\"curSkin\":\"1\",\"currentViewport\":{\"padLeft\":12.082121873730799,\"padRight\":12.082121873730799,\"padTop\":9.55399491830155,\"padBottom\":9.55399491830155,\"x\":-60.672273742680474,\"y\":-6.2971373332029374,\"width\":120.82121873730799,\"height\":95.53994918301551},\"camera\":{\"x\":-0.2616643740264806,\"y\":41.47283725830482,\"zoom\":0.16057134316473196},\"glLost\":false,\"assetKeys\":2,\"configAnim\":\"idle\",\"timeTotal\":2.7779998779296875}"
+screenshot unity-6-real-41-skin2.png
+SKIN SWITCH -> 2 pill=✅ 就绪
+PROBE after skin 2: "{\"paused\":false,\"hasSkeleton\":true,\"drawOrder\":21,\"attachments\":7,\"skins\":[{\"name\":\"default\",\"entries\":2},{\"name\":\"1\",\"entries\":18},{\"name\":\"2\",\"entries\":18}],\"slots\":[{\"name\":\"yy1\",\"att\":null,\"attName\":null},{\"name\":\"ps10\",\"att\":null,\"attName\":null},{\"name\":\"ps9\",\"att\":null,\"attName\":null},{\"name\":\"ps8\",\"att\":null,\"attName\":null}],\"curSkin\":\"2\",\"currentViewport\":{\"padLeft\":12.082121873730799,\"padRight\":12.082121873730799,\"padTop\":9.55399491830155,\"padBottom\":9.55399491830155,\"x\":-60.672273742680474,\"y\":-6.2971373332029374,\"width\":120.82121873730799,\"height\":95.53994918301551},\"camera\":{\"x\":-0.2616643740264806,\"y\":41.47283725830482,\"zoom\":0.16057134316473196},\"glLost\":false,\"assetKeys\":2,\"configAnim\":\"idle\",\"timeTotal\":4.644000053405762}"
+screenshot unity-7-real-41-skin3.png
+=== PRODUCT HARNESS RESULT: PASS ===

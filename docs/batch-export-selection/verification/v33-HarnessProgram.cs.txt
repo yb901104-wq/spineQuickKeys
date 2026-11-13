@@ -1,0 +1,508 @@
+using System.ComponentModel;
+using System.Drawing.Imaging;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Windows.Forms;
+using KeyMacro.Forms;
+using KeyMacro.Models;
+
+namespace ExportSelectionHarnessV33;
+
+/// <summary>
+/// V3.3 / AUD-044 端到端 harness。直接构造产品 BatchCliWindow（真实 UI + 真实主题），
+/// 用反射读取私有字段 / 调用私有方法，覆盖设计文档 AC-01~17 中可自动化的断言。
+/// 不写用户工程目录；运行前备份 %APPDATA%\KeyMacro 下配置，结束原样恢复。
+/// </summary>
+internal static class Program
+{
+    private const string Root = @"D:\AI_cc\spineQuickKeys";
+    private const string OutDir = Root + @"\docs\batch-export-selection\verification";
+    private const string LogPath = OutDir + @"\v33-harness-log.txt";
+    private static readonly string AppData =
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "KeyMacro");
+    private static readonly string[] ConfigFiles =
+        ["config.json", ".spine_path", ".cli_spine_path", "path_history.json", "export_presets.json"];
+    private static readonly Dictionary<string, string?> ConfigBackup = [];
+
+    private static bool _ok = true;
+    private static int _pass, _fail;
+    private static Form _win = null!;
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsWindowVisible(IntPtr hWnd);
+
+    private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+    private const uint WmClose = 0x0010;
+
+    /// <summary>找本进程内可见的 Win32 模态对话框（#32770），不受外部窗口抢前台影响。</summary>
+    private static IntPtr FindOwnDialog()
+    {
+        IntPtr found = IntPtr.Zero;
+        var myPid = (uint)Environment.ProcessId;
+        EnumWindows((h, _) =>
+        {
+            GetWindowThreadProcessId(h, out var pid);
+            if (pid != myPid || !IsWindowVisible(h)) return true;
+            var sb = new StringBuilder(64);
+            GetClassName(h, sb, sb.Capacity);
+            if (sb.ToString() != "#32770") return true;
+            found = h;
+            return false;
+        }, IntPtr.Zero);
+        return found;
+    }
+
+    [STAThread]
+    private static void Main()
+    {
+        Directory.CreateDirectory(OutDir);
+        try { File.WriteAllText(LogPath, ""); } catch { }
+        BackupConfig();
+
+        Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
+        Application.EnableVisualStyles();
+        var win = new BatchCliWindow();
+        _win = win;
+        win.Shown += async (_, _) => await RunAsync(win);
+        Application.Run(win);
+    }
+
+    private static void Log(string s)
+    {
+        Console.WriteLine(s);
+        try { File.AppendAllText(LogPath, s + Environment.NewLine); } catch { }
+    }
+
+    private static void Check(bool cond, string msg)
+    {
+        if (cond) _pass++; else { _fail++; _ok = false; }
+        Log((cond ? "PASS " : "FAIL ") + msg);
+    }
+
+    private static object? F(object o, string n) =>
+        o.GetType().GetField(n, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)?.GetValue(o);
+
+    private static object? M(object o, string n, params object?[] args) =>
+        o.GetType().GetMethod(n, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)?.Invoke(o, args);
+
+    private static Button B(Form w, string n) => (Button)F(w, n)!;
+    private static string T(Form w, string n) => B(w, n).Text;
+
+    private static void BackupConfig()
+    {
+        foreach (var f in ConfigFiles)
+        {
+            var p = Path.Combine(AppData, f);
+            ConfigBackup[p] = File.Exists(p) ? File.ReadAllText(p) : null;
+        }
+    }
+
+    private static void RestoreConfig()
+    {
+        foreach (var (p, content) in ConfigBackup)
+        {
+            try
+            {
+                if (content == null) { if (File.Exists(p)) File.Delete(p); }
+                else File.WriteAllText(p, content);
+            }
+            catch { }
+        }
+        Log("settings restored: True");
+    }
+
+    private static void Shot(Form w, string file, bool activate = true)
+    {
+        if (activate) { w.Activate(); Application.DoEvents(); }
+        else Application.DoEvents();
+        using var bmp = new Bitmap(Math.Max(1, w.Width), Math.Max(1, w.Height));
+        using (var g = Graphics.FromImage(bmp))
+            g.CopyFromScreen(w.Left, w.Top, 0, 0, bmp.Size);
+        bmp.Save(Path.Combine(OutDir, file), ImageFormat.Png);
+        Log("SHOT " + file);
+    }
+
+    /// <summary>
+    /// MessageBox 是模态，但 WinForms 的模态循环仍会 pump WM_TIMER，
+    /// 因此 Timer.Tick 可在弹窗显示期间做「运行中」断言，再发 Enter 关闭。
+    /// </summary>
+    private static T InvokeModal<T>(Func<T> action, string tag, Action? onModal = null)
+    {
+        var done = false;
+        var attempts = 0;
+        using var t = new System.Windows.Forms.Timer { Interval = 300 };
+        t.Tick += (_, _) =>
+        {
+            if (done) return;
+            var h = FindOwnDialog();
+            if (h == IntPtr.Zero)
+            {
+                if (++attempts < 30) return;
+                var fgsb = new StringBuilder(64);
+                GetClassName(GetForegroundWindow(), fgsb, fgsb.Capacity);
+                Check(false, tag + " no own dialog appeared (fg=" + fgsb + ")");
+                t.Stop();
+                return;
+            }
+            Log($"MODAL {tag}: dialog hwnd={h}");
+            t.Stop();
+            try { onModal?.Invoke(); }
+            catch (Exception ex) { Check(false, tag + " modal probe threw: " + ex.Message); }
+            // 用 WM_CLOSE 而非 SendKeys：SendKeys 在模态循环里偶发丢失导致挂死。
+            SendMessage(h, WmClose, IntPtr.Zero, IntPtr.Zero);
+        };
+        t.Start();
+        try { return action(); }
+        finally { done = true; t.Stop(); }
+    }
+
+    private static void SelectOnly(ListView lv, params int[] idx)
+    {
+        foreach (ListViewItem it in lv.Items) it.Selected = false;
+        foreach (var i in idx) lv.Items[i].Selected = true;
+        Application.DoEvents();
+    }
+
+    private static List<SpineCliEntry> Snapshot(Form w) =>
+        (List<SpineCliEntry>)M(w, "GetSelectedExportEntries")!;
+
+    /// <summary>把关键控件的屏幕坐标写入日志，用于区分「布局真裁切」与「抓屏抓到桌面」。</summary>
+    private static void LogLayout(Form w, string tag)
+    {
+        var ap = (FlowLayoutPanel)((Control)F(w, "_btnExport")!).Parent!;
+        var ep = (TableLayoutPanel)ap.Parent!;
+        Log($"LAYOUT {tag}: win.Size={w.Size} Client={w.ClientSize} Bounds={w.Bounds}");
+        Log($"LAYOUT {tag}: exportPanel screen={ep.PointToScreen(Point.Empty)} size={ep.Size}");
+        Log($"LAYOUT {tag}: actionPanel boundsInPanel={ap.Bounds} size={ap.Size}");
+        foreach (var n in new[] { "_btnExport", "_btnPack", "_btnExportSelected", "_btnPackSelected", "_btnSavePreset", "_btnVerifyExport" })
+        {
+            var b = B(w, n);
+            var sc = b.PointToScreen(Point.Empty);
+            Log($"LAYOUT {tag}: {n} [{b.Text}] inAP={b.Bounds} screen={sc} size={b.Size} visible={b.Visible}");
+        }
+        var cl = (Label)F(w, "_lblSelectionCount")!;
+        Log($"LAYOUT {tag}: count screen={cl.PointToScreen(Point.Empty)} text=[{cl.Text}]");
+        Log($"LAYOUT {tag}: win.Top={w.Top} win.Bottom={w.Bottom} clientBottomScreen={w.PointToScreen(new Point(0, w.ClientSize.Height)).Y}");
+        Log($"LAYOUT {tag}: actionPanel AutoSize={ap.AutoSize} Wrap={ap.WrapContents} Dock={ap.Dock} Preferred={ap.PreferredSize}");
+        Control? c = ep.Parent;
+        while (c != null && !ReferenceEquals(c, w))
+        {
+            var extra = c is TableLayoutPanel t
+                ? " styles=[" + string.Join(",", t.ColumnStyles.Cast<ColumnStyle>().Select(s => s.SizeType.ToString())) + "]"
+                : "";
+            Log($"LAYOUT {tag}: parent {c.GetType().Name} size={c.Size} AutoSize={c.AutoSize} Dock={c.Dock}{extra}");
+            c = c.Parent;
+        }
+    }
+
+    private static async Task RunAsync(Form w)
+    {
+        // 看门狗：任何模态弹窗未按预期被关闭时，恢复配置后强制退出，避免 harness 挂死。
+        using var watchdog = new System.Windows.Forms.Timer { Interval = 30000 };
+        watchdog.Tick += (_, _) =>
+        {
+            Log("FAIL watchdog timeout (30s)");
+            RestoreConfig();
+            Environment.Exit(3);
+        };
+        watchdog.Start();
+
+        try
+        {
+            Log("=== V3.3 / AUD-044 batch-export-selection PRODUCT HARNESS ===");
+            Log("date " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+
+            // ── A. 程序集与源码静态事实 ──
+            var mainSrc = File.ReadAllText(Path.Combine(Root, @"KeyMacro\Forms\MainForm.cs"));
+            Check(mainSrc.Contains("V3.3"), "version string is V3.3");
+            var clsSrc = File.ReadAllText(Path.Combine(Root, @"KeyMacro\Forms\BatchCliWindow.cs"));
+            Check(!clsSrc.Contains("_btnExport.Text = \"导出\""), "R1: no hardcoded old export text");
+            Check(!clsSrc.Contains("_btnPack.Text = \"单纹理图\""), "R1: no hardcoded old pack text");
+            Check(clsSrc.Contains("ExecuteExportCoreAsync"), "R6: single execution core exists");
+            Check(!clsSrc.Contains("foreach (var entry in _exportEntries)"),
+                "R6: no second foreach over _exportEntries in export/pack loops");
+            Check(clsSrc.Contains("SetCliActionsEnabled(false)"), "R2: unified interlock call exists");
+            Check(clsSrc.Contains("GetSelectedExportEntries()"), "R3: selection snapshot exists");
+
+            var consts = typeof(BatchCliWindow)
+                .GetFields(BindingFlags.Static | BindingFlags.NonPublic)
+                .Where(f => f.IsLiteral)
+                .ToDictionary(f => f.Name, f => (string?)f.GetRawConstantValue());
+            Check(consts.GetValueOrDefault("ExportAllText") == "导出全部", "const ExportAllText");
+            Check(consts.GetValueOrDefault("ExportSelectedText") == "导出选中", "const ExportSelectedText");
+            Check(consts.GetValueOrDefault("PackAllText") == "导出全部单纹理图", "const PackAllText");
+            Check(consts.GetValueOrDefault("PackSelectedText") == "导出选中单纹理图", "const PackSelectedText");
+            Check(consts.GetValueOrDefault("ExportingText") == "导出中...", "const ExportingText");
+            Check(consts.GetValueOrDefault("PackingText") == "打包中...", "const PackingText");
+
+            // ── B. 切到「批量导出」子页 ──
+            var tab = (TabControl)F(w, "_tabControl")!;
+            tab.SelectedIndex = 2;
+            Application.DoEvents();
+            Check(tab.SelectedIndex == 2 && tab.TabPages[2].Text == "批量导出", "export subtab active");
+
+            // ── C. 6 个按钮与布局 ──
+            Check(T(w, "_btnExport") == "导出全部", "AC-01 button 1 renamed");
+            Check(T(w, "_btnPack") == "导出全部单纹理图", "AC-01 button 2 renamed");
+            Check(T(w, "_btnExportSelected") == "导出选中", "AC-01 button 3 added");
+            Check(T(w, "_btnPackSelected") == "导出选中单纹理图", "AC-01 button 4 added");
+            Check(T(w, "_btnSavePreset") == "保存为导出预设", "INV-4 save preset unchanged");
+            Check(T(w, "_btnVerifyExport") == "验证导出结果", "INV-7 verify export unchanged");
+
+            var actionPanel = (FlowLayoutPanel)((Control)F(w, "_btnExport")!).Parent!;
+            Check(actionPanel.Controls.Count == 6, "action row has 6 buttons");
+            var order = actionPanel.Controls.Cast<Control>().Select(c => c.Text).ToArray();
+            Check(order.SequenceEqual(new[]
+            {
+                "导出全部", "导出全部单纹理图", "导出选中", "导出选中单纹理图",
+                "保存为导出预设", "验证导出结果"
+            }), "D4: order = all / selected / other");
+
+            var interlock = (List<Button>)F(w, "_exportActionButtons")!;
+            Check(interlock.Count == 4, "R2: 4 buttons in interlock set");
+            Check(interlock.Contains(B(w, "_btnExport")) && interlock.Contains(B(w, "_btnPack")) &&
+                  interlock.Contains(B(w, "_btnExportSelected")) && interlock.Contains(B(w, "_btnPackSelected")),
+                "R2: interlock set is exactly the 4 export buttons");
+            Check(!interlock.Contains(B(w, "_btnSavePreset")) && !interlock.Contains(B(w, "_btnVerifyExport")),
+                "D5=A: preset / verify buttons excluded from interlock");
+
+            var lv = (ListView)F(w, "_lvExportFiles")!;
+            Check(lv.MultiSelect, "R5: MultiSelect explicitly true");
+            Check(!lv.HideSelection, "R4: HideSelection explicitly false");
+            Check(lv.FullRowSelect, "INV-6: FullRowSelect preserved");
+            Check(lv.CheckBoxes == false, "D1=A: no CheckBoxes introduced");
+            var countLabel = (Label)F(w, "_lblSelectionCount")!;
+            Check(countLabel.Text.StartsWith("已选 0 / 共 0"), "D3: initial selection count");
+
+            // ── D. 注入 8 个假条目（纯内存，不碰磁盘） ──
+            var entries = (BindingList<SpineCliEntry>)F(w, "_exportEntries")!;
+            entries.Clear();
+            lv.Items.Clear();
+            for (var i = 0; i < 8; i++)
+            {
+                var e = new SpineCliEntry { FilePath = $@"D:\fake\v33\hero_{i + 1}.spine" };
+                entries.Add(e);
+                var item = new ListViewItem(e.FileName);
+                item.SubItems.Add("✅");
+                item.SubItems.Add(e.FilePath);
+                item.Tag = e;
+                lv.Items.Add(item);
+            }
+            Application.DoEvents();
+            Check(entries.Count == 8 && lv.Items.Count == 8, "8 in-memory entries injected");
+            // 真实扫描路径在 AddExportEntry 之后调用 RefreshExportStatus；它内部统一刷新计数。
+            M(w, "RefreshExportStatus");
+            Check(countLabel.Text.StartsWith("已选 0 / 共 8"),
+                "D3: count refreshed after list rebuild (via RefreshExportStatus hook)");
+            var srcDir = (TextBox)F(w, "_txtSourceDir")!;
+            var outDir = (TextBox)F(w, "_txtOutputDir")!;
+            srcDir.Text = @"D:\动画工程\示例项目";
+            outDir.Text = @"D:\导出输出";
+
+            // ── E. 选中快照（0 / 1 / 3 / 5 / 8） ──
+            SelectOnly(lv);
+            Check(Snapshot(w).Count == 0, "AC-08 prep: 0 selected -> snapshot 0");
+            Check(countLabel.Text.StartsWith("已选 0 / 共 8"), "D3: 0-selected count via event");
+
+            SelectOnly(lv, 2);
+            var s1 = Snapshot(w);
+            Check(s1.Count == 1 && s1[0].FilePath.EndsWith("hero_3.spine"), "AC-04: 1 selected");
+            Check(countLabel.Text.StartsWith("已选 1 / 共 8"), "D3: 1-selected count");
+
+            SelectOnly(lv, 1, 4, 6);
+            var s3 = Snapshot(w);
+            Check(s3.Count == 3, "AC-05: Ctrl multi-select -> 3");
+            Check(s3[0].FilePath.EndsWith("hero_2.spine") &&
+                  s3[1].FilePath.EndsWith("hero_5.spine") &&
+                  s3[2].FilePath.EndsWith("hero_7.spine"), "D7=A: display order, not click order");
+            Check(countLabel.Text.StartsWith("已选 3 / 共 8"), "D3: 3-selected count");
+
+            // AC-06 模拟 Shift 连选：先清空再选中 5 个连续项（不清空会把上一次的 idx=1 残留成 6 个）
+            SelectOnly(lv, 2, 3, 4, 5, 6);
+            var s5 = Snapshot(w);
+            Check(s5.Count == 5, "AC-06: Shift continuous select -> 5");
+            Check(s5.Select(e => e.FilePath).SequenceEqual(entries.Skip(2).Take(5).Select(e => e.FilePath)),
+                "AC-06: 5 consecutive items in display order");
+
+            foreach (ListViewItem it in lv.Items) it.Selected = true;
+            Application.DoEvents();
+            var s8 = Snapshot(w);
+            Check(s8.Count == 8, "AC-07/E: select all -> 8");
+            Check(s8.Select(e => e.FilePath).SequenceEqual(entries.Select(e => e.FilePath)),
+                "AC-07: select-all equivalent to export-all target set");
+
+            // R3 快照稳定性：取出 3 个的快照后改变选中，快照内容不得漂移
+            SelectOnly(lv, 0, 3, 7);
+            var frozen = Snapshot(w);
+            var frozenPaths = frozen.Select(e => e.FilePath).ToArray();
+            SelectOnly(lv, 1, 2, 3, 4, 5);
+            Check(frozen.Count == 3, "R3: frozen snapshot still has 3 items after reselect");
+            Check(frozen.Select(e => e.FilePath).SequenceEqual(frozenPaths), "R3: frozen items unchanged");
+            Check(ReferenceEquals(frozen[0], lv.Items[0].Tag), "R3: snapshot holds original entry objects");
+
+            // ── F. 统一互锁与文案常量恢复（R1 / R2） ──
+            M(w, "SetCliActionsEnabled", false);
+            Check(interlock.All(b => !b.Enabled), "AC-11: 4 export buttons disabled together");
+            Check(B(w, "_btnSavePreset").Enabled && B(w, "_btnVerifyExport").Enabled,
+                "D5=A: other 2 buttons stay usable while running");
+            B(w, "_btnExport").Text = "导出中...";
+            B(w, "_btnPack").Text = "打包中...";
+            B(w, "_btnExportSelected").Text = "导出中...";
+            B(w, "_btnPackSelected").Text = "打包中...";
+            M(w, "SetCliActionsEnabled", true);
+            Check(interlock.All(b => b.Enabled), "AC-13/H: 4 buttons re-enabled together");
+            Check(T(w, "_btnExport") == "导出全部" && T(w, "_btnPack") == "导出全部单纹理图" &&
+                  T(w, "_btnExportSelected") == "导出选中" && T(w, "_btnPackSelected") == "导出选中单纹理图",
+                "R1/AC-13: finally restores the 4 NEW names (no rollback to 导出/单纹理图)");
+
+            // ── G. 空选中校验（R9 / AC-08 / AC-09） ──
+            Check((bool)M(w, "ValidateSelectionReady", new object?[] { new List<SpineCliEntry> { entries[0] } })!,
+                "ValidateSelectionReady(non-empty) = true, no dialog");
+            SelectOnly(lv);   // 让弹窗截图里的列表确实是 0 选中，避免证据自相矛盾
+            var selFalse = InvokeModal(
+                () => (bool)M(w, "ValidateSelectionReady", new object?[] { new List<SpineCliEntry>() })!,
+                "VSE", onModal: () => Shot(w, "v33-3-noselection.png", activate: false));
+            Check(!selFalse, "R9: empty selection -> false with dedicated prompt");
+
+            // AC-08：0 选中点「导出选中」不启动 CLI、不建输出目录
+            var noOut = Path.Combine(Path.GetTempPath(), "KeyMacroV33Harness", "should-not-exist");
+            if (Directory.Exists(noOut)) Directory.Delete(noOut, true);
+            var cli = F(w, "_cli")!;
+            cli.GetType().GetProperty("SpinePath")!.SetValue(cli, Environment.ExpandEnvironmentVariables(@"%WINDIR%\System32\notepad.exe"));
+            outDir.Text = noOut;
+            SelectOnly(lv);
+            var taskNoSel = InvokeModal(
+                () => (Task)M(w, "RunSelectedAsync", false, B(w, "_btnExportSelected"))!, "RUNSEL0");
+            await taskNoSel;
+            Check(!Directory.Exists(noOut), "AC-08: no output directory created on empty selection");
+            Check(interlock.All(b => b.Enabled), "AC-08: no buttons left disabled");
+            Check(!B(w, "_btnCancelCli").Enabled, "AC-08: CLI operation never started");
+
+            // ── H. 单一执行核心的「运行中互锁」与 finally 恢复 ──
+            var coreOut = Path.Combine(Path.GetTempPath(), "KeyMacroV33Harness", "core-out");
+            Directory.CreateDirectory(coreOut);
+            outDir.Text = coreOut;
+            var triggerExport = B(w, "_btnExportSelected");
+            var tExport = InvokeModal(
+                () => (Task)M(w, "ExecuteExportCoreAsync", new List<SpineCliEntry>(), false, triggerExport)!,
+                "CORE-EXPORT",
+                onModal: () =>
+                {
+                    Shot(w, "v33-4-running.png", activate: false);
+                    Check(interlock.All(b => !b.Enabled), "AC-11: core running keeps 4 buttons disabled");
+                    Check(triggerExport.Text == "导出中...", "core running: export trigger shows 导出中...");
+                    Check(B(w, "_btnSavePreset").Enabled && B(w, "_btnVerifyExport").Enabled,
+                        "core running: D5 other buttons still enabled");
+                    Check(B(w, "_btnCancelCli").Enabled, "core running: 取消CLI enabled");
+                });
+            await tExport;
+            Check(interlock.All(b => b.Enabled), "H/AC-13: core finally re-enables 4 buttons");
+            Check(T(w, "_btnExport") == "导出全部" && T(w, "_btnPack") == "导出全部单纹理图" &&
+                  T(w, "_btnExportSelected") == "导出选中" && T(w, "_btnPackSelected") == "导出选中单纹理图",
+                "H/R1: core finally restores 4 constant names");
+            Check(!B(w, "_btnCancelCli").Enabled, "H: EndCliOperation disables 取消CLI");
+
+            var triggerPack = B(w, "_btnPackSelected");
+            var tPack = InvokeModal(
+                () => (Task)M(w, "ExecuteExportCoreAsync", new List<SpineCliEntry>(), true, triggerPack)!,
+                "CORE-PACK",
+                onModal: () => Check(triggerPack.Text == "打包中...", "core pack mode uses 打包中..."));
+            await tPack;
+            Check(T(w, "_btnPackSelected") == "导出选中单纹理图", "H/R1: pack finally restores selected-pack name");
+
+            // AC-10：空列表时基础校验先拦，只弹一次窗，不启动 CLI
+            entries.Clear();
+            lv.Items.Clear();
+            var tEmpty = InvokeModal(
+                () => (Task)M(w, "ExecuteExport")!, "EMPTY-ALL");
+            await tEmpty;
+            Check(interlock.All(b => b.Enabled), "AC-10: empty list leaves all buttons usable");
+            Check(!B(w, "_btnCancelCli").Enabled, "AC-10: empty list never starts CLI");
+
+            // ── I. 截图与最小窗口布局（AC-17） ──
+            for (var i = 0; i < 6; i++)
+            {
+                var e = new SpineCliEntry { FilePath = $@"D:\fake\v33\hero_{i + 1}.spine" };
+                entries.Add(e);
+                var item = new ListViewItem(e.FileName);
+                item.SubItems.Add(i % 2 == 0 ? "✅" : "❌");
+                item.SubItems.Add(e.FilePath);
+                item.BackColor = i % 2 == 0 ? Color.FromArgb(0xE8, 0xFF, 0xE8) : Color.FromArgb(0xFF, 0xE8, 0xE8);
+                item.Tag = e;
+                lv.Items.Add(item);
+            }
+            outDir.Text = @"D:\导出输出";
+            SelectOnly(lv, 1, 3);
+            M(w, "UpdateSelectionCount");
+            w.Size = new Size(1440, 900);
+            Application.DoEvents();
+            LogLayout(w, "default");
+            Shot(w, "v33-1-default.png");
+            Check(countLabel.Text.StartsWith("已选 2 / 共 6"), "D3: screenshot state count");
+
+            w.Size = new Size(1040, 680);
+            Application.DoEvents();
+            LogLayout(w, "min");
+            Shot(w, "v33-2-min-window.png");
+            var panelBottom = actionPanel.ClientSize.Height;
+            var allSix = interlock.Concat(new[] { B(w, "_btnSavePreset"), B(w, "_btnVerifyExport") }).ToArray();
+            Check(allSix.All(b => b.Bottom <= panelBottom + 1),
+                "AC-17: all 6 buttons inside actionPanel at 1040x680");
+            Check(actionPanel.Height >= 36, "AC-17: action row has full button height");
+            Check(countLabel.Visible, "AC-17: selection count visible at min size");
+
+            // 根因级断言：旧代码里 exportPanel 被内容撑到 1398px 宽，按钮行被推出窗口可视区，
+            // 只检查「相对 actionPanel」的断言会漏掉。这里按屏幕坐标与窗口客户区比较。
+            var ep = (TableLayoutPanel)actionPanel.Parent!;
+            var clientBottomY = w.PointToScreen(new Point(0, w.ClientSize.Height)).Y;
+            Check(ep.Width <= w.ClientSize.Width,
+                $"AC-17 ROOT: exportPanel width {ep.Width} <= client width {w.ClientSize.Width}");
+            Check(allSix.All(b => b.PointToScreen(Point.Empty).Y + b.Height <= clientBottomY),
+                "AC-17 ROOT: all 6 buttons' screen bottom inside window client area");
+            Check(countLabel.PointToScreen(Point.Empty).Y + countLabel.Height <= clientBottomY,
+                "AC-17 ROOT: selection count inside window client area");
+            var listPanel = (Control)F(w, "_lvExportFiles")!;
+            listPanel = ((Control)listPanel).Parent!;
+            // 最小窗口下其它 AutoSize 行（刷新状态 2 行 + 动作按钮 2 行）优先占位，
+            // 列表被压到约 72px（表头 + 2 行，可滚动）。AC-17 的口径是「无裁切、
+            // 功能区均可见」，不要求列表保持大面积；窗口拉大后由 Percent 行自动恢复。
+            Check(listPanel.Height >= 60,
+                $"AC-17: file list still visible (height {listPanel.Height} >= 60, scrollable) at 1040x680");
+            LogLayout(w, "min-after-check");
+
+            watchdog.Stop();
+            Log($"=== V3.3 PRODUCT HARNESS RESULT: {(_ok ? "PASS" : "FAIL")} ===");
+            Log($"PASS={_pass} FAIL={_fail}");
+        }
+        catch (Exception ex)
+        {
+            Log("FAIL harness exception: " + ex);
+            _ok = false;
+            Log("=== V3.3 PRODUCT HARNESS RESULT: FAIL ===");
+            Log($"PASS={_pass} FAIL={_fail}");
+        }
+        finally
+        {
+            RestoreConfig();
+            try { Directory.Delete(Path.Combine(Path.GetTempPath(), "KeyMacroV33Harness"), true); } catch { }
+            w.Close();
+        }
+    }
+}
